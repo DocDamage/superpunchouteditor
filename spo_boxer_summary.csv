@@ -1,0 +1,18 @@
+fighter,reference_sheet,palette_count,icon_count,large_portrait_count,unique_sprite_bin_count,shared_sprite_bin_count,shared_with
+Gabby Jay,sprites/Gabby Jay.png,1,1,1,0,18,Bob Charlie
+Bear Hugger,sprites/Bear Hugger.png,1,1,1,1,49,Mad Clown
+Piston Hurricane,sprites/Piston Hurricane.png,1,1,1,1,25,Aran Ryan
+Bald Bull,sprites/Bald Bull.png,1,1,1,0,45,Mr. Sandman
+Bob Charlie,sprites/Bob Charlie.png,1,1,1,1,18,Gabby Jay
+Dragon Chan,sprites/Dragon Chan.png,1,1,1,2,27,Heike Kagero
+Masked Muscle,sprites/Masked Muscle.png,1,1,1,2,52,Super Macho Man
+Mr. Sandman,sprites/Mr. Sandman.png,1,1,1,0,45,Bald Bull
+Aran Ryan,sprites/Aran Ryan.png,1,1,1,1,25,Piston Hurricane
+Heike Kagero,sprites/Heike Kagero.png,1,1,1,2,27,Dragon Chan
+Mad Clown,sprites/Mad Clown.png,1,1,1,2,49,Bear Hugger
+Super Macho Man,sprites/Super Macho Man.png,1,1,1,1,52,Masked Muscle
+Narcis Prince,sprites/Narcis Prince.png,1,1,1,31,0,
+Hoy Quarlow,sprites/Hoy Quarlow.png,1,1,1,47,0,
+Rick Bruiser,sprites/Rick Bruiser.png,1,1,1,1,51,Nick Bruiser
+Nick Bruiser,sprites/Nick Bruiser.png,1,1,1,1,51,Rick Bruiser
+Little Mac,sprites/Little Mac.png,0,0,0,1,0,
