@@ -1,0 +1,23 @@
+[package]
+name = "spo-editor-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for Super Punch-Out!! Editor"
+repository.workspace = true
+
+[[test]]
+name = "palette_edit_test"
+path = "integration/palette_edit_test.rs"
+
+[[test]]
+name = "portrait_import_test"
+path = "integration/portrait_import_test.rs"
+
+[dependencies]
+rom-core = { workspace = true }
+asset-core = { workspace = true }
+manifest-core = { workspace = true }
+tempfile = { workspace = true }
+image = { workspace = true }

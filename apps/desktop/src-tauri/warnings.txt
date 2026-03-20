@@ -1,0 +1,294 @@
+﻿cargo : warning: unused variable: `asset_comparison`
+At line:1 char:28
++ ... ps/desktop/src-tauri; cargo check --message-format=short 2>&1 | Out-F ...
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused...set_comparison`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\manifest-core\src\comparison.rs:291:9
+    |
+291 |         asset_comparison: &AssetComparison,
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_asset_comparison`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `manifest-core` (lib) generated 1 warning
+warning: unused import: `PathBuf`
+ --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\project-core\src\patch_notes.rs:3:23
+  |
+3 | use std::path::{Path, PathBuf};
+  |                       ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `DateTime`
+ --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\project-core\src\patch_notes.rs:5:14
+  |
+5 | use chrono::{DateTime, Utc};
+  |              ^^^^^^^^
+
+warning: unused import: `Project`
+ --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\project-core\src\patch_notes.rs:7:13
+  |
+7 | use crate::{Project, ProjectFile, ProjectEdit, EditType};
+  |             ^^^^^^^
+
+warning: `project-core` (lib) generated 3 warnings (run `cargo fix --lib -p project-core` to apply 3 suggestions)
+warning: unused variable: `rom_size`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\free_space.rs:159:51
+    |
+159 |     pub fn calculate(regions: &[FreeSpaceRegion], rom_size: usize) -> Self {
+    |                                                   ^^^^^^^^ help: if this is intentional, prefix it with an 
+underscore: `_rom_size`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `search_end`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\relocation.rs:288:28
+    |
+288 |         for (search_start, search_end) in search_ranges {
+    |                            ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_search_end`
+
+warning: unused variable: `size`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\relocation.rs:274:9
+    |
+274 |         size: usize,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_size`
+
+warning: unused variable: `old_start_pc`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\manifest_update.rs:148:37
+    |
+148 | ...                   let old_start_pc = asset.get("start_pc")
+    |                           ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: 
+`_old_start_pc`
+
+warning: type `PendingRelocation` is more private than the item `RelocationPlanner::get_pending_relocations`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\relocation.rs:307:5
+    |
+307 |     pub fn get_pending_relocations(&self) -> &Vec<PendingRelocation> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method 
+`RelocationPlanner::get_pending_relocations` is reachable at visibility `pub`
+    |
+note: but type `PendingRelocation` is only usable at visibility `pub(self)`
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\relocation.rs:223:1
+    |
+223 | struct PendingRelocation {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: fields `source_pc`, `dest_pc`, `size`, and `pointer_updates` are never read
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\relocation-core\src\relocation.rs:224:5
+    |
+223 | struct PendingRelocation {
+    |        ----------------- fields in this struct
+224 |     source_pc: usize,
+    |     ^^^^^^^^^
+225 |     dest_pc: usize,
+    |     ^^^^^^^
+226 |     size: usize,
+    |     ^^^^
+227 |     pointer_updates: Vec<PointerUpdate>,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `PendingRelocation` has derived impls for the traits `Clone` and `Debug`, but these are intentionally 
+ignored during dead code analysis
+    = note: `#[warn(dead_code)]` on by default
+
+warning: field `rom` is never read
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\script-core\src\animation.rs:187:5
+    |
+186 | pub struct AnimationManager<'a> {
+    |            ---------------- field in this struct
+187 |     rom: &'a Rom,
+    |     ^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `relocation-core` (lib) generated 6 warnings
+warning: `script-core` (lib) generated 1 warning
+warning: unused imports: `Hitbox` and `SpriteEntry`
+ --> src\lib.rs:3:108
+  |
+3 | use asset_core::{decode_palette, Color, encode_4bpp_sheet, image_to_tiles, Frame, FrameData, FrameSummary, 
+SpriteEntry, Hitbox, FrameMana...
+  |                                                                                                            
+^^^^^^^^^^^  ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::fs`
+ --> src\lib.rs:7:5
+  |
+7 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused imports: `EmulatorType` and `GameStateConfig`
+  --> src\lib.rs:24:34
+   |
+24 | use emulator::{EmulatorLauncher, EmulatorType, EmulatorSettings, GameStateConfig, EmulatorInfo};
+   |                                  ^^^^^^^^^^^^                    ^^^^^^^^^^^^^^^
+
+warning: unused imports: `AnimationFrame` and `AnimationPlayback`
+    --> src\lib.rs:1348:41
+     |
+1348 | use script_core::animation::{Animation, AnimationFrame, AnimationManager, FighterAnimations, AnimationPlayback};
+     |                                         ^^^^^^^^^^^^^^                                       ^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src\lib.rs:825:9
+    |
+825 |     let mut project = if let Some(path) = project_path {
+    |         ----^^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `f_meta`
+    --> src\lib.rs:1761:9
+     |
+1761 |     let f_meta = fighters.get(fighter_id).ok_or("Invalid fighter ID")?;
+     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_f_meta`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `fighter_name`
+    --> src\lib.rs:2010:10
+     |
+2010 |     for (fighter_name, boxer) in &state.manifest.fighters {
+     |          ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_fighter_name`
+
+warning: unused variable: `palette`
+    --> src\lib.rs:2650:5
+     |
+2650 |     palette: &[asset_core::Color],
+     |     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_palette`
+
+warning: field `color_index` is never read
+  --> src\undo.rs:18:9
+   |
+16 |     PaletteEdit {
+   |     ----------- field in this variant
+17 |         pc_offset: String,
+18 |         color_index: usize,
+   |         ^^^^^^^^^^^
+   |
+   = note: `EditAction` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored 
+during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `source_path` is never read
+  --> src\undo.rs:42:9
+   |
+38 |     AssetImport {
+   |     ----------- field in this variant
+...
+42 |         source_path: String,
+   |         ^^^^^^^^^^^
+   |
+   = note: `EditAction` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored 
+during dead code analysis
+
+warning: variants `PaletteReplace`, `Relocation`, and `BatchEdit` are never constructed
+  --> src\undo.rs:24:5
+   |
+14 | pub enum EditAction {
+   |          ---------- variants in this enum
+...
+24 |     PaletteReplace {
+   |     ^^^^^^^^^^^^^^
+...
+46 |     Relocation {
+   |     ^^^^^^^^^^
+...
+56 |     BatchEdit {
+   |     ^^^^^^^^^
+   |
+   = note: `EditAction` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored 
+during dead code analysis
+
+warning: methods `undo_count`, `redo_count`, `peek_undo`, and `peek_redo` are never used
+   --> src\undo.rs:193:12
+    |
+149 | impl EditHistory {
+    | ---------------- methods in this implementation
+...
+193 |     pub fn undo_count(&self) -> usize {
+    |            ^^^^^^^^^^
+...
+198 |     pub fn redo_count(&self) -> usize {
+    |            ^^^^^^^^^^
+...
+272 |     pub fn peek_undo(&self) -> Option<&EditAction> {
+    |            ^^^^^^^^^
+...
+277 |     pub fn peek_redo(&self) -> Option<&EditAction> {
+    |            ^^^^^^^^^
+
+warning: function `create_relocation` is never used
+   --> src\undo.rs:331:8
+    |
+331 | pub fn create_relocation(
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: function `create_batch_edit` is never used
+   --> src\undo.rs:351:8
+    |
+351 | pub fn create_batch_edit(actions: Vec<EditAction>, description: &str) -> EditAction {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: methods `display_name` and `default_executable` are never used
+  --> src\emulator.rs:26:12
+   |
+24 | impl EmulatorType {
+   | ----------------- methods in this implementation
+25 |     /// Get the display name for this emulator type
+26 |     pub fn display_name(&self) -> &'static str {
+   |            ^^^^^^^^^^^^
+...
+36 |     pub fn default_executable(&self) -> &'static str {
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: associated functions `create_quick_save`, `get_common_install_paths`, and `auto_detect_emulator` are never 
+used
+   --> src\emulator.rs:374:12
+    |
+180 | impl EmulatorLauncher {
+    | --------------------- associated functions in this implementation
+...
+374 |     pub fn create_quick_save(
+    |            ^^^^^^^^^^^^^^^^^
+...
+454 |     pub fn get_common_install_paths() -> Vec<PathBuf> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+500 |     pub fn auto_detect_emulator(emulator_type: EmulatorType) -> Option<PathBuf> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `boxer_preset` is never used
+   --> src\emulator.rs:532:12
+    |
+532 |     pub fn boxer_preset(boxer_index: u8, round: u8) -> GameStateConfig {
+    |            ^^^^^^^^^^^^
+
+warning: function `knockdown_preset` is never used
+   --> src\emulator.rs:543:12
+    |
+543 |     pub fn knockdown_preset(boxer_index: u8) -> GameStateConfig {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `low_health_preset` is never used
+   --> src\emulator.rs:554:12
+    |
+554 |     pub fn low_health_preset(boxer_index: u8) -> GameStateConfig {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: function `cornerman_preset` is never used
+   --> src\emulator.rs:565:12
+    |
+565 |     pub fn cornerman_preset(boxer_index: u8) -> GameStateConfig {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: `tauri-appsuper-punch-out-editor` (lib) generated 20 warnings (run `cargo fix --lib -p 
+tauri-appsuper-punch-out-editor` to apply 5 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s

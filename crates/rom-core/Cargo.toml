@@ -1,0 +1,13 @@
+[package]
+name = "rom-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core ROM handling for Super Punch-Out!! Editor"
+repository.workspace = true
+
+[dependencies]
+sha1 = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }

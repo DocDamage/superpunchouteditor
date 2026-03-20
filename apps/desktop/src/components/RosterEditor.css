@@ -1,0 +1,736 @@
+/**
+ * Roster Metadata Editor Styles
+ */
+
+.roster-editor {
+  background: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.roster-editor-empty,
+.roster-editor-loading {
+  padding: 3rem 2rem;
+  text-align: center;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.roster-editor-empty h3,
+.roster-editor-loading h3 {
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.roster-editor-loading p {
+  color: var(--text-dim);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Header */
+.roster-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: var(--glass);
+  border-bottom: 1px solid var(--border);
+}
+
+.roster-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.roster-editor-title h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text);
+}
+
+.validation-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.validation-badge.valid {
+  background: #4ade80;
+  color: #064e3b;
+}
+
+.validation-badge.warning {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.validation-badge.error {
+  background: #f87171;
+  color: #7f1d1d;
+}
+
+.roster-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  background: var(--blue);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--blue-light, #3b82f6);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Error message */
+.roster-editor-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(248, 113, 113, 0.1);
+  border-left: 3px solid #f87171;
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+.error-icon {
+  font-size: 1rem;
+}
+
+/* Tabs */
+.roster-editor-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  background: var(--glass);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+/* Content */
+.roster-editor-content {
+  padding: 1.5rem;
+  min-height: 400px;
+}
+
+/* Saving indicator */
+.roster-editor-saving {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--glass);
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+/* ============================================================================
+   Boxer Name Editor Styles
+   ============================================================================ */
+
+.name-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editor-help {
+  padding: 0.75rem 1rem;
+  background: var(--glass);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+.editor-help p {
+  margin: 0;
+}
+
+.name-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.name-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--glass);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.name-item:hover {
+  border-color: var(--blue);
+}
+
+.name-item-id {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.name-item-circuit {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.circuit-minor {
+  background: #4ade80;
+  color: #064e3b;
+}
+
+.circuit-major {
+  background: #60a5fa;
+  color: #1e3a8a;
+}
+
+.circuit-world {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.circuit-special {
+  background: #f87171;
+  color: #7f1d1d;
+}
+
+.name-input-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.name-input {
+  padding: 0.5rem 0.75rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.name-input.invalid {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.name-validation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.name-validation.valid {
+  color: #4ade80;
+}
+
+.name-validation.invalid {
+  color: #f87171;
+}
+
+.char-count {
+  color: var(--text-dim);
+}
+
+/* ============================================================================
+   Circuit Editor Styles
+   ============================================================================ */
+
+.circuit-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.circuits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.circuit-card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.circuit-card.champion {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px #fbbf24;
+}
+
+.circuit-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--border);
+}
+
+.circuit-icon {
+  font-size: 1.25rem;
+}
+
+.circuit-header h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.champion-badge {
+  padding: 0.125rem 0.5rem;
+  background: #fbbf24;
+  color: #78350f;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.circuit-boxers {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 120px;
+}
+
+.circuit-boxer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--panel-bg);
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.circuit-boxer-item:hover {
+  background: var(--border);
+}
+
+.circuit-boxer-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.circuit-selector {
+  padding: 0.25rem 0.5rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.circuit-selector:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.circuit-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--glass);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.circuit-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ============================================================================
+   Unlock Order Editor Styles
+   ============================================================================ */
+
+.unlock-order-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.unlock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.unlock-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.unlock-item.champion {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.unlock-rank {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blue);
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.unlock-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.unlock-info .boxer-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.unlock-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.order-input {
+  width: 60px;
+  padding: 0.375rem 0.5rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  text-align: center;
+}
+
+.order-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.champion-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.champion-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ============================================================================
+   Intro Text Editor Styles
+   ============================================================================ */
+
+.intro-text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.intro-editor-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+  min-height: 400px;
+}
+
+.boxer-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.boxer-selector h4 {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.boxer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.boxer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.boxer-btn:hover {
+  background: var(--border);
+}
+
+.boxer-btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+
+.boxer-btn .circuit-badge {
+  font-size: 0.625rem;
+  opacity: 0.8;
+}
+
+.text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.loading-indicator {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+
+.intro-textarea {
+  flex: 1;
+  padding: 1rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.intro-textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.intro-textarea.invalid {
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.validation-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.validation-status.valid {
+  color: #4ade80;
+}
+
+.validation-status.invalid {
+  color: #f87171;
+}
+
+.error-message {
+  color: #f87171;
+}
+
+.no-selection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 0.9375rem;
+}
+
+.editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .roster-editor-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .roster-editor-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  .intro-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .boxer-list {
+    max-height: 200px;
+  }
+  
+  .circuits-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .unlock-item {
+    flex-wrap: wrap;
+  }
+  
+  .unlock-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

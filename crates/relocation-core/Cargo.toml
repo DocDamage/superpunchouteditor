@@ -1,0 +1,19 @@
+[package]
+name = "relocation-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Data relocation management for Super Punch-Out!! Editor"
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rom-core = { workspace = true }
+manifest-core = { workspace = true }
+
+[lib]
+name = "relocation_core"
+path = "src/lib.rs"

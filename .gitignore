@@ -1,0 +1,51 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+
+# Node (if using any Node tools)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Test outputs
+test-output/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Large files
+*.rom
+*.smc
+*.sfc
+*.ips
+*.bps
+*.zip
+*.tar.gz
+*.rar

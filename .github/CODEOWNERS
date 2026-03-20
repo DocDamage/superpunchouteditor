@@ -1,0 +1,14 @@
+# Global owners
+* @yourusername
+
+# Rust code
+*.rs @yourusername
+Cargo.toml @yourusername
+
+# Frontend
+*.tsx @yourusername
+*.ts @yourusername
+
+# Documentation
+docs/ @yourusername
+*.md @yourusername

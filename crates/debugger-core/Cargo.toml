@@ -1,0 +1,21 @@
+[package]
+name = "debugger-core"
+version = "2.0.0"
+edition = "2021"
+authors = ["Super Punch-Out!! Editor Team"]
+license = "MIT"
+description = "Advanced debugging tools for Super Punch-Out!! ROM hacking"
+repository = "https://github.com/yourusername/super-punch-out-editor"
+
+[dependencies]
+rom-core = { workspace = true }
+emulator-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+parking_lot = { workspace = true }
+bitflags = "2.4"
+log = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4"

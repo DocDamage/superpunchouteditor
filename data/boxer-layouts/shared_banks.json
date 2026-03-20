@@ -1,0 +1,17 @@
+{
+  "_comment": "Shared bank pairs in Super Punch-Out!! Each pair shares all sprite graphics banks.",
+  "shared_pairs": [
+    { "fighters": ["Gabby Jay", "Bob Charlie"], "note": "First circuit pair — easiest ring-in / ring-out" },
+    { "fighters": ["Bear Hugger", "Mad Clown"], "note": "Heavy fighters share large body builds" },
+    { "fighters": ["Piston Hurricane", "Aran Ryan"], "note": "Fast punch-heavy fighters" },
+    { "fighters": ["Bald Bull", "Mr. Sandman"], "note": "Power fighters, large frame" },
+    { "fighters": ["Dragon Chan", "Heike Kagero"], "note": "Martial arts themed — kick animations" },
+    { "fighters": ["Masked Muscle", "Super Macho Man"], "note": "Showboater types" },
+    { "fighters": ["Rick Bruiser", "Nick Bruiser"], "note": "Final boss pair — heaviest hitters" }
+  ],
+  "safe_solo_fighters": [
+    { "fighter": "Hoy Quarlow", "note": "47 unique bins, 0 shared — Tier 1 safe target" },
+    { "fighter": "Narcis Prince", "note": "31 unique bins, 0 shared — Tier 1 safe target" },
+    { "fighter": "Little Mac", "note": "Player character — unique but limited bins" }
+  ]
+}

@@ -1,0 +1,210 @@
+/* Tooltip Styles */
+
+.tooltip-trigger {
+  display: inline-flex;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 1100;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-content {
+  background: var(--tooltip-bg, #0f0f1a);
+  color: var(--text, #e2e8f0);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border, #2d2d44);
+  pointer-events: auto;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--tooltip-bg, #0f0f1a);
+  border: 1px solid var(--border, #2d2d44);
+  transform: rotate(45deg);
+}
+
+/* Placement-specific arrow positioning */
+.tooltip-top .tooltip-arrow {
+  bottom: -4px;
+  left: 50%;
+  margin-left: -4px;
+  border-top: none;
+  border-left: none;
+}
+
+.tooltip-bottom .tooltip-arrow {
+  top: -4px;
+  left: 50%;
+  margin-left: -4px;
+  border-bottom: none;
+  border-right: none;
+}
+
+.tooltip-left .tooltip-arrow {
+  right: -4px;
+  top: 50%;
+  margin-top: -4px;
+  border-bottom: none;
+  border-left: none;
+}
+
+.tooltip-right .tooltip-arrow {
+  left: -4px;
+  top: 50%;
+  margin-top: -4px;
+  border-top: none;
+  border-right: none;
+}
+
+/* Rich Tooltip Styles */
+.rich-tooltip {
+  min-width: 200px;
+}
+
+.rich-tooltip-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  color: var(--text, #e2e8f0);
+}
+
+.rich-tooltip-description {
+  color: var(--text-dim, #94a3b8);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.rich-tooltip-shortcut {
+  margin-top: 0.5rem;
+}
+
+.rich-tooltip-shortcut kbd {
+  display: inline-block;
+  background: var(--glass, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--border, #2d2d44);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-dim, #94a3b8);
+}
+
+.rich-tooltip-link {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--glass, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, #2d2d44);
+  border-radius: 4px;
+  color: var(--blue, #60a5fa);
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.rich-tooltip-link:hover {
+  background: var(--glass, rgba(255, 255, 255, 0.1));
+  border-color: var(--blue, #60a5fa);
+}
+
+/* Info Tooltip */
+.info-tooltip-text {
+  display: block;
+  max-width: 240px;
+}
+
+/* Tooltip sizes */
+.tooltip-small .tooltip-content {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.tooltip-large .tooltip-content {
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+}
+
+/* Tooltip variants */
+.tooltip-info .tooltip-content {
+  border-left: 3px solid var(--blue, #60a5fa);
+}
+
+.tooltip-success .tooltip-content {
+  border-left: 3px solid var(--accent, #4ade80);
+}
+
+.tooltip-warning .tooltip-content {
+  border-left: 3px solid var(--warning, #fbbf24);
+}
+
+.tooltip-error .tooltip-content {
+  border-left: 3px solid var(--error, #f87171);
+}
+
+/* Code/tooltip content styling */
+.tooltip-content code {
+  background: var(--glass, rgba(255, 255, 255, 0.1));
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9em;
+}
+
+.tooltip-content pre {
+  background: var(--glass, rgba(0, 0, 0, 0.3));
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+
+.tooltip-content ul,
+.tooltip-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.tooltip-content li {
+  margin-bottom: 0.25rem;
+}
+
+/* Table styling in tooltips */
+.tooltip-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.tooltip-content th,
+.tooltip-content td {
+  border: 1px solid var(--border, #2d2d44);
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+}
+
+.tooltip-content th {
+  background: var(--glass, rgba(255, 255, 255, 0.05));
+}

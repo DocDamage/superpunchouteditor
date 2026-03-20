@@ -1,0 +1,54 @@
+[config]
+default_to_workspace = false
+
+[tasks.default]
+alias = "dev"
+
+[tasks.dev]
+command = "cargo"
+args = ["tauri", "dev"]
+
+[tasks.build]
+command = "cargo"
+args = ["build", "--workspace", "--release"]
+
+[tasks.test]
+command = "cargo"
+args = ["test", "--workspace"]
+
+[tasks.lint]
+dependencies = ["fmt", "clippy"]
+
+[tasks.fmt]
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--workspace", "--", "-D", "warnings"]
+
+[tasks.check]
+dependencies = ["test", "lint"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.setup]
+description = "Setup development environment"
+script = '''
+echo "Installing dependencies..."
+rustup component add rustfmt clippy
+cargo install cargo-make cargo-audit
+pip install pre-commit
+pre-commit install
+echo "Setup complete!"
+'''
+
+[tasks.audit]
+command = "cargo"
+args = ["audit"]
+
+[tasks.doc]
+command = "cargo"
+args = ["doc", "--workspace", "--no-deps"]

@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "name": "Example HD Layouts",
+  "author": "SPO!! Editor Team",
+  "description": "Example layout pack demonstrating the Community Layout Packs feature. This is a template you can use to create your own layout packs.",
+  "created_at": "2026-03-19T12:00:00Z",
+  "layouts": [
+    {
+      "boxer_key": "Hoy Quarlow",
+      "version": "1.0",
+      "layout_type": "reference",
+      "bins": [
+        {
+          "filename": "GFX_Sprite_HoyQuarlow1.bin",
+          "pc_offset": "0x180000",
+          "size": 2048,
+          "category": "Compressed Sprite",
+          "label": "Main Body A - Standing, idle, intro animations"
+        },
+        {
+          "filename": "GFX_Sprite_HoyQuarlow2.bin",
+          "pc_offset": "0x180800",
+          "size": 2048,
+          "category": "Compressed Sprite",
+          "label": "Main Body B - Punching, blocking animations"
+        }
+      ],
+      "notes": "Example layout for Hoy Quarlow - all unique bins, no shared banks"
+    },
+    {
+      "boxer_key": "Narcis Prince",
+      "version": "1.0",
+      "layout_type": "reference",
+      "bins": [
+        {
+          "filename": "GFX_Sprite_NarcisPrince1.bin",
+          "pc_offset": "0x190000",
+          "size": 2048,
+          "category": "Compressed Sprite",
+          "label": "Main body sprites"
+        }
+      ],
+      "notes": "Example layout for Narcis Prince"
+    }
+  ]
+}

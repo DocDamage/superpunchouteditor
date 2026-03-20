@@ -1,0 +1,11 @@
+[package]
+name = "patch-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ROM patching utilities for Super Punch-Out!! Editor"
+repository.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }

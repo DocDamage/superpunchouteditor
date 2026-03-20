@@ -1,0 +1,59 @@
+{
+  "_comment": "PAL/EUROPEAN VERSION MANIFEST - RESEARCH NEEDED",
+  "_warning": "This manifest is a placeholder. Addresses and offsets need to be researched for the PAL version.",
+  "_research_todos": [
+    "Verify ROM SHA1 hash for PAL version",
+    "Identify internal header title",
+    "Map fighter header table addresses",
+    "Map palette table addresses (may differ from USA)",
+    "Map sprite/graphics table addresses",
+    "Map text/translation table addresses (may have multi-language)",
+    "Map music table addresses",
+    "Identify PAL-specific timing adjustments (50Hz)",
+    "Document any PAL-exclusive content or changes",
+    "Research boxer name translations for European markets",
+    "Test all asset extraction with actual PAL ROM"
+  ],
+  "source_rom": {
+    "filename": "Super Punch-Out!! (Europe).sfc",
+    "sha1": "TODO_RESEARCH_PAL_SHA1",
+    "size_bytes": 2097152,
+    "format": "SNES LoROM, headerless, European/PAL version",
+    "region": "PAL",
+    "language": "Multi-language (likely EN/FR/DE/ES/IT)",
+    "expected_title": "TODO: Research PAL title"
+  },
+  "asset_counts": {
+    "Graphics": "TODO",
+    "Graphics/Compressed": "TODO",
+    "Tilemaps/Compressed": "TODO",
+    "Palettes": "TODO",
+    "GarbageData": "TODO",
+    "SPC700/Music": "TODO",
+    "SPC700/Samples": "TODO"
+  },
+  "fighters": {},
+  "region_notes": {
+    "text_encoding": "Likely supports multiple European languages",
+    "name_changes": [
+      "TODO: Research European boxer names",
+      "Some names may be localized (e.g., French, German)",
+      "TODO: Check for any exclusive PAL boxers"
+    ],
+    "timing_differences": "50Hz PAL timing - game may run slower or have adjustments",
+    "content_differences": "TODO: Research any PAL-specific content changes",
+    "language_select": "TODO: Check if game has in-game language selection"
+  },
+  "address_mapping": {
+    "_comment": "These are placeholder offsets - DO NOT USE FOR EDITING",
+    "fighter_header_table": "TODO",
+    "palette_table": "TODO",
+    "sprite_table": "TODO",
+    "text_table": "TODO",
+    "music_table": "TODO",
+    "script_table": "TODO",
+    "animation_table": "TODO",
+    "boxer_names_table": "TODO",
+    "circuit_table": "TODO"
+  }
+}

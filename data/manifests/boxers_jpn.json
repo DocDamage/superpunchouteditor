@@ -1,0 +1,57 @@
+{
+  "_comment": "JAPANESE VERSION MANIFEST - RESEARCH NEEDED",
+  "_warning": "This manifest is a placeholder. Addresses and offsets need to be researched for the Japanese version.",
+  "_research_todos": [
+    "Verify ROM SHA1 hash for Japanese version",
+    "Identify internal header title (Japanese characters)",
+    "Map fighter header table addresses",
+    "Map palette table addresses (may differ from USA)",
+    "Map sprite/graphics table addresses",
+    "Map text/translation table addresses",
+    "Map music table addresses",
+    "Identify any JPN-specific text encoding differences",
+    "Document any JPN-exclusive content or changes",
+    "Test all asset extraction with actual JPN ROM"
+  ],
+  "source_rom": {
+    "filename": "Super Punch-Out!! (Japan).sfc",
+    "sha1": "TODO_RESEARCH_JPN_SHA1",
+    "size_bytes": 2097152,
+    "format": "SNES LoROM, headerless, Japanese version",
+    "region": "JPN",
+    "language": "Japanese",
+    "expected_title": "TODO: Research Japanese title"
+  },
+  "asset_counts": {
+    "Graphics": "TODO",
+    "Graphics/Compressed": "TODO",
+    "Tilemaps/Compressed": "TODO",
+    "Palettes": "TODO",
+    "GarbageData": "TODO",
+    "SPC700/Music": "TODO",
+    "SPC700/Samples": "TODO"
+  },
+  "fighters": {},
+  "region_notes": {
+    "text_encoding": "Likely uses Shift-JIS or custom encoding for Japanese text",
+    "name_changes": [
+      "TODO: Research Japanese boxer names",
+      "Some names may be romanized differently",
+      "TODO: Check for any exclusive JP boxers"
+    ],
+    "timing_differences": "Standard 60Hz NTSC timing (same as USA)",
+    "content_differences": "TODO: Research any JP-specific content changes"
+  },
+  "address_mapping": {
+    "_comment": "These are placeholder offsets - DO NOT USE FOR EDITING",
+    "fighter_header_table": "TODO",
+    "palette_table": "TODO",
+    "sprite_table": "TODO",
+    "text_table": "TODO",
+    "music_table": "TODO",
+    "script_table": "TODO",
+    "animation_table": "TODO",
+    "boxer_names_table": "TODO",
+    "circuit_table": "TODO"
+  }
+}
