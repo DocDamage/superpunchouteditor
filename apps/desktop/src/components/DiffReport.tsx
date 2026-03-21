@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useStore, type RomComparison } from '../store/useStore';
 import { save } from '@tauri-apps/plugin-dialog';
+import { showToast } from './ToastContainer';
 
 interface DiffReportProps {
   comparison: RomComparison | null;
@@ -26,10 +27,10 @@ export const DiffReport: React.FC<DiffReportProps> = ({ comparison }) => {
       setExporting(true);
       try {
         await exportComparisonReport(selected, format);
-        alert(`Report exported successfully to ${selected}`);
+        showToast(`Report exported to ${selected}`, 'success');
       } catch (e) {
         console.error('Export failed:', e);
-        alert('Export failed: ' + (e as Error).message);
+        showToast('Export failed: ' + (e as Error).message, 'error');
       } finally {
         setExporting(false);
       }

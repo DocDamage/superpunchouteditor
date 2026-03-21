@@ -28,6 +28,8 @@ export interface EmulatorCanvasProps {
   className?: string;
   /** Optional style */
   style?: React.CSSProperties;
+  /** Optional external canvas ref */
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
 }
 
 // SNES resolution constants
@@ -46,9 +48,11 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
   onCanvasReady,
   className = '',
   style = {},
+  canvasRef: externalCanvasRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const internalCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = externalCanvasRef ?? internalCanvasRef;
   const [scale, setScale] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 

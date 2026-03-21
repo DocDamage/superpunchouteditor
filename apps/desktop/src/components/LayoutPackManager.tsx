@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useStore } from '../store/useStore';
+import { showToast } from './ToastContainer';
 import { 
   LayoutPackInfo, 
   LayoutPack, 
@@ -118,7 +119,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
       }
       
       await invoke('apply_layout_pack', { packPath, boxerKeys });
-      alert(`Applied layout pack "${pack.name}" to ${boxerKeys.length} boxer(s)`);
+      showToast(`Applied layout pack "${pack.name}" to ${boxerKeys.length} boxer(s).`, 'success');
     } catch (e) {
       setError(`Failed to apply pack: ${e}`);
     }
@@ -165,7 +166,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
       });
       
       setExportDialogOpen(false);
-      alert('Layout pack exported successfully!');
+      showToast('Layout pack exported.', 'success');
     } catch (e) {
       setError(`Failed to export pack: ${e}`);
     }

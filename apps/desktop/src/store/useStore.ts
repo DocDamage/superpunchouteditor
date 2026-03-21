@@ -453,7 +453,12 @@ interface AppStore {
   setError: (error: string | null) => void;
   updateColor: (index: number, newColor: Color, pcOffset?: string) => void;
   exportAsset: (asset: any, palette: any, path: string) => Promise<void>;
-  importAsset: (palette: any, path: string) => Promise<Uint8Array | null>;
+  importAsset: (asset: any, palette: any, path: string) => Promise<{
+    bytes: Uint8Array;
+    fits: boolean;
+    newSize: number;
+    originalSize: number;
+  } | null>;
 
   setPendingWrite: (pcOffset: string) => void;
   removePendingWrite: (pcOffset: string) => void;
@@ -939,15 +944,23 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  importAsset: async (palette, path) => {
+  importAsset: async (asset, palette, path) => {
     try {
-      const bytes = await invoke<number[]>('import_asset_from_png', {
+      const [newSize, originalSize, fits] = await invoke<[number, number, boolean]>('import_graphic_asset_from_png', {
+        pcOffset: asset.start_pc,
+        originalSize: asset.size,
         pngPath: path,
         palettePcOffset: palette.start_pc,
         paletteSize: palette.size,
       });
+      const bytes = await invoke<number[]>('get_pending_bytes', { pcOffset: asset.start_pc });
       set({ error: null });
-      return new Uint8Array(bytes);
+      return {
+        bytes: new Uint8Array(bytes),
+        fits,
+        newSize,
+        originalSize,
+      };
     } catch (e) {
       set({ error: (e as Error).toString() });
       return null;
@@ -1535,7 +1548,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   getSimilarBoxers: async (referenceKey: string, limit?: number) => {
     try {
-      const result = await invoke('get_similar_boxers', {
+      const result = await invoke<unknown[]>('get_similar_boxers', {
         referenceKey,
         limit: limit || 5,
       });

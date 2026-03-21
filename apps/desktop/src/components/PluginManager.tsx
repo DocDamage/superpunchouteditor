@@ -1,5 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { showToast } from './ToastContainer';
 
 // ============================================================================
 // Type Definitions
@@ -109,62 +111,212 @@ interface UseBatchJobsResult {
 }
 
 // ============================================================================
-// Stub Hooks (to be replaced with actual implementations)
+// Hooks — wired to real Tauri commands
 // ============================================================================
 
-// These are placeholder implementations that will be replaced by another agent
-const usePlugins = (): UsePluginsResult => ({
-  plugins: [],
-  isLoading: false,
-  error: null,
-  refetch: () => {},
-});
+interface PluginInfoResponse {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  enabled: boolean;
+  path: string;
+  loaded_at: string;
+}
 
-const useLoadPlugin = (): UseLoadPluginResult => ({
-  loadPlugin: async () => {},
-  isLoading: false,
-  error: null,
-});
+function toPlugin(info: PluginInfoResponse): Plugin {
+  return { ...info, commands: [] };
+}
 
-const useUnloadPlugin = (): UseUnloadPluginResult => ({
-  unloadPlugin: async () => {},
-  isLoading: false,
-  error: null,
-});
+const usePlugins = (): UsePluginsResult => {
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const useEnablePlugin = (): UseEnablePluginResult => ({
-  enablePlugin: async () => {},
-  isLoading: false,
-  error: null,
-});
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await invoke<PluginInfoResponse[]>('list_plugins');
+      setPlugins(result.map(toPlugin));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-const useDisablePlugin = (): UseDisablePluginResult => ({
-  disablePlugin: async () => {},
-  isLoading: false,
-  error: null,
-});
+  useEffect(() => { void refetch(); }, [refetch]);
 
-const useExecutePluginCommand = (): UseExecutePluginCommandResult => ({
-  executeCommand: async () => ({}),
-  isLoading: false,
-  error: null,
-  result: null,
-});
+  return { plugins, isLoading, error, refetch };
+};
 
-const useRunScript = (): UseRunScriptResult => ({
-  runScript: async () => ({ success: true, output: '', execution_time_ms: 0 }),
-  isLoading: false,
-  error: null,
-  output: null,
-});
+const useLoadPlugin = (refetch: () => void): UseLoadPluginResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const useBatchJobs = (): UseBatchJobsResult => ({
-  jobs: [],
-  isLoading: false,
-  error: null,
-  refetch: () => {},
-  cancelJob: async () => {},
-});
+  const loadPlugin = useCallback(async (path: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await invoke('load_plugin', { path });
+      refetch();
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refetch]);
+
+  return { loadPlugin, isLoading, error };
+};
+
+const useUnloadPlugin = (refetch: () => void): UseUnloadPluginResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const unloadPlugin = useCallback(async (pluginId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await invoke('unload_plugin', { pluginId });
+      refetch();
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refetch]);
+
+  return { unloadPlugin, isLoading, error };
+};
+
+const useEnablePlugin = (refetch: () => void): UseEnablePluginResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const enablePlugin = useCallback(async (pluginId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await invoke('enable_plugin', { pluginId });
+      refetch();
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refetch]);
+
+  return { enablePlugin, isLoading, error };
+};
+
+const useDisablePlugin = (refetch: () => void): UseDisablePluginResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const disablePlugin = useCallback(async (pluginId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await invoke('disable_plugin', { pluginId });
+      refetch();
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refetch]);
+
+  return { disablePlugin, isLoading, error };
+};
+
+const useExecutePluginCommand = (): UseExecutePluginCommandResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<unknown | null>(null);
+
+  const executeCommand = useCallback(async (
+    pluginId: string,
+    command: string,
+    args: Record<string, unknown>,
+  ) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const r = await invoke<unknown>('execute_plugin_command', { pluginId, command, args });
+      setResult(r);
+      return r;
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { executeCommand, isLoading, error, result };
+};
+
+const useRunScript = (): UseRunScriptResult => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [output, setOutput] = useState<ScriptOutput | null>(null);
+
+  const runScript = useCallback(async (script: string): Promise<ScriptOutput> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const r = await invoke<ScriptOutput>('run_script', { script });
+      setOutput(r);
+      return r;
+    } catch (e) {
+      setError(String(e));
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { runScript, isLoading, error, output };
+};
+
+const useBatchJobs = (): UseBatchJobsResult => {
+  const [jobs, setJobs] = useState<BatchJob[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await invoke<BatchJob[]>('list_batch_jobs');
+      setJobs(result);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const cancelJob = useCallback(async (jobId: string) => {
+    try {
+      await invoke('cancel_batch_job', { jobId });
+      void refetch();
+    } catch (e) {
+      showToast(`Failed to cancel job: ${e}`, 'error');
+    }
+  }, [refetch]);
+
+  useEffect(() => { void refetch(); }, [refetch]);
+
+  return { jobs, isLoading, error, refetch, cancelJob };
+};
 
 // ============================================================================
 // Plugin List Item Component
@@ -965,12 +1117,11 @@ interface PluginManagerProps {
 }
 
 export function PluginManager({ isOpen = true, onClose }: PluginManagerProps) {
-  // Hooks (stub implementations to be replaced)
   const { plugins, isLoading: isLoadingPlugins, error: pluginsError, refetch } = usePlugins();
-  const { loadPlugin, isLoading: isLoadingPlugin, error: loadError } = useLoadPlugin();
-  const { unloadPlugin, isLoading: isUnloading } = useUnloadPlugin();
-  const { enablePlugin, isLoading: isEnabling } = useEnablePlugin();
-  const { disablePlugin, isLoading: isDisabling } = useDisablePlugin();
+  const { loadPlugin, isLoading: isLoadingPlugin, error: loadError } = useLoadPlugin(refetch);
+  const { unloadPlugin, isLoading: isUnloading } = useUnloadPlugin(refetch);
+  const { enablePlugin, isLoading: isEnabling } = useEnablePlugin(refetch);
+  const { disablePlugin, isLoading: isDisabling } = useDisablePlugin(refetch);
   const { executeCommand, isLoading: isExecuting, error: executeError, result } =
     useExecutePluginCommand();
   const { runScript, isLoading: isRunningScript, error: scriptError, output } = useRunScript();

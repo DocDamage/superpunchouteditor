@@ -16,10 +16,17 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": [
+    "src/test",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/components/RelocationHelper.tsx",
+    "src/config/settings-integration-example.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

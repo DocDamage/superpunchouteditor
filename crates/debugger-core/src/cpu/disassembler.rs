@@ -218,6 +218,7 @@ impl AddressingMode {
 /// Instruction definition
 #[derive(Debug, Clone)]
 pub struct InstructionDef {
+    #[allow(dead_code)]
     pub opcode: u8,
     pub mnemonic: &'static str,
     pub addressing_mode: AddressingMode,

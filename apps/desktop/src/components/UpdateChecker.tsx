@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore } from '../store/useStore';
 import { UpdateAvailableModal } from './UpdateAvailableModal';
 import { UpdateProgress } from './UpdateProgress';
@@ -84,7 +85,6 @@ export function UpdateChecker({ children }: UpdateCheckerProps) {
 
   const loadManualUrl = async () => {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       const url = await invoke<string>('get_manual_download_url');
       setManualUrl(url);
     } catch (e) {
@@ -95,7 +95,6 @@ export function UpdateChecker({ children }: UpdateCheckerProps) {
 
   const checkShouldAutoCheck = async (): Promise<boolean> => {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       return await invoke<boolean>('should_auto_check');
     } catch (e) {
       console.error('Failed to check auto update eligibility:', e);

@@ -8,13 +8,17 @@
 pub mod audio;
 pub mod input;
 pub mod libretro;
+mod libretro_runtime;
 pub mod snes9x;
 pub mod state;
 pub mod video;
 
 pub use audio::{AudioBatch, AudioBuffer, AudioConfig};
 pub use input::{SnesButton, SnesController};
-pub use snes9x::{CoreConfig, EmulationThread, Snes9xCore};
+pub use snes9x::{
+    CoreConfig, CreatorRuntimeActionResolution, CreatorRuntimeState, CreatorSessionState,
+    EmulationThread, Snes9xCore,
+};
 pub use state::{SaveState, StateManager};
 pub use video::{PixelFormat, VideoBuffer, VideoFrame};
 
@@ -73,6 +77,6 @@ mod tests {
 
     #[test]
     fn test_version() {
-        assert_eq!(VERSION, "0.1.0");
+        assert_eq!(VERSION, env!("CARGO_PKG_VERSION"));
     }
 }

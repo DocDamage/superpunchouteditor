@@ -15,7 +15,7 @@ import { useStore } from '../store/useStore';
 import { TextPreview } from './TextPreview';
 import './TextEditor.css';
 
-type TabType = 'cornerman' | 'intros' | 'victory' | 'menus' | 'credits';
+type TabType = 'cornerman' | 'intros' | 'victory';
 
 // DTO Types matching the Rust backend
 interface CornermanTextDto {
@@ -67,16 +67,6 @@ interface VictoryQuoteDto {
   is_valid: boolean;
 }
 
-interface MenuTextDto {
-  id: string;
-  category: string;
-  text: string;
-  byte_length: number;
-  max_length: number;
-  is_valid: boolean;
-  is_modified: boolean;
-  is_shared: boolean;
-}
 
 interface TextCondition {
   value: number;
@@ -108,7 +98,6 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
   const [cornermanTexts, setCornermanTexts] = useState<CornermanTextDto[]>([]);
   const [boxerIntro, setBoxerIntro] = useState<BoxerIntroResponse | null>(null);
   const [victoryQuotes, setVictoryQuotes] = useState<VictoryQuoteDto[]>([]);
-  const [menuTexts, setMenuTexts] = useState<MenuTextDto[]>([]);
   const [textConditions, setTextConditions] = useState<TextCondition[]>([]);
   const [encodingInfo, setEncodingInfo] = useState<TextEncodingInfo | null>(null);
   
@@ -202,32 +191,16 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
     }
   }, [selectedBoxer]);
 
-  // Load menu texts
-  const loadMenuTexts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const texts = await invoke<MenuTextDto[]>('get_menu_texts', {
-        category: null,
-      });
-      setMenuTexts(texts);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load menu texts');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   // Initial load
   useEffect(() => {
     loadTextConditions();
     loadEncodingInfo();
-    loadMenuTexts();
-  }, [loadTextConditions, loadEncodingInfo, loadMenuTexts]);
+  }, [loadTextConditions, loadEncodingInfo]);
 
   // Load data when tab or boxer changes
   useEffect(() => {
     setError(null);
-    
+
     switch (activeTab) {
       case 'cornerman':
         loadCornermanTexts();
@@ -238,14 +211,8 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
       case 'victory':
         loadVictoryQuotes();
         break;
-      case 'menus':
-        loadMenuTexts();
-        break;
-      case 'credits':
-        // TODO: Load credits
-        break;
     }
-  }, [activeTab, selectedBoxer, loadCornermanTexts, loadBoxerIntro, loadVictoryQuotes, loadMenuTexts]);
+  }, [activeTab, selectedBoxer, loadCornermanTexts, loadBoxerIntro, loadVictoryQuotes]);
 
   // Update selected boxer when boxers load
   useEffect(() => {
@@ -271,6 +238,7 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
       await invoke<CornermanTextDto>('update_cornerman_text', {
         request: {
           id: editingCornermanId,
+          boxerKey: selectedBoxer,
           text: editingCornermanText,
           condition: editingCornermanCondition,
           round: editingCornermanRound,
@@ -350,26 +318,11 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
     try {
       setSaving(true);
       await invoke<VictoryQuoteDto>('update_victory_quote', {
-        request: { id, text },
+        request: { id, boxerKey: selectedBoxer, text },
       });
       await loadVictoryQuotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save victory quote');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Save menu text
-  const saveMenuText = async (id: string, text: string) => {
-    try {
-      setSaving(true);
-      await invoke<MenuTextDto>('update_menu_text', {
-        request: { id, text },
-      });
-      await loadMenuTexts();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save menu text');
     } finally {
       setSaving(false);
     }
@@ -753,68 +706,6 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
   );
 
   // Render menu texts tab
-  const renderMenusTab = () => (
-    <div className="text-editor__tab-content">
-      <div className="text-editor__list">
-        {menuTexts.map((menu) => (
-          <div
-            key={menu.id}
-            className={`text-editor__item ${!menu.is_valid ? 'text-editor__item--invalid' : ''} ${menu.is_modified ? 'text-editor__item--modified' : ''}`}
-          >
-            <div className="text-editor__item-content">
-              <div className="text-editor__item-id">{menu.id}</div>
-              <div className="text-editor__item-text">{menu.text}</div>
-              <div className="text-editor__item-meta">
-                <span className="text-editor__category">{menu.category}</span>
-                {menu.is_shared && (
-                  <span className="text-editor__shared-tag">Shared</span>
-                )}
-                <span
-                  className="text-editor__byte-count"
-                  style={{
-                    color: getByteCountColor(menu.byte_length, menu.max_length),
-                  }}
-                >
-                  {menu.byte_length}/{menu.max_length} bytes
-                </span>
-              </div>
-            </div>
-            <div className="text-editor__item-actions">
-              <button
-                className="text-editor__edit-btn"
-                onClick={() => {
-                  const newText = prompt('Edit menu text:', menu.text);
-                  if (newText !== null && newText !== menu.text) {
-                    saveMenuText(menu.id, newText);
-                  }
-                }}
-                disabled={saving}
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {menuTexts.length === 0 && !loading && (
-          <div className="text-editor__empty">
-            No menu texts available.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Render credits tab (placeholder)
-  const renderCreditsTab = () => (
-    <div className="text-editor__tab-content">
-      <div className="text-editor__placeholder">
-        <p>Credits editor coming soon.</p>
-        <p>This will allow editing of the end-game credits text.</p>
-      </div>
-    </div>
-  );
-
   return (
     <div className="text-editor">
       <div className="text-editor__header-bar">
@@ -848,18 +739,6 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
         >
           Victory
         </button>
-        <button
-          className={`text-editor__tab ${activeTab === 'menus' ? 'text-editor__tab--active' : ''}`}
-          onClick={() => setActiveTab('menus')}
-        >
-          Menus
-        </button>
-        <button
-          className={`text-editor__tab ${activeTab === 'credits' ? 'text-editor__tab--active' : ''}`}
-          onClick={() => setActiveTab('credits')}
-        >
-          Credits
-        </button>
       </div>
 
       {error && (
@@ -872,8 +751,6 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
         {activeTab === 'cornerman' && renderCornermanTab()}
         {activeTab === 'intros' && renderIntrosTab()}
         {activeTab === 'victory' && renderVictoryTab()}
-        {activeTab === 'menus' && renderMenusTab()}
-        {activeTab === 'credits' && renderCreditsTab()}
       </div>
 
       {showPreview && (

@@ -38,4 +38,46 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+
+          if (normalizedId.includes("/node_modules/")) {
+            if (normalizedId.includes("/react")) return "vendor-react";
+            if (normalizedId.includes("/@tauri-apps/")) return "vendor-tauri";
+            return "vendor";
+          }
+
+          if (
+            normalizedId.includes("/src/components/Animation")
+            || normalizedId.includes("/src/components/Frame")
+            || normalizedId.includes("/src/components/Tile")
+          ) {
+            return "feature-animation";
+          }
+
+          if (
+            normalizedId.includes("/src/components/EmbeddedEmulator")
+            || normalizedId.includes("/src/components/Emulator")
+            || normalizedId.includes("/src/hooks/useEmulator")
+            || normalizedId.includes("/src/components/InputMapper")
+          ) {
+            return "feature-emulator";
+          }
+
+          if (
+            normalizedId.includes("/src/components/Plugin")
+            || normalizedId.includes("/src/components/Script")
+            || normalizedId.includes("/src/components/LayoutPack")
+          ) {
+            return "feature-tools";
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
 }));

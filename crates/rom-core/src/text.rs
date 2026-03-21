@@ -973,11 +973,11 @@ mod tests {
     #[test]
     fn test_cornerman_validation() {
         let encoder = TextEncoder::new();
-        let text = CornermanText::new(0, "test", "Short text");
+        let text = CornermanText::new(0, "test", "SHORT TEXT");
 
         assert!(text.validate(&encoder).is_ok());
 
-        let long_text = CornermanText::new(1, "test", "a".repeat(100));
+        let long_text = CornermanText::new(1, "test", "A".repeat(100));
         assert!(long_text.validate(&encoder).is_err());
     }
 

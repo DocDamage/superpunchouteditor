@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
-interface SettingsManagerProps {
+export interface SettingsManagerProps {
   isOpen: boolean;
   onClose: () => void;
 }
@@ -427,7 +427,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
                   
                   <button
                     onClick={handleImport}
-                    disabled={isImporting || (validationResult && !validationResult.valid)}
+                    disabled={isImporting || !!(validationResult && !validationResult.valid)}
                     style={{
                       marginTop: '1rem',
                       padding: '0.75rem 1.5rem',

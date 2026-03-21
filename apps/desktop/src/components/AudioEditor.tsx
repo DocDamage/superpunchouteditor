@@ -46,7 +46,7 @@ export interface SampleDetail {
   loop_end: number;
 }
 
-export type AudioTab = 'sounds' | 'music' | 'samples' | 'spc';
+export type AudioTab = 'sounds' | 'music';
 
 export const AudioEditor = () => {
   const [activeTab, setActiveTab] = useState<AudioTab>('sounds');
@@ -260,53 +260,6 @@ export const AudioEditor = () => {
           />
         );
       
-      case 'samples':
-        return (
-          <div className="audio-tab-content">
-            <div className="audio-placeholder">
-              <h3>Sample Editor</h3>
-              <p>Advanced BRR sample editing coming soon.</p>
-              <div className="research-todo">
-                <h4>Research TODOs:</h4>
-                <ul>
-                  <li>Locate sample table in ROM</li>
-                  <li>Implement BRR encoding with quality options</li>
-                  <li>Add loop point editor</li>
-                  <li>Implement ADSR envelope editor</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'spc':
-        return (
-          <div className="audio-tab-content">
-            <div className="audio-placeholder">
-              <h3>SPC File Manager</h3>
-              <p>Import and edit SPC700 save states.</p>
-              <div className="spc-actions">
-                <button onClick={async () => {
-                  const selected = await open({
-                    multiple: false,
-                    filters: [{ name: 'SPC File', extensions: ['spc'] }]
-                  });
-                  if (typeof selected === 'string') {
-                    await invoke('load_spc', { path: selected });
-                  }
-                }}>
-                  Load SPC File
-                </button>
-                <button onClick={async () => {
-                  await invoke('create_new_spc');
-                }}>
-                  Create New SPC
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      
       default:
         return null;
     }
@@ -351,18 +304,6 @@ export const AudioEditor = () => {
         >
           🎵 Music
         </button>
-        <button
-          className={`audio-tab ${activeTab === 'samples' ? 'active' : ''}`}
-          onClick={() => setActiveTab('samples')}
-        >
-          🎚️ Samples
-        </button>
-        <button
-          className={`audio-tab ${activeTab === 'spc' ? 'active' : ''}`}
-          onClick={() => setActiveTab('spc')}
-        >
-          💾 SPC Files
-        </button>
       </nav>
 
       <main className="audio-editor-content">
@@ -373,9 +314,6 @@ export const AudioEditor = () => {
         <div className="audio-info">
           <span>🎧 {sounds.length} Sounds</span>
           <span>🎼 {music.length} Music Tracks</span>
-        </div>
-        <div className="audio-research-note">
-          ⚠️ Audio editing requires ROM research. Many features are placeholders.
         </div>
       </footer>
     </div>

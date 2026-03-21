@@ -47,6 +47,54 @@ export interface EmulatorStatus {
   frameCount: number;
 }
 
+export interface CreatorRuntimeState {
+  active: boolean;
+  magic: number;
+  heartbeat: number;
+  input_low: number;
+  input_high: number;
+  cursor: number;
+  action: number;
+  page: number;
+  dirty: boolean;
+  render_visible: boolean;
+  render_page: number;
+  render_cursor: number;
+  render_rows: [number, number, number, number];
+  render_revision: number;
+  session_present: boolean;
+  session_boxer_id: number;
+  session_circuit: number;
+  session_unlock_order: number;
+  session_intro_text_id: number;
+  session_status: number;
+  session_error_code: number;
+  intro_edit_active: boolean;
+  intro_cursor: number;
+  intro_length: number;
+  intro_bytes: number[];
+  name_edit_active: boolean;
+  name_cursor: number;
+  name_length: number;
+  name_bytes: number[];
+}
+
+export interface CreatorSessionState {
+  boxer_id: number;
+  circuit: number;
+  unlock_order: number;
+  intro_text_id: number;
+  status: number;
+  error_code: number;
+  intro_text: string;
+  name_text: string;
+}
+
+export interface CreatorRuntimeActionResolution {
+  runtime_state: CreatorRuntimeState;
+  message: string | null;
+}
+
 // SNES button mappings
 export const SNES_BUTTONS = {
   B: 0,
@@ -114,7 +162,7 @@ export const DEFAULT_KEY_MAPPINGS_FIGHTSTICK: InputMapping[] = [
 export type KeyMappingPreset = 'wasd' | 'arrows' | 'fightstick' | 'custom';
 
 export interface UseEmulatorOptions {
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
   onFrame?: (imageData: ImageData) => void;
   onAudio?: (samples: Float32Array) => void;
   onError?: (error: Error) => void;
@@ -169,6 +217,9 @@ export interface UseEmulatorReturn {
   loadRom: (romData: Uint8Array, name: string) => Promise<void>;
   loadRomFromPath: (romPath: string) => Promise<void>;
   loadRomWithEdits: (romPath: string, edits: Record<string, number[]>) => Promise<void>;
+  getCreatorRuntimeState: () => Promise<CreatorRuntimeState | null>;
+  setCreatorSessionState: (session: CreatorSessionState | null) => Promise<void>;
+  resolveCreatorRuntimeAction: () => Promise<CreatorRuntimeActionResolution>;
   unloadRom: () => void;
   compareWithOriginal: () => void;
   
@@ -289,6 +340,33 @@ export function useEmulator(options: UseEmulatorOptions): UseEmulatorReturn {
       throw error;
     }
   }, [onError]);
+
+  const getCreatorRuntimeState = useCallback(async (): Promise<CreatorRuntimeState | null> => {
+    try {
+      return await invoke<CreatorRuntimeState>('emulator_get_creator_runtime_state');
+    } catch (error) {
+      console.error('Failed to fetch creator runtime state:', error);
+      return null;
+    }
+  }, []);
+
+  const setCreatorSessionState = useCallback(async (session: CreatorSessionState | null): Promise<void> => {
+    try {
+      await invoke('emulator_set_creator_session_state', { session });
+    } catch (error) {
+      console.error('Failed to update creator session state:', error);
+      throw error;
+    }
+  }, []);
+
+  const resolveCreatorRuntimeAction = useCallback(async (): Promise<CreatorRuntimeActionResolution> => {
+    try {
+      return await invoke<CreatorRuntimeActionResolution>('emulator_resolve_creator_runtime_action');
+    } catch (error) {
+      console.error('Failed to resolve creator runtime action:', error);
+      throw error;
+    }
+  }, []);
   
   // Start emulation
   const start = useCallback(async (): Promise<void> => {
@@ -567,9 +645,10 @@ export function useEmulator(options: UseEmulatorOptions): UseEmulatorReturn {
   useEffect(() => {
     const initAudio = async () => {
       try {
-        const AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioContext) {
-          audioContextRef.current = new AudioContext({ sampleRate: 32040 });
+        const audioContextCtor = window.AudioContext
+          || (window as unknown as { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
+        if (audioContextCtor) {
+          audioContextRef.current = new audioContextCtor({ sampleRate: 32040 });
           setStatus(prev => ({ ...prev, audioEnabled: true }));
         }
       } catch (e) {
@@ -866,6 +945,9 @@ export function useEmulator(options: UseEmulatorOptions): UseEmulatorReturn {
     loadRom,
     loadRomFromPath,
     loadRomWithEdits,
+    getCreatorRuntimeState,
+    setCreatorSessionState,
+    resolveCreatorRuntimeAction,
     unloadRom,
     compareWithOriginal,
     
@@ -880,7 +962,7 @@ export function useEmulator(options: UseEmulatorOptions): UseEmulatorReturn {
     saveState, loadState, deleteState, setSaveStateSlot, refreshSaveStates,
     setVolume, toggleMute, setScalingMode, toggleIntegerScaling, toggleFps, takeScreenshot,
     setControllerType, loadKeyMappingPreset, updateKeyMapping, setInput,
-    loadRom, loadRomFromPath, loadRomWithEdits, unloadRom, compareWithOriginal, toggleFullscreen,
+    loadRom, loadRomFromPath, loadRomWithEdits, getCreatorRuntimeState, setCreatorSessionState, resolveCreatorRuntimeAction, unloadRom, compareWithOriginal, toggleFullscreen,
     shutdown,
   ]);
 }

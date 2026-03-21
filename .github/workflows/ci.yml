@@ -7,45 +7,56 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test
+  rust:
+    name: Rust (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
-      
+          components: rustfmt, clippy
+
       - name: Cache cargo dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
       - name: Check formatting
         run: cargo fmt --all -- --check
-      
-      - name: Run clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      
-      - name: Build
-        run: cargo build --workspace
-      
-      - name: Run tests
-        run: cargo test --workspace --verbose
-      
-      - name: Run doc tests
-        run: cargo test --doc --workspace
+
+      - name: Cargo check (workspace)
+        run: cargo check --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run tests (library crates)
+        # Exclude the Tauri app crate — it has no unit tests and requires a
+        # display server on Linux which is not available in CI.
+        run: cargo test --workspace --exclude tauri-appsuper-punch-out-editor --verbose
 
   frontend:
     name: Frontend
@@ -68,11 +79,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check and build
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
         run: npm run build
 
       - name: Run tests
         run: npm test
+
+  smoke-manifest-bundle:
+    name: Manifest bundle path smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify manifest bundle path resolves
+        run: |
+          # tauri.conf.json bundles "../../../data/manifests/*" relative to
+          # apps/desktop/src-tauri/ — three levels up lands at the repo root,
+          # so this path must resolve to data/manifests/ at the repo root.
+          MANIFEST_DIR="data/manifests"
+
+          echo "Checking $MANIFEST_DIR exists..."
+          test -d "$MANIFEST_DIR" || { echo "ERROR: $MANIFEST_DIR not found"; exit 1; }
+
+          COUNT=$(ls -1 "$MANIFEST_DIR"/*.json 2>/dev/null | wc -l)
+          echo "Found $COUNT manifest file(s)."
+          test "$COUNT" -gt 0 || { echo "ERROR: no .json files in $MANIFEST_DIR"; exit 1; }
+
+          echo "Validating JSON..."
+          for f in "$MANIFEST_DIR"/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
+              || { echo "ERROR: invalid JSON in $f"; exit 1; }
+            echo "  OK: $f"
+          done
+
+          echo "Manifest bundle smoke test PASSED."
 
   security-audit:
     name: Security Audit

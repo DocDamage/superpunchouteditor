@@ -1,5 +1,7 @@
 import { save, open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 import { useStore, BoxerRecord, AssetFile } from '../store/useStore';
+import { showToast } from './ToastContainer';
 import { SharedBankIndicator } from './SharedBankIndicator';
 
 interface AssetManagerProps {
@@ -12,7 +14,7 @@ interface AssetWithShared extends AssetFile {
 }
 
 export const AssetManager = ({ boxer }: AssetManagerProps) => {
-  const { exportAsset, importAsset } = useStore();
+  const { exportAsset, importAsset, setPendingWrite, recordAssetImport } = useStore();
   const iconFiles = boxer.icon_files ?? [];
   const portraitFiles = boxer.portrait_files ?? [];
   const largePortraitFiles = boxer.large_portrait_files ?? [];
@@ -38,7 +40,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
       });
       if (path && paletteFiles.length > 0) {
         await exportAsset(asset, paletteFiles[0], path);
-        alert(`Exported to ${path}`);
+        showToast(`Exported to ${path}`, 'success');
       }
     } catch (e) {
       console.error(e);
@@ -70,9 +72,29 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
         multiple: false
       });
       if (typeof path === 'string' && paletteFiles.length > 0) {
-        const bytes = await importAsset(paletteFiles[0], path);
-        if (bytes) {
-          alert(`Successfully imported ${bytes.length} bytes for ${asset.subtype}. (Saving to ROM pending Project System)`);
+        const oldBytes = await invoke<number[]>('get_rom_bytes', {
+          pcOffset: asset.start_pc,
+          size: asset.size,
+        });
+        const result = await importAsset(asset, paletteFiles[0], path);
+        if (result) {
+          setPendingWrite(asset.start_pc);
+          if (oldBytes.length > 0 && result.bytes.length > 0) {
+            await recordAssetImport(asset.start_pc, oldBytes, Array.from(result.bytes), path);
+          }
+
+          if (!result.fits) {
+            showToast(
+              `Imported ${asset.subtype} but overflowed original space (${result.newSize}/${result.originalSize} bytes). Safe to stage, but relocation needed before shipping.`,
+              'warning',
+              8000,
+            );
+          } else {
+            showToast(
+              `Staged ${asset.subtype} import (${result.newSize}/${result.originalSize} bytes).`,
+              'success',
+            );
+          }
         }
       }
     } catch (e) {
@@ -203,7 +225,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
                 >
                   Export
                 </button>
-                {asset.assetType === 'icon' && (
+                {(asset.assetType === 'icon' || asset.assetType === 'portrait' || asset.assetType === 'large_portrait') && (
                   <button 
                     onClick={() => handleImport(asset)} 
                     style={{ 
@@ -241,7 +263,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
       )}
 
       <div style={{ marginTop: '1rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
-          * Portions of this data may be compressed. Exporting works for all assets, but re-importing compressed assets requires special handling.
+          * PNG imports now stage ROM edits for icons and portraits. Compressed assets may still overflow their original space and require relocation before shipping.
       </div>
     </div>
   );

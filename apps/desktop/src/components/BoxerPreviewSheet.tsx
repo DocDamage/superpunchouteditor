@@ -4,6 +4,7 @@ import { save, open } from '@tauri-apps/plugin-dialog';
 import { useStore, BoxerRecord } from '../store/useStore';
 import { SharedBankSummary } from './SharedBankIndicator';
 import { LayoutPackInfo } from '../types/layoutPack';
+import { showToast } from './ToastContainer';
 
 interface BinLayoutInfo {
   region?: string;
@@ -137,7 +138,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
       // Write via CLI workaround: invoke a generic "save bytes" — or re-use export_sprite_bin approach
       // For now, instruct user to right-click → save on the rendered image
       // This is a known limitation; proper save is a follow-up
-      alert(`Sheet rendered. Right-click the sheet image and "Save image as…" to save to disk.\nPath: ${path}`);
+      showToast(`Sheet rendered. Right-click the sheet image and "Save image as…" to save to disk.`, 'info');
     } catch (e) {
       setError(String(e));
     }
@@ -161,7 +162,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         },
         outputPath: path,
       });
-      alert(`Layout for ${boxer.name} exported successfully!`);
+      showToast(`Layout for ${boxer.name} exported.`, 'success');
     } catch (e) {
       setError(`Failed to export layout: ${e}`);
     }
@@ -174,7 +175,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         packPath: `data/boxer-layouts/community/${pack.filename}`,
         boxerKeys: [boxer.key],
       });
-      alert(`Applied layout from "${pack.name}" to ${boxer.name}`);
+      showToast(`Applied layout "${pack.name}" to ${boxer.name}.`, 'success');
       setShowPackMenu(false);
     } catch (e) {
       setError(`Failed to apply layout pack: ${e}`);
@@ -205,7 +206,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
       // Check if this boxer is in the pack
       const boxerInPack = validation.boxer_validations.find(b => b.boxer_key === boxer.key);
       if (!boxerInPack) {
-        alert(`This pack doesn't contain layout for ${boxer.name}`);
+        showToast(`This pack doesn't contain a layout for ${boxer.name}.`, 'warning');
         return;
       }
       
@@ -214,7 +215,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         boxerKeys: [boxer.key],
       });
       
-      alert(`Layout pack applied to ${boxer.name}`);
+      showToast(`Layout pack applied to ${boxer.name}.`, 'success');
     } catch (e) {
       setError(`Failed to import and apply layout: ${e}`);
     }

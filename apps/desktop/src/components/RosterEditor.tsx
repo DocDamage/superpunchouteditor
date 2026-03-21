@@ -10,12 +10,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useStore } from '../store/useStore';
+import { useStore, type BoxerRecord as ManifestBoxerRecord } from '../store/useStore';
 import type { InGameExpansionReport, InGameHookPreset, InGameHookSiteCandidate } from '../store/useStore';
 import { BoxerRosterEntry, CircuitType, ValidationReport, RosterData } from '../types/roster';
 import { BoxerNameEditor } from './BoxerNameEditor';
 import { CircuitEditor } from './CircuitEditor';
 import './RosterEditor.css';
+import { showToast } from './ToastContainer';
 
 type TabType = 'create' | 'names' | 'circuits' | 'unlock' | 'intro';
 type RosterEditorMode = 'game' | 'dev';
@@ -23,6 +24,14 @@ type RosterEditorMode = 'game' | 'dev';
 interface RosterEditorProps {
   initialTab?: TabType;
   mode?: RosterEditorMode;
+  onLaunchCreatorTest?: (context?: {
+    boxerId?: number;
+    boxerName?: string;
+    circuit?: CircuitType;
+    unlockOrder?: number;
+    introTextId?: number;
+    assetOwnerKey?: string;
+  }) => void;
 }
 
 function parseOptionalOverwriteLen(input: string): number | null {
@@ -39,12 +48,21 @@ function parseOptionalOverwriteLen(input: string): number | null {
   return parsed;
 }
 
-const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id;
+const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id ?? boxer.fighter_id ?? -1;
 
-export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
+export function RosterEditor({ initialTab, mode = 'game', onLaunchCreatorTest }: RosterEditorProps) {
   const isGameMode = mode === 'game';
   const defaultTab = initialTab ?? (isGameMode ? 'create' : 'names');
-  const { romSha1, applyInGameExpansion, analyzeInGameHookSites, verifyInGameHookSite, getInGameHookPresets } = useStore();
+  const {
+    romSha1,
+    boxers: manifestBoxers,
+    selectedBoxer: selectedManifestBoxer,
+    loadBoxers,
+    applyInGameExpansion,
+    analyzeInGameHookSites,
+    verifyInGameHookSite,
+    getInGameHookPresets,
+  } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
   const [rosterData, setRosterData] = useState<RosterData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,9 +89,18 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
   const [createName, setCreateName] = useState('');
   const [createCircuit, setCreateCircuit] = useState<CircuitType>('Minor');
   const [createIntro, setCreateIntro] = useState('');
+  const [createAssetOwnerKey, setCreateAssetOwnerKey] = useState('');
   const [creatingCharacter, setCreatingCharacter] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+  const [lastCreatedBoxer, setLastCreatedBoxer] = useState<{
+    boxerId: number;
+    boxerName: string;
+    circuit: CircuitType;
+    unlockOrder: number;
+    introTextId: number;
+    assetOwnerKey?: string;
+  } | null>(null);
 
   // Load roster data
   const loadRosterData = useCallback(async (): Promise<RosterData> => {
@@ -109,6 +136,21 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
   useEffect(() => {
     setActiveTab(defaultTab);
   }, [defaultTab]);
+
+  useEffect(() => {
+    if (createAssetOwnerKey) {
+      return;
+    }
+
+    if (selectedManifestBoxer?.key) {
+      setCreateAssetOwnerKey(selectedManifestBoxer.key);
+      return;
+    }
+
+    if (manifestBoxers.length > 0) {
+      setCreateAssetOwnerKey(manifestBoxers[0].key);
+    }
+  }, [createAssetOwnerKey, manifestBoxers, selectedManifestBoxer?.key]);
 
   // Handle boxer name update
   const handleNameUpdate = async (fighterId: number, newName: string) => {
@@ -222,12 +264,14 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
       setCreateError(null);
       setCreateSuccess(null);
 
-      await applyInGameExpansion({
+      const expansion = await applyInGameExpansion({
         targetBoxerCount: targetCount,
         patchEditorHook: true,
         editorHookPcOffset: null,
         editorHookOverwriteLen: null,
       });
+      setExpansionReport(expansion);
+      setTargetBoxerCount(expansion.boxer_count);
 
       const expanded = await loadRosterData();
       const created =
@@ -266,9 +310,28 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
         });
       }
 
+      let resolvedAssetOwnerKey = createAssetOwnerKey || undefined;
+      if (createAssetOwnerKey) {
+        const createdAssetOwner = await invoke<ManifestBoxerRecord>('create_boxer_asset_owner', {
+          templateBoxerKey: createAssetOwnerKey,
+          ownerDisplayName: trimmedName,
+          preferredKey: `creator_asset_slot_${createdId}`,
+        });
+        resolvedAssetOwnerKey = createdAssetOwner.key;
+        await loadBoxers();
+      }
+
       await loadRosterData();
+      setLastCreatedBoxer({
+        boxerId: createdId,
+        boxerName: trimmedName,
+        circuit: createCircuit,
+        unlockOrder: Math.min(nextUnlockOrder, 255),
+        introTextId: created.intro_text_id,
+        assetOwnerKey: resolvedAssetOwnerKey,
+      });
       setCreateSuccess(
-        `Character '${trimmedName}' created in slot #${createdId}. In-ROM creator mode trigger is available via Select+Start+L+R.`
+        `Character '${trimmedName}' created in slot #${createdId}. Dedicated portrait asset owner is ${resolvedAssetOwnerKey || 'not set'}. In-ROM creator mode trigger is available via Select+Start+L+R.`
       );
       setCreateName('');
       setCreateIntro('');
@@ -277,6 +340,38 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
       setCreateError(err instanceof Error ? err.message : String(err));
     } finally {
       setCreatingCharacter(false);
+    }
+  };
+
+  const handleOneClickIntegration = async () => {
+    const normalizedTarget = Math.min(64, Math.max(16, Math.trunc(targetBoxerCount || 16)));
+
+    try {
+      setExpansionRunning(true);
+      setExpansionError(null);
+      setVerifyError(null);
+      setCreateError(null);
+      setCreateSuccess(null);
+
+      const report = await applyInGameExpansion({
+        targetBoxerCount: normalizedTarget,
+        patchEditorHook: true,
+        editorHookPcOffset: null,
+        editorHookOverwriteLen: null,
+      });
+
+      setPatchEditorHook(true);
+      setEditorHookPcOffset('');
+      setEditorHookOverwriteLen('');
+      setVerifiedHook(null);
+      setExpansionReport(report);
+      setTargetBoxerCount(report.boxer_count);
+      setLastCreatedBoxer(null);
+      await loadRosterData();
+    } catch (err) {
+      setExpansionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExpansionRunning(false);
     }
   };
 
@@ -492,13 +587,51 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
               />
             </label>
 
+            <label className="expansion-field">
+              <span>Portrait Asset Template</span>
+              <select
+                value={createAssetOwnerKey}
+                onChange={(e) => {
+                  setCreateAssetOwnerKey(e.target.value);
+                  setCreateError(null);
+                  setCreateSuccess(null);
+                }}
+                disabled={saving || creatingCharacter}
+              >
+                <option value="">Select asset template</option>
+                {manifestBoxers.map((boxer) => (
+                  <option key={boxer.key} value={boxer.key}>
+                    {boxer.name}
+                  </option>
+                ))}
+              </select>
+              <small style={{ color: 'var(--text-muted, #94a3b8)' }}>
+                New roster slots now clone their own palette and portrait/icon ownership. This picks the manifest boxer used as the template source for that dedicated asset owner.
+              </small>
+            </label>
+
             <div className="roster-expansion-actions">
+              <button
+                className="btn-secondary"
+                onClick={handleOneClickIntegration}
+                disabled={saving || creatingCharacter || expansionRunning || verifyRunning}
+              >
+                {expansionRunning ? 'Installing Creator Integration...' : 'Install Creator Integration'}
+              </button>
               <button
                 className="btn-primary"
                 onClick={handleCreateCharacter}
-                disabled={saving || creatingCharacter}
+                disabled={saving || creatingCharacter || expansionRunning || verifyRunning}
               >
                 {creatingCharacter ? 'Creating Character...' : 'Create Character'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => onLaunchCreatorTest?.(lastCreatedBoxer ?? undefined)}
+                disabled={saving || creatingCharacter || expansionRunning || verifyRunning || !onLaunchCreatorTest}
+                title={lastCreatedBoxer ? `Open creator test for ${lastCreatedBoxer.boxerName}` : 'Open embedded creator test session'}
+              >
+                {lastCreatedBoxer ? `Test ${lastCreatedBoxer.boxerName} In Creator` : 'Open Creator Test'}
               </button>
             </div>
 
@@ -636,11 +769,20 @@ export function RosterEditor({ initialTab, mode = 'game' }: RosterEditorProps) {
         <div className="roster-expansion-actions">
           <button
             className="btn-primary"
-            onClick={handleApplyExpansion}
+            onClick={handleOneClickIntegration}
             disabled={saving || expansionRunning || verifyRunning}
           >
-            {expansionRunning ? 'Applying Integration...' : 'Apply In-Game Integration'}
+            {expansionRunning ? 'Installing Integration...' : 'One-Click Install In-Game Integration'}
           </button>
+          {showAdvancedHookControls && (
+            <button
+              className="btn-secondary"
+              onClick={handleApplyExpansion}
+              disabled={saving || expansionRunning || verifyRunning}
+            >
+              {expansionRunning ? 'Applying Technical Settings...' : 'Apply Technical Settings'}
+            </button>
+          )}
           <button
             className="btn-secondary"
             onClick={() => setShowAdvancedHookControls((value) => !value)}
@@ -936,6 +1078,7 @@ function UnlockOrderEditor({
   disabled 
 }: UnlockOrderEditorProps) {
   const sortedBoxers = [...boxers].sort((a, b) => a.unlock_order - b.unlock_order);
+  const maxUnlockOrder = Math.max(0, boxers.length - 1);
   
   return (
     <div className="unlock-order-editor">
@@ -965,7 +1108,7 @@ function UnlockOrderEditor({
               <input
                 type="number"
                 min={0}
-                max={15}
+                max={maxUnlockOrder}
                 value={boxer.unlock_order}
                 onChange={(e) => onUpdateOrder(getBoxerId(boxer), parseInt(e.target.value))}
                 disabled={disabled}
@@ -1070,9 +1213,9 @@ function IntroTextEditor({ boxers, disabled }: IntroTextEditorProps) {
         textId: selectedBoxer.intro_text_id,
         text: introText,
       });
-      alert('Intro text saved successfully!');
+      showToast('Intro text saved.', 'success');
     } catch (err) {
-      alert('Failed to save intro text: ' + (err instanceof Error ? err.message : String(err)));
+      showToast('Failed to save intro text: ' + (err instanceof Error ? err.message : String(err)), 'error');
     } finally {
       setSaving(false);
     }

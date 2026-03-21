@@ -2,10 +2,35 @@
 //!
 //! Commands for frame editing and reconstruction.
 
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::app_state::AppState;
 use asset_core::{render_frame_to_png, FrameData, FrameManager, FrameSummary};
+
+/// Per-frame annotation data (project-side metadata, not stored in ROM)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FrameAnnotation {
+    pub frame_index: u32,
+    pub tags: Vec<String>,
+    pub notes: String,
+    pub hitbox_description: Option<String>,
+}
+
+/// Get frame annotations for a fighter.
+///
+/// Annotations are project-level metadata and are not read from ROM.
+/// Returns an empty map until project save/load is wired up.
+#[tauri::command]
+pub fn get_fighter_annotations(
+    _state: State<AppState>,
+    _fighter_id: String,
+) -> Option<HashMap<String, FrameAnnotation>> {
+    // Annotations are not yet persisted — return empty map so the UI degrades gracefully.
+    Some(HashMap::new())
+}
 
 /// Get all frames for a fighter
 #[tauri::command]

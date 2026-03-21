@@ -11,9 +11,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::State;
 
+use crate::AppState;
+
 // Re-export types from emulator_core
 pub use emulator_core::{
-    AudioBatch, CoreConfig, Snes9xCore, VideoFrame,
+    AudioBatch, CoreConfig, CreatorRuntimeActionResolution, CreatorRuntimeState,
+    CreatorSessionState, Snes9xCore, VideoFrame,
 };
 
 /// State for the embedded emulator
@@ -214,13 +217,15 @@ impl ControllerInput {
 /// Initialize the emulator with Snes9x core
 #[tauri::command]
 pub fn init_emulator(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     core_path: Option<String>,
 ) -> Result<(), String> {
-    let core_path = core_path.unwrap_or_else(|| EmbeddedEmulatorState::get_default_core_path());
+    let requested_core_path =
+        core_path.unwrap_or_else(|| EmbeddedEmulatorState::get_default_core_path());
+    let mut resolved_core_path = requested_core_path.clone();
 
     // Check if core file exists
-    if !std::path::Path::new(&core_path).exists() {
+    if !std::path::Path::new(&requested_core_path).exists() {
         // Try to find in common locations
         let common_paths = vec![
             "./cores/snes9x_libretro.dll",
@@ -237,20 +242,25 @@ pub fn init_emulator(
 
         if let Some(path) = found_path {
             println!("Found core at: {}", path);
+            resolved_core_path = path.to_string();
         } else {
             return Err(format!(
                 "Core library not found at: {}. Please provide the correct path.",
-                core_path
+                requested_core_path
             ));
         }
     }
 
     // Initialize the core with default config
-    let config = CoreConfig::default();
+    let config = CoreConfig {
+        core_path: resolved_core_path,
+        ..CoreConfig::default()
+    };
     let core =
         Snes9xCore::with_config(config).map_err(|e| format!("Failed to initialize core: {}", e))?;
 
-    *state.core.lock() = Some(core);
+    let emulator_state = state.embedded_emulator.lock();
+    *emulator_state.core.lock() = Some(core);
     println!("Snes9x core initialized successfully");
 
     Ok(())
@@ -259,7 +269,7 @@ pub fn init_emulator(
 /// Load ROM into emulator from file path
 #[tauri::command]
 pub fn emulator_load_rom(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     rom_path: String,
 ) -> Result<(), String> {
     let rom_data = std::fs::read(&rom_path).map_err(|e| format!("Failed to read ROM: {}", e))?;
@@ -270,11 +280,12 @@ pub fn emulator_load_rom(
         return Err("ROM file too small".to_string());
     }
 
-    let mut core_guard = state.core.lock();
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load ROM into core: {}", e))?;
-        *state.loaded_rom_path.lock() = Some(rom_path);
+        *emulator_state.loaded_rom_path.lock() = Some(rom_path);
         println!("ROM loaded successfully: {} bytes", rom_size);
         Ok(())
     } else {
@@ -285,7 +296,7 @@ pub fn emulator_load_rom(
 /// Load ROM from memory buffer (for testing pending edits)
 #[tauri::command]
 pub fn emulator_load_rom_from_memory(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     rom_data: Vec<u8>,
 ) -> Result<(), String> {
     let rom_size = rom_data.len();
@@ -293,11 +304,12 @@ pub fn emulator_load_rom_from_memory(
         return Err("ROM data too small".to_string());
     }
 
-    let mut core_guard = state.core.lock();
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load ROM: {}", e))?;
-        *state.loaded_rom_path.lock() = None; // No file path for memory-loaded ROM
+        *emulator_state.loaded_rom_path.lock() = None; // No file path for memory-loaded ROM
         println!("ROM loaded from memory: {} bytes", rom_size);
         Ok(())
     } else {
@@ -308,7 +320,7 @@ pub fn emulator_load_rom_from_memory(
 /// Load ROM with pending edits applied
 #[tauri::command]
 pub fn emulator_load_rom_with_edits(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     rom_path: String,
     edits: std::collections::HashMap<String, Vec<u8>>,
 ) -> Result<(), String> {
@@ -326,11 +338,12 @@ pub fn emulator_load_rom_with_edits(
     let rom_size = rom_data.len();
 
     // Load modified ROM
-    let mut core_guard = state.core.lock();
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load modified ROM: {}", e))?;
-        *state.loaded_rom_path.lock() = Some(rom_path);
+        *emulator_state.loaded_rom_path.lock() = Some(rom_path);
         println!("ROM with edits loaded: {} bytes", rom_size);
         Ok(())
     } else {
@@ -340,32 +353,33 @@ pub fn emulator_load_rom_with_edits(
 
 /// Start the emulation loop
 #[tauri::command]
-pub fn emulator_start(state: State<'_, EmbeddedEmulatorState>) -> Result<(), String> {
+pub fn emulator_start(state: State<'_, AppState>) -> Result<(), String> {
+    let emulator_state = state.embedded_emulator.lock();
     // Check if already running
-    if *state.running.lock() {
+    if *emulator_state.running.lock() {
         return Err("Emulator already running".to_string());
     }
 
     // Check if core is initialized
     {
-        let core_guard = state.core.lock();
+        let core_guard = emulator_state.core.lock();
         if core_guard.is_none() {
             return Err("Emulator not initialized".to_string());
         }
     }
 
     // Set running flag
-    *state.running.lock() = true;
-    *state.paused.lock() = false;
+    *emulator_state.running.lock() = true;
+    *emulator_state.paused.lock() = false;
 
     // Clone Arc references for the thread
-    let core = state.core.clone();
-    let running = state.running.clone();
-    let paused = state.paused.clone();
-    let speed = state.speed.clone();
-    let frame_sender = state.frame_sender.clone();
-    let audio_sender = state.audio_sender.clone();
-    let input_receiver = state.input_receiver.clone();
+    let core = emulator_state.core.clone();
+    let running = emulator_state.running.clone();
+    let paused = emulator_state.paused.clone();
+    let speed = emulator_state.speed.clone();
+    let frame_sender = emulator_state.frame_sender.clone();
+    let audio_sender = emulator_state.audio_sender.clone();
+    let input_receiver = emulator_state.input_receiver.clone();
 
     // Start emulation thread
     let handle = std::thread::spawn(move || {
@@ -420,7 +434,7 @@ pub fn emulator_start(state: State<'_, EmbeddedEmulatorState>) -> Result<(), Str
         println!("Emulation thread stopped");
     });
 
-    *state.thread_handle.lock() = Some(handle);
+    *emulator_state.thread_handle.lock() = Some(handle);
     println!("Emulation started");
 
     Ok(())
@@ -428,12 +442,13 @@ pub fn emulator_start(state: State<'_, EmbeddedEmulatorState>) -> Result<(), Str
 
 /// Stop emulation
 #[tauri::command]
-pub fn emulator_stop(state: State<'_, EmbeddedEmulatorState>) {
-    *state.running.lock() = false;
-    *state.paused.lock() = false;
+pub fn emulator_stop(state: State<'_, AppState>) {
+    let emulator_state = state.embedded_emulator.lock();
+    *emulator_state.running.lock() = false;
+    *emulator_state.paused.lock() = false;
 
     // Wait for thread to finish
-    if let Some(handle) = state.thread_handle.lock().take() {
+    if let Some(handle) = emulator_state.thread_handle.lock().take() {
         let _ = handle.join();
     }
 
@@ -442,23 +457,26 @@ pub fn emulator_stop(state: State<'_, EmbeddedEmulatorState>) {
 
 /// Pause/resume emulation
 #[tauri::command]
-pub fn emulator_set_paused(state: State<'_, EmbeddedEmulatorState>, paused: bool) {
-    *state.paused.lock() = paused;
+pub fn emulator_set_paused(state: State<'_, AppState>, paused: bool) {
+    let emulator_state = state.embedded_emulator.lock();
+    *emulator_state.paused.lock() = paused;
     println!("Emulation {}", if paused { "paused" } else { "resumed" });
 }
 
 /// Toggle pause state
 #[tauri::command]
-pub fn emulator_toggle_pause(state: State<'_, EmbeddedEmulatorState>) -> bool {
-    let new_state = !*state.paused.lock();
-    *state.paused.lock() = new_state;
+pub fn emulator_toggle_pause(state: State<'_, AppState>) -> bool {
+    let emulator_state = state.embedded_emulator.lock();
+    let new_state = !*emulator_state.paused.lock();
+    *emulator_state.paused.lock() = new_state;
     new_state
 }
 
 /// Reset emulator
 #[tauri::command]
-pub fn emulator_reset(state: State<'_, EmbeddedEmulatorState>, hard: bool) {
-    let mut core_guard = state.core.lock();
+pub fn emulator_reset(state: State<'_, AppState>, hard: bool) {
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         if hard {
             core.reset_hard();
@@ -472,8 +490,9 @@ pub fn emulator_reset(state: State<'_, EmbeddedEmulatorState>, hard: bool) {
 
 /// Get the next video frame (called repeatedly by frontend)
 #[tauri::command]
-pub fn emulator_get_frame(state: State<'_, EmbeddedEmulatorState>) -> Option<EmulatorFrameData> {
-    state
+pub fn emulator_get_frame(state: State<'_, AppState>) -> Option<EmulatorFrameData> {
+    let emulator_state = state.embedded_emulator.lock();
+    emulator_state
         .frame_receiver
         .try_recv()
         .ok()
@@ -484,29 +503,97 @@ pub fn emulator_get_frame(state: State<'_, EmbeddedEmulatorState>) -> Option<Emu
         })
 }
 
+/// Get the current in-ROM creator runtime contract state.
+#[tauri::command]
+pub fn emulator_get_creator_runtime_state(
+    state: State<'_, AppState>,
+) -> Result<CreatorRuntimeState, String> {
+    let emulator_state = state.embedded_emulator.lock();
+    let core_guard = emulator_state.core.lock();
+    if let Some(ref core) = *core_guard {
+        Ok(core.creator_runtime_state())
+    } else {
+        Err("Emulator not initialized".to_string())
+    }
+}
+
+/// Seed or clear the creator session metadata in emulator WRAM.
+#[tauri::command]
+pub fn emulator_set_creator_session_state(
+    state: State<'_, AppState>,
+    session: Option<CreatorSessionState>,
+) -> Result<(), String> {
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
+    if let Some(ref mut core) = *core_guard {
+        let ok = if let Some(session) = session {
+            core.set_creator_session_state(&session)
+        } else {
+            core.clear_creator_session_state()
+        };
+
+        if ok {
+            Ok(())
+        } else {
+            Err("Failed to write creator session state into emulator WRAM".to_string())
+        }
+    } else {
+        Err("Emulator not initialized".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn emulator_resolve_creator_runtime_action(
+    state: State<'_, AppState>,
+) -> Result<CreatorRuntimeActionResolution, String> {
+    let (resolution, updated_rom) = {
+        let embedded = state.embedded_emulator.lock();
+        let mut core_guard = embedded.core.lock();
+        let core = core_guard.as_mut().ok_or("Emulator not initialized")?;
+        let resolution = core
+            .resolve_creator_runtime_action()
+            .map_err(|e| format!("Failed to resolve creator runtime action: {}", e))?;
+        let updated_rom = if resolution.rom_updated {
+            core.current_rom_image()
+        } else {
+            None
+        };
+        (resolution, updated_rom)
+    };
+
+    if let Some(updated_rom) = updated_rom {
+        sync_emulator_rom_to_app_state(&state, updated_rom)?;
+    }
+
+    Ok(resolution)
+}
+
 /// Send controller input
 #[tauri::command]
-pub fn emulator_set_input(state: State<'_, EmbeddedEmulatorState>, buttons: u16) {
-    let _ = state.input_sender.try_send(buttons);
+pub fn emulator_set_input(state: State<'_, AppState>, buttons: u16) {
+    let emulator_state = state.embedded_emulator.lock();
+    let _ = emulator_state.input_sender.try_send(buttons);
 }
 
 /// Send controller input from structured data
 #[tauri::command]
 pub fn emulator_set_controller_input(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     input: ControllerInput,
 ) {
     let buttons = input.to_buttons();
-    let _ = state.input_sender.try_send(buttons);
+    let emulator_state = state.embedded_emulator.lock();
+    let _ = emulator_state.input_sender.try_send(buttons);
 }
 
 /// Save state to a slot
 #[tauri::command]
 pub fn emulator_save_state(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     slot: u8,
 ) -> Result<(), String> {
-    let core_guard = state.core.lock();
+    let emulator_state = state.embedded_emulator.lock();
+    let core_guard = emulator_state.core.lock();
     if let Some(ref core) = *core_guard {
         let state_data = core
             .save_state()
@@ -516,7 +603,7 @@ pub fn emulator_save_state(
         std::fs::write(&path, state_data)
             .map_err(|e| format!("Failed to write state file: {}", e))?;
 
-        *state.current_save_slot.lock() = slot;
+        *emulator_state.current_save_slot.lock() = slot;
         println!("State saved to slot {}: {:?}", slot, path);
         Ok(())
     } else {
@@ -527,7 +614,7 @@ pub fn emulator_save_state(
 /// Load state from a slot
 #[tauri::command]
 pub fn emulator_load_state(
-    state: State<'_, EmbeddedEmulatorState>,
+    state: State<'_, AppState>,
     slot: u8,
 ) -> Result<(), String> {
     let path = get_save_state_path(slot)?;
@@ -539,12 +626,13 @@ pub fn emulator_load_state(
     let state_data =
         std::fs::read(&path).map_err(|e| format!("Failed to read state file: {}", e))?;
 
-    let mut core_guard = state.core.lock();
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         core.load_state(&state_data)
             .map_err(|e| format!("Failed to load state: {}", e))?;
 
-        *state.current_save_slot.lock() = slot;
+        *emulator_state.current_save_slot.lock() = slot;
         println!("State loaded from slot {}: {:?}", slot, path);
         Ok(())
     } else {
@@ -554,22 +642,24 @@ pub fn emulator_load_state(
 
 /// Set emulation speed
 #[tauri::command]
-pub fn emulator_set_speed(state: State<'_, EmbeddedEmulatorState>, speed: f32) {
+pub fn emulator_set_speed(state: State<'_, AppState>, speed: f32) {
     let clamped_speed = speed.clamp(0.25, 4.0);
-    *state.speed.lock() = clamped_speed;
+    let emulator_state = state.embedded_emulator.lock();
+    *emulator_state.speed.lock() = clamped_speed;
     println!("Emulation speed set to {}x", clamped_speed);
 }
 
 /// Advance one frame (for debugging/frame stepping)
 #[tauri::command]
-pub fn emulator_advance_frame(state: State<'_, EmbeddedEmulatorState>) -> Result<(), String> {
-    let mut core_guard = state.core.lock();
+pub fn emulator_advance_frame(state: State<'_, AppState>) -> Result<(), String> {
+    let emulator_state = state.embedded_emulator.lock();
+    let mut core_guard = emulator_state.core.lock();
     if let Some(ref mut core) = *core_guard {
         core.run_frame();
 
         // Send frame to frontend
         if let Some(frame) = core.get_frame_buffer() {
-            let _ = state.frame_sender.try_send(frame);
+            let _ = emulator_state.frame_sender.try_send(frame);
         }
 
         Ok(())
@@ -580,27 +670,32 @@ pub fn emulator_advance_frame(state: State<'_, EmbeddedEmulatorState>) -> Result
 
 /// Get current emulator status
 #[tauri::command]
-pub fn emulator_get_status(state: State<'_, EmbeddedEmulatorState>) -> EmulatorStatus {
+pub fn emulator_get_status(state: State<'_, AppState>) -> EmulatorStatus {
+    let emulator_state = state.embedded_emulator.lock();
+    let has_rom = emulator_state.loaded_rom_path.lock().is_some();
+    let rom_path = emulator_state.loaded_rom_path.lock().clone();
+    let current_slot = *emulator_state.current_save_slot.lock();
     EmulatorStatus {
-        initialized: state.is_initialized(),
-        running: state.is_running(),
-        paused: state.is_paused(),
-        speed: state.get_speed(),
-        has_rom: state.loaded_rom_path.lock().is_some(),
-        rom_path: state.loaded_rom_path.lock().clone(),
-        current_slot: *state.current_save_slot.lock(),
+        initialized: emulator_state.is_initialized(),
+        running: emulator_state.is_running(),
+        paused: emulator_state.is_paused(),
+        speed: emulator_state.get_speed(),
+        has_rom,
+        rom_path,
+        current_slot,
     }
 }
 
 /// Shutdown the emulator and release resources
 #[tauri::command]
-pub fn emulator_shutdown(state: State<'_, EmbeddedEmulatorState>) {
+pub fn emulator_shutdown(state: State<'_, AppState>) {
     // Stop emulation if running
     emulator_stop(state.clone());
 
     // Clear the core
-    *state.core.lock() = None;
-    *state.loaded_rom_path.lock() = None;
+    let emulator_state = state.embedded_emulator.lock();
+    *emulator_state.core.lock() = None;
+    *emulator_state.loaded_rom_path.lock() = None;
 
     println!("Emulator shutdown complete");
 }
@@ -643,6 +738,20 @@ fn parse_offset(s: &str) -> Result<usize, String> {
     } else {
         s.parse::<usize>().map_err(|e| e.to_string())
     }
+}
+
+fn sync_emulator_rom_to_app_state(state: &AppState, rom_image: Vec<u8>) -> Result<(), String> {
+    let mut rom_guard = state.rom.lock();
+    if rom_guard.is_none() {
+        return Err("No ROM loaded".to_string());
+    }
+
+    *rom_guard = Some(rom_core::Rom::new(rom_image));
+    drop(rom_guard);
+
+    state.pending_writes.lock().clear();
+    *state.modified.lock() = true;
+    Ok(())
 }
 
 /// Helper: Get save state path for a slot

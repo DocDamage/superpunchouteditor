@@ -1,198 +1,265 @@
-# Roster Metadata Editor Implementation
+# Roster Metadata Editor and In-ROM Creator Status
+
+Last updated: 2026-03-21 (session 3)
 
 ## Overview
 
-This document describes the implementation of the **Roster Metadata Editor** for the Super Punch-Out!! editor. This feature allows editing of game-level roster data including boxer names, circuit assignments, unlock order, and introductory text.
+The roster editor is no longer a placeholder-only surface. It now supports real ROM-backed roster editing, expanded roster layouts, in-ROM creator hook installation, embedded emulator inspection, and a draft-to-ROM creator workflow for live metadata testing.
 
-## Files Created
+This document reflects the current implementation status, not the original proposal state.
 
-### Rust Backend (rom-core)
+## Current Capability Summary
 
-- **`crates/rom-core/src/roster.rs`** - Core roster data structures and logic
-  - `RosterData` - Complete roster data structure
-  - `BoxerRosterEntry` - Individual boxer entry
-  - `Circuit` / `CircuitType` - Circuit definitions (Minor, Major, World, Special)
-  - `SpoTextEncoder` - Custom text encoding/decoding for SPO text
-  - `RosterLoader` - ROM loading (placeholder for research)
-  - Validation and error handling
+### Completed and working
 
-### Rust Backend (Tauri Commands)
+1. Real ROM-backed roster editing for boxer names, circuits, unlock order, and intro text
+2. Expanded roster table support beyond the stock 16-boxer layout
+3. In-ROM creator hook installation and WRAM contract publishing
+4. Embedded emulator integration using the real Snes9x libretro core
+5. Live creator runtime inspection from WRAM
+6. Creator session launch from the Character Create flow into the embedded emulator
+7. Creator draft editing and commit back into the loaded ROM for:
+   - boxer name
+   - circuit
+   - unlock order
+   - intro quote
+8. Live edited-ROM reload into the embedded emulator after creator commits
 
-- **`apps/desktop/src-tauri/src/roster_commands.rs`** - Tauri command handlers
-  - `get_roster_data` - Get complete roster
-  - `get_boxer_roster_entry` - Get single boxer
-  - `update_boxer_name` - Update boxer name with validation
-  - `validate_boxer_name` - Validate name encoding/length
-  - `update_boxer_circuit` - Change circuit assignment
-  - `update_unlock_order` - Modify unlock progression
-  - `set_champion_status` - Toggle champion flag
-  - `get_intro_text` / `update_intro_text` - Intro text editing
-  - `validate_roster_changes` - Full roster validation
-  - `get_text_encoding_info` - Get encoding support info
-  - Research/debug commands for ROM offsets
+### Still incomplete
 
-### TypeScript Types
+1. Portrait reassignment is not yet a true creator-side write path
+2. The ROM-side SNES menu is still a runtime scaffold, not a fully self-contained standalone editor UI
+3. The creator hook publishes menu state and accepts actions, but desktop-side draft/commit logic still owns the actual metadata writes
 
-- **`apps/desktop/src/types/roster.ts`** - Frontend type definitions
+## Major Progress Made
 
-### React Components
+## 1. Roster data is real and layout-aware
 
-- **`apps/desktop/src/components/RosterEditor.tsx`** - Main editor with tabs
-  - Tab: Boxer Names
-  - Tab: Circuits (drag-drop assignment)
-  - Tab: Unlock Order
-  - Tab: Intro Text
+The backend roster loader and writer now read and write the active roster layout from the ROM, including expanded layouts written by the in-game expansion path.
 
-- **`apps/desktop/src/components/BoxerNameEditor.tsx`** - Name editing with validation
-  - Character encoding validation
-  - Byte length checking
-  - Preview of encoded text
-  - Supported characters info
+Key completed work:
 
-- **`apps/desktop/src/components/CircuitEditor.tsx`** - Visual circuit editor
-  - Drag-and-drop between circuits
-  - Champion flag toggle
-  - Circuit color coding
+1. Boxer ID serialization was normalized so expanded entries can be addressed consistently by the frontend
+2. Expanded roster load/write tests were added
+3. The boxer-name writer bug was fixed so names terminate correctly and no longer lose the last character or reload with trailing padding
+4. The frontend roster editor now works against the real expanded roster contract instead of assuming the original 16-boxer tables
 
-- **`apps/desktop/src/components/RosterEditor.css`** - Component styles
+Relevant code:
 
-### Integration
+1. `crates/rom-core/src/roster/types.rs`
+2. `crates/rom-core/src/roster/writer.rs`
+3. `crates/rom-core/src/roster/mod.rs`
+4. `apps/desktop/src/types/roster.ts`
+5. `apps/desktop/src/components/RosterEditor.tsx`
+6. `apps/desktop/src/components/BoxerNameEditor.tsx`
+7. `apps/desktop/src/components/CircuitEditor.tsx`
 
-- **`apps/desktop/src/components/index.ts`** - Added exports
-- **`apps/desktop/src/App.tsx`** - Added "Roster" tab
+## 2. Character creation expands the roster and seeds a test session
 
-## ROM Research Status
+The Character Create tab now does more than collect inputs. It can expand the roster, patch the in-ROM creator hook, create the new boxer slot, and hand that session off to the embedded emulator.
 
-### Known Information
+Completed flow:
 
-The implementation includes placeholder data based on known game information:
+1. Expand the roster to add a new boxer slot
+2. Patch the in-ROM creator hook
+3. Write initial metadata for the created boxer
+4. Store the created boxer session context
+5. Open the Test tab and auto-enter creator mode
 
-**Boxer List (16 total):**
-1. Gabby Jay (Minor Circuit)
-2. Bear Hugger (Minor Circuit)
-3. Piston Hurricane (Minor Circuit)
-4. Bald Bull (Minor Circuit - Champion)
-5. Bob Charlie (Major Circuit)
-6. Dragon Chan (Major Circuit)
-7. Masked Muscle (Major Circuit)
-8. Mr. Sandman (Major Circuit - Champion)
-9. Aran Ryan (World Circuit)
-10. Heike Kagero (World Circuit)
-11. Mad Clown (World Circuit)
-12. Super Macho Man (World Circuit - Champion)
-13. Narcis Prince (Special Circuit)
-14. Hoy Quarlow (Special Circuit)
-15. Rick Bruiser (Special Circuit)
-16. Nick Bruiser (Special Circuit - Champion)
+The session handoff currently carries:
 
-### TODO: ROM Addresses to Research
+1. boxer slot
+2. boxer name
+3. circuit
+4. unlock order
+5. intro text id
 
-The following ROM addresses need to be researched to complete the implementation:
+Relevant code:
 
-1. **Name Table Location**
-   - Where are boxer names stored?
-   - Are they compressed or in a direct table?
-   - What is the text encoding scheme?
+1. `apps/desktop/src/components/RosterEditor.tsx`
+2. `apps/desktop/src/App.tsx`
 
-2. **Circuit Assignment Table**
-   - Where is circuit data stored?
-   - How are circuit assignments encoded?
+## 3. In-ROM creator hook and WRAM contract are installed
 
-3. **Unlock Order Table**
-   - Where is unlock progression data?
-   - How is the starting boxer (Gabby Jay) marked?
+The ROM expansion path now installs a creator bootstrap header plus a 65816 stub that:
 
-4. **Intro Text Table**
-   - Where are pre-match introductions stored?
-   - Are they compressed?
-   - Pointer table format?
+1. enters creator mode on `Select + Start + L + R`
+2. mirrors controller state into WRAM
+3. tracks creator page, cursor, dirty flag, and action latch
+4. publishes a render contract into WRAM
+5. exposes exit and commit-style action latches
 
-5. **Text Encoding**
-   - Complete character map for SPO text encoding
-   - Boxing symbols (stars, etc.)
-   - Accented characters for international boxers
+This work established the ROM-side contract consumed by the emulator monitor and desktop creator workflow.
 
-## Text Encoding
+Important limitation:
 
-The current implementation includes a placeholder text encoder (`SpoTextEncoder`) that supports:
-- A-Z, a-z (ASCII)
-- Basic punctuation: space, !, ?, ., ,, -, '
-- Boxing symbols: TODO - need research
+The hook still does not perform direct ROM metadata edits by itself. It is currently a control and render-state scaffold.
 
-**Known Limitations:**
-- Characters not in the supported list are replaced with '?'
-- Actual SPO encoding may differ - needs verification
+Relevant code:
 
-## Safety Features
+1. `crates/expansion-core/src/ingame_editor.rs`
+2. `crates/expansion-core/src/roster_expansion.rs`
 
-1. **Name Length Limits**
-   - Maximum 16 bytes per name
-   - Validation before saving
-   - Warning for unsupported characters
+## 4. Embedded emulator uses the real libretro runtime
 
-2. **Validation System**
-   - Duplicate name detection
-   - Circuit assignment validation
-   - Unlock order gap detection
-   - Champion flag consistency checking
+The embedded emulator no longer relies on a pure simulation path during normal runtime use. It now loads the real Snes9x libretro core and reads creator WRAM state from `RETRO_MEMORY_SYSTEM_RAM`.
 
-3. **Undo/Redo Support**
-   - Changes go through pending writes system
-   - Can be undone via existing undo system
+Completed work:
 
-4. **ROM Safety**
-   - Changes validated before writing
-   - Placeholder addresses prevent accidental writes
+1. dynamic libretro loading
+2. video/audio/input callback wiring
+3. frame execution through `retro_run`
+4. creator-state reads from system RAM
+5. Tauri exposure of creator runtime state
 
-## Usage
+The old stub path remains only for tests.
 
-1. Open a ROM in the editor
-2. Click the "Roster" tab in the sidebar
-3. Select a sub-tab:
-   - **Boxer Names**: Edit names with validation
-   - **Circuits**: Drag boxers between circuits
-   - **Unlock Order**: Adjust progression
-   - **Intro Text**: Edit pre-match text
-4. Changes are validated in real-time
-5. Use "Reset to Defaults" to revert all changes
+Relevant code:
 
-## Future Enhancements
+1. `crates/emulator-core/src/libretro_runtime.rs`
+2. `crates/emulator-core/src/snes9x.rs`
+3. `apps/desktop/src-tauri/src/emulator_embedded.rs`
+4. `apps/desktop/src/hooks/useEmulator.ts`
 
-1. **ROM Integration**
-   - Add actual ROM address lookup once researched
-   - Implement proper text encoding/decoding
-   - Support for compressed text
+## 5. Creator runtime monitor and menu preview are in place
 
-2. **Advanced Features**
-   - Import/export roster data
-   - Batch name changes
-   - Roster templates
-   - Circuit reordering
+The embedded emulator UI now exposes the creator runtime as a usable debugging and test surface.
 
-3. **Research Tools**
-   - ROM scanner for text tables
-   - Hex viewer for roster data
-   - Diff tool for roster changes
+Completed monitor features:
 
-## Development Notes
+1. creator active/idle status
+2. page, cursor, action, dirty, revision, and render visibility
+3. higher-level page and row preview instead of only raw bytes
+4. quick controls for:
+   - enter creator
+   - previous/next page
+   - cursor up/down
+   - select action
+   - exit creator
+5. creator session metadata card
 
-- The editor is functional with placeholder data
-- All UI components are implemented
-- Tauri commands are registered
-- Validation is working
-- Ready for ROM address integration once research is complete
+Relevant code:
 
-## Testing
+1. `apps/desktop/src/components/EmbeddedEmulator.tsx`
 
-To test the implementation:
+## 6. The embedded emulator now boots the live edited ROM image
 
-```bash
-# Run the Tauri app
-cd apps/desktop
-npm run tauri dev
+The Test tab previously depended on file-path loading, which meant the embedded emulator could drift from the actual edited ROM state held in memory by the app.
 
-# Or build for production
-npm run tauri build
+That gap is now closed.
+
+Completed work:
+
+1. backend command to export the current loaded ROM image with pending writes applied
+2. Test tab wiring to feed that live ROM image into the embedded emulator
+3. creator commit flow that reloads the updated edited ROM immediately
+
+Relevant code:
+
+1. `apps/desktop/src-tauri/src/commands/rom.rs`
+2. `apps/desktop/src-tauri/src/lib.rs`
+3. `apps/desktop/src/App.tsx`
+
+## 7. Creator draft editing and commit are functional
+
+The creator monitor is now backed by a desktop-side draft editor. The ROM-side creator hook still provides page, cursor, and action intent, but the app now translates those signals into a real editable draft and can commit the result back into the loaded ROM.
+
+Completed draft behavior:
+
+1. load the target boxer slot from the current ROM
+2. load intro quote text for that boxer
+3. focus draft fields based on creator page/cursor/action
+4. update circuit selection from the creator circuit page
+5. commit current draft values back into the ROM
+6. reload the edited ROM into the emulator
+7. re-enter creator mode automatically after commit
+
+Committed fields:
+
+1. boxer name
+2. circuit
+3. unlock order
+4. intro quote
+
+Relevant code:
+
+1. `apps/desktop/src/components/EmbeddedEmulator.tsx`
+
+## Verification Completed
+
+The following checks have been run successfully during this implementation sequence:
+
+```powershell
+$env:CARGO_TARGET_DIR='target_codex'; cargo test -p rom-core roster -- --nocapture
+$env:CARGO_TARGET_DIR='target_codex'; cargo test -p expansion-core -- --nocapture
+$env:CARGO_TARGET_DIR='target_codex'; cargo test -p emulator-core -- --nocapture
+$env:CARGO_TARGET_DIR='target_codex'; cargo check -p tauri-appsuper-punch-out-editor --lib
+npx tsc --noEmit
+npm run build
 ```
 
-Navigate to the "Roster" tab to see the editor in action.
+## Remaining Gaps
+
+### Portrait workflow
+
+Portrait selection is still not an end-to-end creator write path. The current state is:
+
+1. the creator runtime exposes a portrait page
+2. the embedded creator UI explains the portrait workflow
+3. actual portrait asset replacement still lives in the asset pipeline, not in the creator draft commit path
+
+### Fully standalone ROM-side editor logic
+
+The ROM patch currently provides:
+
+1. entry combo
+2. action/page/cursor state
+3. render rows
+4. dirty/revision/visibility contract
+
+What it does not yet provide:
+
+1. direct in-ROM text entry UI
+2. direct in-ROM commit-to-ROM logic
+3. full standalone portrait management
+
+## 8. Text editor is now ROM-backed for victory quotes and boxer intros
+
+The Text editor tab is now exposed in the app navigation and the following
+categories write real data to the ROM:
+
+1. **Victory quotes** — `update_victory_quote` reads the existing quote from ROM
+   to find its offset, encodes the new text, and writes it back in-place.
+   New text must not exceed the original allocated byte length.
+
+2. **Boxer intros** — `update_boxer_intro` uses `RosterWriter::write_boxer_intro_field`
+   to write each field that was changed. All 5 fixed-size intro fields (name,
+   origin, record, rank, intro_quote) are 16 bytes each in the ROM.
+
+3. **Cornerman text** — Loaded from ROM via `load_cornerman_texts`. Writes
+   currently use the in-memory TextDatabase pending a `write_cornerman_text`
+   implementation in RosterWriter.
+
+The menus tab and credits tab have been removed from the text editor surface.
+Menu text ROM offsets require research; credits editing was out of scope.
+
+### API changes from this session
+
+- `get_victory_quotes(boxer_key: String)` — was `fighter_id: u8`
+- `get_boxer_intro(boxer_key: String)` — was `fighter_id: u8`
+- `get_cornerman_texts(boxer_key: String)` — was `fighter_id: u8`
+- `BoxerIntroResponse` now includes a `validation` field with per-field
+  byte lengths, validity flags, and unsupported character lists.
+
+### Relevant code
+
+1. `apps/desktop/src-tauri/src/text_commands.rs` — victory quote and intro write-back
+2. `apps/desktop/src-tauri/src/roster_commands.rs` — API fixes, intro validation
+3. `apps/desktop/src/components/TextEditor.tsx` — tab removed, menus/credits gone
+4. `apps/desktop/src/App.tsx` — "Text" tab added to navigation
+
+## Practical Status
+
+If the goal is "create a new boxer slot, test it in the embedded emulator, edit core roster metadata from the creator flow, and immediately verify the result," that path is implemented.
+
+If the goal is "the ROM alone contains a complete standalone creator UI that performs all edits without desktop assistance," that is not finished yet.

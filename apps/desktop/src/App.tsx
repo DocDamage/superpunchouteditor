@@ -38,8 +38,10 @@ import { PluginManager } from "./components/PluginManager";
 import { BankVisualization } from "./components/BankVisualization";
 import { AnimationPlayer } from "./components/AnimationPlayer";
 import { AudioEditor } from "./components/AudioEditor";
+import { TextEditor } from "./components/TextEditor";
 
 import { HelpButton, KeyboardShortcutsHelp, HelpSystem } from "./components/help";
+import { ToastContainer } from "./components/ToastContainer";
 import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateChecker } from "./components/UpdateChecker";
 import { EmbeddedEmulator } from "./components/EmbeddedEmulator";
@@ -61,6 +63,7 @@ type TabKey =
   | "banks"
   | "animation-player"
   | "audio"
+  | "text"
   | "test"
   | "settings";
 
@@ -81,6 +84,7 @@ const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: "banks", label: "Banks" },
   { key: "animation-player", label: "Player" },
   { key: "audio", label: "Audio" },
+  { key: "text", label: "Text" },
   { key: "test", label: "Test" },
   { key: "settings", label: "Settings" },
 ];
@@ -188,6 +192,16 @@ function App() {
   const [currentTab, setCurrentTab] = useState<TabKey>("editor");
   const [lastNonModalTab, setLastNonModalTab] = useState<TabKey>("editor");
   const [boxerPortraits, setBoxerPortraits] = useState<Record<string, string>>({});
+  const [creatorAutoEnterToken, setCreatorAutoEnterToken] = useState(0);
+  const [testRomData, setTestRomData] = useState<Uint8Array | null>(null);
+  const [creatorSessionContext, setCreatorSessionContext] = useState<{
+    boxerId?: number;
+    boxerName?: string;
+    circuit?: "Minor" | "Major" | "World" | "Special";
+    unlockOrder?: number;
+    introTextId?: number;
+    assetOwnerKey?: string;
+  } | null>(null);
   const menuSheetStyle = useMemo(
     () =>
       ({
@@ -219,6 +233,30 @@ function App() {
     if (!isDesktopRuntime || !romSha1) return;
     void clearHistory();
   }, [isDesktopRuntime, romSha1, clearHistory]);
+
+  useEffect(() => {
+    setCreatorSessionContext(null);
+    setTestRomData(null);
+  }, [romSha1]);
+
+  const refreshTestRomData = useCallback(async () => {
+    if (!isDesktopRuntime || !romSha1) {
+      setTestRomData(null);
+      return;
+    }
+
+    try {
+      const romImage = await invoke<number[]>("get_loaded_rom_image");
+      setTestRomData(new Uint8Array(romImage));
+    } catch (error) {
+      console.error("Failed to load current ROM image for embedded emulator:", error);
+    }
+  }, [isDesktopRuntime, romSha1]);
+
+  useEffect(() => {
+    if (currentTab !== "test") return;
+    void refreshTestRomData();
+  }, [currentTab, refreshTestRomData, pendingWrites.size]);
 
   useEffect(() => {
     if (!isDesktopRuntime || !romSha1) {
@@ -396,6 +434,25 @@ function App() {
     setCurrentTab(lastNonModalTab);
   }, [lastNonModalTab]);
 
+  const handleLaunchCreatorTest = useCallback((context?: {
+    boxerId?: number;
+    boxerName?: string;
+    circuit?: "Minor" | "Major" | "World" | "Special";
+    unlockOrder?: number;
+    introTextId?: number;
+    assetOwnerKey?: string;
+  }) => {
+    setCreatorSessionContext(context ?? null);
+    setCreatorAutoEnterToken((current) => current + 1);
+    setCurrentTab("test");
+  }, []);
+
+  const handleOpenCreatorAssetOwner = useCallback((boxerKey: string) => {
+    void selectBoxer(boxerKey);
+    setCurrentTab("editor");
+    setLastNonModalTab("editor");
+  }, [selectBoxer]);
+
   const renderEditorContent = () => {
     if (!selectedBoxer) {
       return (
@@ -506,7 +563,7 @@ function App() {
       case "roster":
         return (
           <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <RosterEditor mode="game" />
+            <RosterEditor mode="game" onLaunchCreatorTest={handleLaunchCreatorTest} />
           </div>
         );
       case "ai":
@@ -554,9 +611,13 @@ function App() {
             <div style={{ flex: 1, minHeight: 0 }}>
               <EmbeddedEmulator
                 layout="tab"
-                editedRomData={undefined}
+                editedRomData={testRomData}
                 originalRomData={undefined}
+                romPath={romPath || null}
                 romName={currentProject?.metadata?.name || "Super Punch-Out!!"}
+                autoEnterCreatorToken={creatorAutoEnterToken}
+                creatorSessionContext={creatorSessionContext}
+                onOpenAssetOwner={handleOpenCreatorAssetOwner}
               />
             </div>
           </div>
@@ -589,6 +650,12 @@ function App() {
         return (
           <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
             <AudioEditor />
+          </div>
+        );
+      case "text":
+        return (
+          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
+            <TextEditor />
           </div>
         );
       case "editor":
@@ -854,6 +921,7 @@ function AppWithTheme(): React.ReactElement {
     <ThemeProvider>
       <UpdateChecker>
         <App />
+        <ToastContainer />
       </UpdateChecker>
     </ThemeProvider>
   );

@@ -302,6 +302,7 @@ impl CpuDebugger {
         result
     }
 
+    #[allow(dead_code)]
     fn get_register_value(&self, reg: Register) -> u16 {
         match reg {
             Register::A => self.registers.a,

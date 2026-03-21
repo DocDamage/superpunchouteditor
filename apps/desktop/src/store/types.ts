@@ -349,3 +349,13 @@ export interface ModalState {
   type: string | null;
   data?: unknown;
 }
+
+export interface EmulatorSettings {
+  emulatorPath: string;
+  emulatorType: 'snes9x' | 'bsnes' | 'mesen-s' | 'other';
+  autoSaveBeforeLaunch: boolean;
+  commandLineArgs: string;
+  jumpToSelectedBoxer: boolean;
+  defaultRound: number;
+  saveStateDir: string | null;
+}

@@ -531,12 +531,12 @@ export const FrameReconstructor: React.FC = () => {
         {/* Right sidebar - Properties */}
         <div style={styles.rightSidebar}>
           {showAnnotationPanel && selectedFighterId !== null ? (
-            <AnnotationPanel
-              fighterId={selectedFighterId.toString()}
-              fighterName={selectedBoxer?.name || `Boxer ${selectedBoxerId}`}
-              frameIndex={currentFrameIndex}
-              onAnnotationChange={() => loadFrameAnnotations()}
-            />
+              <AnnotationPanel
+                fighterId={selectedFighterId.toString()}
+                fighterName={selectedBoxer?.name || `Boxer ${selectedFighterId}`}
+                frameIndex={currentFrameIndex}
+                onAnnotationChange={() => loadFrameAnnotations()}
+              />
           ) : (
             <SpriteProperties
               frame={currentFrame}

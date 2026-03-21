@@ -18,6 +18,8 @@ pub struct PluginInfoResponse {
     pub author: String,
     pub description: String,
     pub enabled: bool,
+    pub path: String,
+    pub loaded_at: String,
 }
 
 impl From<plugin_core::PluginInfo> for PluginInfoResponse {
@@ -29,6 +31,8 @@ impl From<plugin_core::PluginInfo> for PluginInfoResponse {
             author: info.author,
             description: info.description,
             enabled: info.enabled,
+            path: info.path.to_string_lossy().into_owned(),
+            loaded_at: info.loaded_at.to_rfc3339(),
         }
     }
 }

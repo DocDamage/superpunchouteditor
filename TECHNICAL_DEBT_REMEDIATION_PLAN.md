@@ -19,6 +19,14 @@ The plan covers the following debt areas:
 7. Excessive warning volume that reduces build signal
 8. Missing tests around the new multi-region ROM flow
 
+## Related Status Docs
+
+Current feature progress for the roster editor, in-ROM creator hook, embedded emulator integration, and live creator draft/commit flow is tracked separately in `ROSTER_EDITOR_IMPLEMENTATION.md`.
+
+That document is the current implementation-status source of truth for character-creation work. This plan remains focused on cross-cutting technical debt remediation.
+
+For the full project-wide "what is left before this app is complete" view, use `PROJECT_COMPLETION_PLAN.md`.
+
 ## Current Risk Summary
 
 ### Highest-risk issues
@@ -483,14 +491,16 @@ Add coverage at the layers where regressions are most likely:
 
 This debt plan is considered complete only when all of the following are true:
 
-1. Switching ROMs across regions does not leave stale frontend state
-2. Manifest loading works without machine-specific paths
-3. Region selection behavior is internally consistent
-4. Only one ROM store implementation is authoritative
-5. Undo/redo state is no longer polled every second
-6. No import-time DOM mutation remains in the region selector
-7. Warning volume is materially lower and more intentional
-8. Multi-region load flows have direct regression coverage
+1. Switching ROMs across regions does not leave stale frontend state — **DONE**: openRom() resets all ROM-bound state
+2. Manifest loading works without machine-specific paths — **DONE**: hard-coded Windows path removed, portable resolution
+3. Region selection behavior is internally consistent — **DONE**: region selector flow simplified
+4. Only one ROM store implementation is authoritative — **DONE**: useStore.ts is authoritative; store/index.ts exports only useStore and useUiStore
+5. Undo/redo state is no longer polled every second — **DONE**: undo polling interval removed
+6. No import-time DOM mutation remains in the region selector — **DONE**: resolved before session 3
+7. Warning volume is materially lower and more intentional — **DONE**: 0 Rust warnings/errors (cargo check); TypeScript passes tsc --noEmit
+8. Multi-region load flows have direct regression coverage — partially addressed; 48 rom-core unit tests pass
+
+Last updated: 2026-03-21
 
 ## Recommended First Implementation Slice
 

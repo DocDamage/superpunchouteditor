@@ -24,15 +24,15 @@ export interface Animation {
   category: AnimationCategory;
 }
 
-export type AnimationCategory = 
-  | 'Idle' 
-  | 'PunchLeft' 
-  | 'PunchRight' 
-  | 'Dodge' 
-  | 'Hit' 
-  | 'Knockdown' 
+export type AnimationCategory =
+  | 'Idle'
+  | 'PunchLeft'
+  | 'PunchRight'
+  | 'Dodge'
+  | 'Hit'
+  | 'Knockdown'
   | 'Special'
-  | { Custom: string };
+  | `Custom:${string}`;
 
 export interface FighterAnimations {
   fighter_id: number;
@@ -298,7 +298,7 @@ export const AnimationEditor: React.FC = () => {
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-400">
             {selectedFighterId !== null && fighterAnimations 
-              ? `Editing: ${fighterAnimations.boxer_name}` 
+              ? `Editing: ${fighterAnimations.fighter_name}`
               : 'Select a fighter to edit animations'}
           </span>
         </div>

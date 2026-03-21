@@ -12,7 +12,7 @@ interface SettingsChangePreview {
   has_conflict: boolean;
 }
 
-interface SettingsImportDialogProps {
+export interface SettingsImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (filePath: string, merge: boolean) => void;

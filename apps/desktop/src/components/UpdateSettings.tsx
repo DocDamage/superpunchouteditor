@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { UpdateSettings as UpdateSettingsType, UpdateInfo } from '../store/useStore';
 import { useStore } from '../store/useStore';
 import { UpdateAvailableModal } from './UpdateAvailableModal';
+import { showToast } from './ToastContainer';
 import { UpdateProgress } from './UpdateProgress';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
@@ -59,7 +61,6 @@ export function UpdateSettings() {
 
   const loadManualUrl = async () => {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
       const url = await invoke<string>('get_manual_download_url');
       setManualUrl(url);
     } catch (e) {
@@ -71,7 +72,7 @@ export function UpdateSettings() {
   const handleCheckForUpdates = async () => {
     const update = await checkForUpdates();
     if (!update || update.is_latest) {
-      alert(update ? 'You are running the latest version!' : 'No update information available.');
+      showToast(update ? 'You are running the latest version.' : 'No update information available.', 'info');
     }
   };
 

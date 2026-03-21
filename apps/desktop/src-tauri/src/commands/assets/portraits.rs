@@ -8,8 +8,9 @@ use crate::app_state::AppState;
 use crate::utils::parse_offset;
 
 use super::{
-    decode_asset_tiles, encode_tiles_to_snes_bytes, first_subpalette, load_png_as_tiles,
-    read_current_asset_bytes, read_palette_colors, render_tile_strip, save_png, AssetResult,
+    decode_asset_tiles, encode_tiles_to_snes_bytes, encode_tiles_for_asset, find_asset_by_offset,
+    first_subpalette, load_png_as_tiles, read_current_asset_bytes, read_palette_colors,
+    render_tile_strip, save_png, set_pending_write, AssetResult,
 };
 
 #[tauri::command]
@@ -46,4 +47,30 @@ pub fn import_asset_from_png(
     let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_size)?);
     let tiles = load_png_as_tiles(&png_path, &palette)?;
     Ok(encode_tiles_to_snes_bytes(&tiles))
+}
+
+#[tauri::command]
+pub fn import_graphic_asset_from_png(
+    state: State<AppState>,
+    pc_offset: String,
+    original_size: usize,
+    palette_pc_offset: String,
+    palette_size: usize,
+    png_path: String,
+) -> AssetResult<(usize, usize, bool)> {
+    let asset_pc_offset = parse_offset(&pc_offset)?;
+    let palette_pc = parse_offset(&palette_pc_offset)?;
+    let manifest = state.manifest.lock();
+    let asset = find_asset_by_offset(&manifest, asset_pc_offset)
+        .ok_or_else(|| format!("Asset at {} not found in manifest", pc_offset))?;
+    drop(manifest);
+
+    let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_size)?);
+    let tiles = load_png_as_tiles(&png_path, &palette)?;
+    let new_bytes = encode_tiles_for_asset(&tiles, asset.category.contains("Compressed"));
+    let fits = new_bytes.len() <= original_size;
+
+    set_pending_write(state.inner(), asset_pc_offset, new_bytes.clone());
+
+    Ok((new_bytes.len(), original_size, fits))
 }

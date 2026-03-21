@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useStore, AssetFile, BoxerRecord, BankDuplication } from '../store/useStore';
 import { SharedBankWarning, SharedBankInfo } from './SharedBankWarning';
 import { SharedBankIndicator, SharedBankSummary } from './SharedBankIndicator';
+import { showToast } from './ToastContainer';
 
 interface SpriteBinEditorProps {
   boxer: BoxerRecord;
@@ -235,14 +236,14 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
           updateState(selectedBin.start_pc, {
             status: `✗ Duplication failed: ${result.error || 'Unknown error'}`,
           });
-          alert(`Failed to duplicate bank: ${result.error || 'Unknown error'}\n\nYou can still edit the shared bank, but changes will affect all fighters using it.`);
+          showToast(`Bank duplication failed: ${result.error || 'Unknown error'}. Proceeding with shared bank — changes will affect all fighters using it.`, 'warning', 8000);
           await proceedWithImport(selectedBin);
         }
       } catch (e) {
         updateState(selectedBin.start_pc, {
           status: `✗ Duplication failed: ${e}`,
         });
-        alert(`Failed to duplicate bank: ${e}\n\nYou can still edit the shared bank, but changes will affect all fighters using it.`);
+        showToast(`Bank duplication failed: ${e}. Proceeding with shared bank — changes will affect all fighters using it.`, 'warning', 8000);
         await proceedWithImport(selectedBin);
       } finally {
         setDuplicatingKey(null);

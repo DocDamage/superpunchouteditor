@@ -59,3 +59,6 @@ pub const INTRO_FIELD_COUNT: usize = 5;
 
 /// Size of boxer intro data block per boxer
 pub const INTRO_DATA_SIZE: usize = INTRO_FIELD_SIZE * INTRO_FIELD_COUNT; // 80 bytes
+
+/// Safety scan limit when measuring null-terminated cornerman text length
+pub const MAX_CORNERMAN_SCAN_LEN: usize = 100;

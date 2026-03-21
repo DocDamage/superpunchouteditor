@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { showToast } from './ToastContainer';
 
 export interface ExternalTool {
   id: string;
@@ -253,12 +254,12 @@ export function ExternalToolsManager({ isOpen, onClose }: ExternalToolsManagerPr
     try {
       const result = await invoke<{ valid: boolean; message: string }>('verify_tool', { tool });
       if (result.valid) {
-        alert(`✓ ${tool.name} is valid and accessible`);
+        showToast(`${tool.name} is valid and accessible.`, 'success');
       } else {
-        alert(`✗ ${result.message}`);
+        showToast(result.message, 'error');
       }
     } catch (e) {
-      alert(`✗ Failed to verify tool: ${e}`);
+      showToast(`Failed to verify tool: ${e}`, 'error');
     }
   };
 

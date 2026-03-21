@@ -7,6 +7,25 @@ use tauri::{AppHandle, Manager, State};
 use crate::app_state::AppState;
 use crate::utils::{load_manifest_for_region, parse_offset, validation::validate_rom_path};
 
+pub(crate) fn build_current_rom_image(state: &AppState) -> Result<Vec<u8>, String> {
+    let rom_guard = state.rom.lock();
+    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
+    let mut rom_image = rom.data.clone();
+    drop(rom_guard);
+
+    let pending = state.pending_writes.lock();
+    for (offset_str, bytes) in pending.iter() {
+        let offset = parse_offset(offset_str)?;
+        if offset >= rom_image.len() {
+            continue;
+        }
+        let len = bytes.len().min(rom_image.len() - offset);
+        rom_image[offset..offset + len].copy_from_slice(&bytes[..len]);
+    }
+
+    Ok(rom_image)
+}
+
 /// Open a ROM file from the specified path
 ///
 /// Validates the ROM, calculates its SHA1 hash, and stores it in the app state.
@@ -122,6 +141,12 @@ pub fn get_rom_bytes(
     rom.read_bytes(offset, size)
         .map(|bytes| bytes.to_vec())
         .map_err(|e| e.to_string())
+}
+
+/// Get the full loaded ROM image with pending writes applied.
+#[tauri::command]
+pub fn get_loaded_rom_image(state: State<AppState>) -> Result<Vec<u8>, String> {
+    build_current_rom_image(&state)
 }
 
 /// Discard a pending write for a specific offset

@@ -20,7 +20,7 @@ export interface ToolContext {
   metadata?: Record<string, string>;
 }
 
-interface OpenWithMenuProps {
+export interface OpenWithMenuProps {
   filePath: string;
   fileExtension?: string;
   context?: ToolContext;

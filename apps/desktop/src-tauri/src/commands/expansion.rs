@@ -101,6 +101,20 @@ struct HookPresetSeed {
     overwrite_len: Option<usize>,
 }
 
+#[derive(Debug, Clone)]
+struct ResolvedHookOptions {
+    patch_editor_hook: bool,
+    hook_pc: Option<usize>,
+    overwrite_len: Option<usize>,
+    notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ExistingCreatorHook {
+    hook_pc: usize,
+    stub_pc: usize,
+}
+
 #[tauri::command]
 pub fn apply_in_game_expansion(
     state: State<AppState>,
@@ -108,20 +122,19 @@ pub fn apply_in_game_expansion(
 ) -> Result<ApplyInGameExpansionResponse, String> {
     let mut rom_guard = state.rom.lock();
     let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-    let (resolved_hook_pc, resolved_overwrite_len, resolution_notes) =
-        resolve_hook_options(rom, &request)?;
+    let resolved_hook = resolve_hook_options(rom, &request)?;
 
     let mut report = apply_ingame_editor_expansion(
         rom,
         &ExpansionOptions {
             target_boxer_count: request.target_boxer_count,
-            patch_editor_hook: request.patch_editor_hook,
-            editor_hook_pc_offset: resolved_hook_pc,
-            editor_hook_overwrite_len: resolved_overwrite_len,
+            patch_editor_hook: resolved_hook.patch_editor_hook,
+            editor_hook_pc_offset: resolved_hook.hook_pc,
+            editor_hook_overwrite_len: resolved_hook.overwrite_len,
         },
     )
     .map_err(|err| err.to_string())?;
-    report.notes.extend(resolution_notes);
+    report.notes.extend(resolved_hook.notes);
 
     *state.modified.lock() = true;
 
@@ -153,9 +166,14 @@ pub fn apply_in_game_expansion(
 fn resolve_hook_options(
     rom: &rom_core::Rom,
     request: &ApplyInGameExpansionRequest,
-) -> Result<(Option<usize>, Option<usize>, Vec<String>), String> {
+) -> Result<ResolvedHookOptions, String> {
     if !request.patch_editor_hook {
-        return Ok((None, None, Vec::new()));
+        return Ok(ResolvedHookOptions {
+            patch_editor_hook: false,
+            hook_pc: None,
+            overwrite_len: None,
+            notes: Vec::new(),
+        });
     }
 
     let manual_hook_pc = match request.editor_hook_pc_offset.as_deref() {
@@ -164,14 +182,28 @@ fn resolve_hook_options(
     };
 
     if let Some(hook_pc) = manual_hook_pc {
-        return Ok((
-            Some(hook_pc),
-            request.editor_hook_overwrite_len,
-            vec![format!(
+        if let Some(existing) = detect_existing_creator_hook_at(rom, hook_pc) {
+            return Ok(ResolvedHookOptions {
+                patch_editor_hook: false,
+                hook_pc: None,
+                overwrite_len: None,
+                notes: vec![format!(
+                    "Creator hook already installed at {} (stub {}). Skipping hook re-patch.",
+                    format_hex(existing.hook_pc),
+                    format_hex(existing.stub_pc)
+                )],
+            });
+        }
+
+        return Ok(ResolvedHookOptions {
+            patch_editor_hook: true,
+            hook_pc: Some(hook_pc),
+            overwrite_len: request.editor_hook_overwrite_len,
+            notes: vec![format!(
                 "Using manually provided hook PC {}.",
                 format_hex(hook_pc)
             )],
-        ));
+        });
     }
 
     let region = rom.detect_region().unwrap_or(rom_core::RomRegion::Usa);
@@ -181,17 +213,18 @@ fn resolve_hook_options(
     for seed in curated_hook_preset_seeds(region) {
         let verify_len = requested_len.or(seed.overwrite_len);
         if let Ok(candidate) = verify_ingame_hook_site(rom, seed.hook_pc, verify_len) {
-            return Ok((
-                Some(candidate.hook_pc),
-                Some(candidate.overwrite_len),
-                vec![format!(
+            return Ok(ResolvedHookOptions {
+                patch_editor_hook: true,
+                hook_pc: Some(candidate.hook_pc),
+                overwrite_len: Some(candidate.overwrite_len),
+                notes: vec![format!(
                     "Auto-selected {} hook preset '{}' at {} ({} bytes).",
                     region_name,
                     seed.label,
                     format_hex(candidate.hook_pc),
                     candidate.overwrite_len
                 )],
-            ));
+            });
         }
     }
 
@@ -199,24 +232,108 @@ fn resolve_hook_options(
         for scanned in analyze_ingame_hook_sites(rom, start_pc, end_pc, 64) {
             let verify_len = requested_len.or(Some(scanned.overwrite_len));
             if let Ok(candidate) = verify_ingame_hook_site(rom, scanned.hook_pc, verify_len) {
-                return Ok((
-                    Some(candidate.hook_pc),
-                    Some(candidate.overwrite_len),
-                    vec![format!(
+                return Ok(ResolvedHookOptions {
+                    patch_editor_hook: true,
+                    hook_pc: Some(candidate.hook_pc),
+                    overwrite_len: Some(candidate.overwrite_len),
+                    notes: vec![format!(
                         "Auto-selected scanned {} hook candidate at {} ({} bytes).",
                         region_name,
                         format_hex(candidate.hook_pc),
                         candidate.overwrite_len
                     )],
-                ));
+                });
             }
         }
+    }
+
+    if let Some(existing) = find_existing_creator_hook(rom, region) {
+        return Ok(ResolvedHookOptions {
+            patch_editor_hook: false,
+            hook_pc: None,
+            overwrite_len: None,
+            notes: vec![format!(
+                "Existing creator hook detected at {} (stub {}). Skipping hook re-patch.",
+                format_hex(existing.hook_pc),
+                format_hex(existing.stub_pc)
+            )],
+        });
     }
 
     Err(format!(
         "Failed to auto-resolve a safe hook location for {} ROM. Use advanced hook controls to provide/verify a manual hook.",
         region_name
     ))
+}
+
+fn find_existing_creator_hook(
+    rom: &rom_core::Rom,
+    region: rom_core::RomRegion,
+) -> Option<ExistingCreatorHook> {
+    let mut seen = HashSet::new();
+
+    for seed in curated_hook_preset_seeds(region) {
+        if !seen.insert(seed.hook_pc) {
+            continue;
+        }
+        if let Some(existing) = detect_existing_creator_hook_at(rom, seed.hook_pc) {
+            return Some(existing);
+        }
+    }
+
+    for (start_pc, end_pc) in default_hook_scan_ranges(rom) {
+        let range = rom.read_bytes(start_pc, end_pc - start_pc).ok()?;
+        for (idx, byte) in range.iter().enumerate() {
+            if *byte != 0x5C {
+                continue;
+            }
+            let hook_pc = start_pc + idx;
+            if !seen.insert(hook_pc) {
+                continue;
+            }
+            if let Some(existing) = detect_existing_creator_hook_at(rom, hook_pc) {
+                return Some(existing);
+            }
+        }
+    }
+
+    None
+}
+
+fn detect_existing_creator_hook_at(rom: &rom_core::Rom, hook_pc: usize) -> Option<ExistingCreatorHook> {
+    let hook_bytes = rom.read_bytes(hook_pc, 4).ok()?;
+    if hook_bytes[0] != 0x5C {
+        return None;
+    }
+
+    let stub_pc = jml_target_to_pc(rom, hook_bytes[1], hook_bytes[2], hook_bytes[3])?;
+    let stub_head = rom.read_bytes(stub_pc, 3).ok()?;
+    if stub_head != [0x08, 0xE2, 0x20] {
+        return None;
+    }
+
+    let scan_len = rom.size().saturating_sub(stub_pc).min(512);
+    if scan_len < 6 {
+        return None;
+    }
+    let stub_bytes = rom.read_bytes(stub_pc, scan_len).ok()?;
+    if !stub_bytes.windows(6).any(|window| window == b"INGAME") {
+        return None;
+    }
+
+    Some(ExistingCreatorHook { hook_pc, stub_pc })
+}
+
+fn jml_target_to_pc(rom: &rom_core::Rom, lo: u8, hi: u8, bank: u8) -> Option<usize> {
+    if bank < 0x80 {
+        return None;
+    }
+    let addr = u16::from_le_bytes([lo, hi]);
+    if addr < 0x8000 {
+        return None;
+    }
+    let pc = rom.snes_to_pc(bank, addr);
+    (pc < rom.size()).then_some(pc)
 }
 
 #[tauri::command]
@@ -469,5 +586,41 @@ fn curated_hook_preset_seeds(region: rom_core::RomRegion) -> Vec<HookPresetSeed>
                 overwrite_len: None,
             },
         ],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jml_target_to_pc_decodes_lorom_address() {
+        let rom = rom_core::Rom::new(vec![0; 0x20_0000]);
+        let target_pc = 0x012345usize;
+        let (bank, addr) = rom.pc_to_snes(target_pc);
+        let [lo, hi] = addr.to_le_bytes();
+
+        let resolved = jml_target_to_pc(&rom, lo, hi, bank);
+        assert_eq!(resolved, Some(target_pc));
+    }
+
+    #[test]
+    fn detect_existing_creator_hook_at_finds_ingame_signature() {
+        let mut rom = rom_core::Rom::new(vec![0; 0x20_0000]);
+        let hook_pc = 0x009000usize;
+        let stub_pc = 0x018000usize;
+
+        rom.write_bytes(stub_pc, &[0x08, 0xE2, 0x20, 0xEA, 0xEA, b'I', b'N', b'G', b'A', b'M', b'E'])
+            .expect("write stub bytes");
+        let (bank, addr) = rom.pc_to_snes(stub_pc);
+        let [lo, hi] = addr.to_le_bytes();
+        rom.write_bytes(hook_pc, &[0x5C, lo, hi, bank])
+            .expect("write hook bytes");
+
+        let existing = detect_existing_creator_hook_at(&rom, hook_pc);
+        assert!(existing.is_some());
+        let existing = existing.expect("hook should be detected");
+        assert_eq!(existing.hook_pc, hook_pc);
+        assert_eq!(existing.stub_pc, stub_pc);
     }
 }

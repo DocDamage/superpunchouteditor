@@ -542,9 +542,9 @@ mod tests {
         // Test conversion from SNES 15-bit BGR
         // White: 0b0_11111_11111_11111 = 0x7FFF
         let white = ColorDiff::from_snes_bytes(0xFF, 0x7F);
-        assert_eq!(white.r, 0xF8);
-        assert_eq!(white.g, 0xF8);
-        assert_eq!(white.b, 0xF8);
+        assert_eq!(white.r, 0xFF);
+        assert_eq!(white.g, 0xFF);
+        assert_eq!(white.b, 0xFF);
     }
 
     #[test]

@@ -16,7 +16,7 @@ interface CircuitEditorProps {
   disabled?: boolean;
 }
 
-const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id;
+const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id ?? boxer.fighter_id ?? -1;
 
 export function CircuitEditor({
   boxers,

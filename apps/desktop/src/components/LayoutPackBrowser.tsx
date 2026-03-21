@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useStore } from '../store/useStore';
+import { showToast } from './ToastContainer';
 import { 
   LayoutPackInfo, 
   LayoutPack, 
@@ -126,7 +127,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
         packPath: `data/boxer-layouts/community/${selectedPack.filename}`,
         boxerKeys,
       });
-      alert('Layout pack applied successfully!');
+      showToast('Layout pack applied.', 'success');
     } catch (e) {
       setError(`Failed to apply pack: ${e}`);
     }
@@ -144,7 +145,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
         packPath: `data/boxer-layouts/community/${selectedPack.filename}`,
         boxerKeys: [boxerKey],
       });
-      alert(`Layout for ${boxerKey} applied successfully!`);
+      showToast(`Layout for ${boxerKey} applied.`, 'success');
     } catch (e) {
       setError(`Failed to apply layout: ${e}`);
     }

@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::AppState;
+use emulator_core::CreatorSessionState;
 use rom_core::{
     SpoTextEncoder,
     roster::{
@@ -20,6 +21,14 @@ use rom_core::{
         BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
     },
 };
+
+const CREATOR_SESSION_STATUS_DRAFT_READY: u8 = 0x02;
+const CREATOR_SESSION_STATUS_COMMIT_FAILED: u8 = 0x05;
+const CREATOR_ERROR_GENERIC: u8 = 0x01;
+const CREATOR_ERROR_BOXER_NOT_FOUND: u8 = 0x02;
+const CREATOR_ERROR_INVALID_NAME: u8 = 0x03;
+const CREATOR_ERROR_INVALID_INTRO_TEXT: u8 = 0x04;
+const CREATOR_ERROR_INVALID_INTRO_SLOT: u8 = 0x05;
 
 /// Roster data response for the frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +70,179 @@ pub struct UpdateUnlockOrderRequest {
     pub order: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatorCommitResponse {
+    pub boxer: BoxerRosterEntry,
+    pub intro_text_id: u8,
+    pub intro_text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatorSessionValidationResponse {
+    pub valid: bool,
+    pub status: u8,
+    pub error_code: u8,
+    pub message: Option<String>,
+}
+
+fn validate_creator_session_payload(
+    rom: &rom_core::Rom,
+    session: &CreatorSessionState,
+) -> CreatorSessionValidationResponse {
+    let loader = RosterLoader::new(rom);
+    let roster = match loader.load_roster() {
+        Ok(roster) => roster,
+        Err(error) => {
+            return CreatorSessionValidationResponse {
+                valid: false,
+                status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+                error_code: CREATOR_ERROR_GENERIC,
+                message: Some(error.to_string()),
+            };
+        }
+    };
+
+    if roster.get_boxer(session.boxer_id).is_none() {
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_BOXER_NOT_FOUND,
+            message: Some(format!("Boxer with ID {} not found", session.boxer_id)),
+        };
+    }
+
+    if loader.load_boxer_intro(session.intro_text_id).is_err() {
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_INVALID_INTRO_SLOT,
+            message: Some(format!("Intro text slot {} not found", session.intro_text_id)),
+        };
+    }
+
+    let encoder = SpoTextEncoder::new();
+    if let Err(invalid) = encoder.validate(&session.name_text) {
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_INVALID_NAME,
+            message: Some(format!("Invalid name characters: {:?}", invalid)),
+        };
+    }
+    if encoder.encode(&session.name_text).len() > MAX_NAME_LENGTH {
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_INVALID_NAME,
+            message: Some(format!(
+                "Name too long: {} bytes (max {})",
+                encoder.encode(&session.name_text).len(),
+                MAX_NAME_LENGTH
+            )),
+        };
+    }
+
+    if !encoder.can_encode(&session.intro_text) {
+        let unsupported: Vec<char> = session
+            .intro_text
+            .chars()
+            .filter(|c| !encoder.can_encode(&c.to_string()))
+            .collect();
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_INVALID_INTRO_TEXT,
+            message: Some(format!("Invalid intro text characters: {:?}", unsupported)),
+        };
+    }
+    let intro_encoded_len = encoder.encode(&session.intro_text).len();
+    if intro_encoded_len > INTRO_FIELD_SIZE {
+        return CreatorSessionValidationResponse {
+            valid: false,
+            status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
+            error_code: CREATOR_ERROR_INVALID_INTRO_TEXT,
+            message: Some(format!(
+                "Intro text too long: {} bytes (max {})",
+                intro_encoded_len,
+                INTRO_FIELD_SIZE
+            )),
+        };
+    }
+
+    CreatorSessionValidationResponse {
+        valid: true,
+        status: CREATOR_SESSION_STATUS_DRAFT_READY,
+        error_code: 0,
+        message: None,
+    }
+}
+
+pub(crate) fn validate_creator_session_internal(
+    state: &AppState,
+    session: &CreatorSessionState,
+) -> Result<CreatorSessionValidationResponse, String> {
+    let rom_guard = state.rom.lock();
+    if let Some(ref rom) = *rom_guard {
+        Ok(validate_creator_session_payload(rom, session))
+    } else {
+        Err("No ROM loaded".to_string())
+    }
+}
+
+pub(crate) fn commit_creator_session_internal(
+    state: &AppState,
+    session: CreatorSessionState,
+) -> Result<CreatorCommitResponse, String> {
+    let mut rom_guard = state.rom.lock();
+
+    if let Some(ref mut rom) = *rom_guard {
+        let validation = validate_creator_session_payload(rom, &session);
+        if !validation.valid {
+            return Err(validation
+                .message
+                .unwrap_or_else(|| "Creator session validation failed".to_string()));
+        }
+
+        let normalized_name = session.name_text.trim().to_string();
+        let normalized_intro = session.intro_text.trim().to_string();
+        let circuit = CircuitType::from_byte(session.circuit);
+        let mut writer = RosterWriter::new(rom);
+        writer
+            .write_boxer_name(session.boxer_id, &normalized_name)
+            .map_err(|e| e.to_string())?;
+        writer
+            .write_circuit_assignment(session.boxer_id, circuit)
+            .map_err(|e| e.to_string())?;
+        writer
+            .write_unlock_order(session.boxer_id, session.unlock_order)
+            .map_err(|e| e.to_string())?;
+        writer
+            .write_boxer_intro_field(session.intro_text_id, 4, &normalized_intro)
+            .map_err(|e| e.to_string())?;
+
+        drop(rom_guard);
+        let mut modified = state.modified.lock();
+        *modified = true;
+
+        let rom_guard = state.rom.lock();
+        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let roster = loader.load_roster().map_err(|e| e.to_string())?;
+
+        let boxer = roster
+            .get_boxer(session.boxer_id)
+            .cloned()
+            .ok_or_else(|| format!("Boxer with ID {} not found", session.boxer_id))?;
+
+        Ok(CreatorCommitResponse {
+            boxer,
+            intro_text_id: session.intro_text_id,
+            intro_text: normalized_intro,
+        })
+    } else {
+        Err("No ROM loaded".to_string())
+    }
+}
+
 /// Response for intro text
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntroTextResponse {
@@ -79,10 +261,67 @@ pub struct BoxerIntroResponse {
     pub record_text: String,
     pub rank_text: String,
     pub intro_quote: String,
+    pub validation: IntroValidation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntroValidation {
+    pub name_valid: bool,
+    pub name_length: usize,
+    pub origin_valid: bool,
+    pub origin_length: usize,
+    pub record_valid: bool,
+    pub record_length: usize,
+    pub rank_valid: bool,
+    pub rank_length: usize,
+    pub quote_valid: bool,
+    pub quote_length: usize,
+    pub all_valid: bool,
+    pub unsupported_chars: Vec<char>,
+}
+
+fn compute_intro_validation(intro: &BoxerIntro, encoder: &SpoTextEncoder) -> IntroValidation {
+    let name_len = encoder.encode(&intro.name_text).len();
+    let origin_len = encoder.encode(&intro.origin_text).len();
+    let record_len = encoder.encode(&intro.record_text).len();
+    let rank_len = encoder.encode(&intro.rank_text).len();
+    let quote_len = encoder.encode(&intro.intro_quote).len();
+
+    let name_valid = name_len <= INTRO_FIELD_SIZE && encoder.can_encode(&intro.name_text);
+    let origin_valid = origin_len <= INTRO_FIELD_SIZE && encoder.can_encode(&intro.origin_text);
+    let record_valid = record_len <= INTRO_FIELD_SIZE && encoder.can_encode(&intro.record_text);
+    let rank_valid = rank_len <= INTRO_FIELD_SIZE && encoder.can_encode(&intro.rank_text);
+    let quote_valid = quote_len <= INTRO_FIELD_SIZE && encoder.can_encode(&intro.intro_quote);
+
+    let mut unsupported: Vec<char> = Vec::new();
+    unsupported.extend(encoder.get_unsupported_chars(&intro.name_text));
+    unsupported.extend(encoder.get_unsupported_chars(&intro.origin_text));
+    unsupported.extend(encoder.get_unsupported_chars(&intro.record_text));
+    unsupported.extend(encoder.get_unsupported_chars(&intro.rank_text));
+    unsupported.extend(encoder.get_unsupported_chars(&intro.intro_quote));
+    unsupported.sort();
+    unsupported.dedup();
+
+    IntroValidation {
+        name_valid,
+        name_length: name_len,
+        origin_valid,
+        origin_length: origin_len,
+        record_valid,
+        record_length: record_len,
+        rank_valid,
+        rank_length: rank_len,
+        quote_valid,
+        quote_length: quote_len,
+        all_valid: name_valid && origin_valid && record_valid && rank_valid && quote_valid,
+        unsupported_chars: unsupported,
+    }
 }
 
 impl From<BoxerIntro> for BoxerIntroResponse {
     fn from(intro: BoxerIntro) -> Self {
+        let encoder = SpoTextEncoder::new();
+        let validation = compute_intro_validation(&intro, &encoder);
         Self {
             fighter_id: get_boxer_id_from_key(&intro.boxer_key).unwrap_or(255),
             boxer_key: intro.boxer_key,
@@ -91,6 +330,7 @@ impl From<BoxerIntro> for BoxerIntroResponse {
             record_text: intro.record_text,
             rank_text: intro.rank_text,
             intro_quote: intro.intro_quote,
+            validation,
         }
     }
 }
@@ -113,14 +353,19 @@ pub struct NameValidationResult {
     pub error: Option<String>,
 }
 
-/// Cornerman text response
+/// Cornerman text response — matches the frontend CornermanTextDto shape
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CornermanTextResponse {
     pub id: u8,
     pub boxer_key: String,
     pub fighter_id: u8,
+    pub round: u8,
     pub condition: String,
+    pub condition_value: u8,
     pub text: String,
+    pub byte_length: usize,
+    pub max_length: usize,
+    pub is_valid: bool,
 }
 
 /// Victory quote response
@@ -284,6 +529,22 @@ pub fn update_boxer_name(
     } else {
         Err("No ROM loaded".to_string())
     }
+}
+
+#[tauri::command]
+pub fn validate_creator_session(
+    state: State<AppState>,
+    session: CreatorSessionState,
+) -> Result<CreatorSessionValidationResponse, String> {
+    validate_creator_session_internal(&state, &session)
+}
+
+#[tauri::command]
+pub fn commit_creator_session(
+    state: State<AppState>,
+    session: CreatorSessionState,
+) -> Result<CreatorCommitResponse, String> {
+    commit_creator_session_internal(&state, session)
 }
 
 /// Validate a boxer name (check encoding and length)
@@ -474,8 +735,11 @@ pub fn set_champion_status(
 #[tauri::command]
 pub fn get_boxer_intro(
     state: State<AppState>,
-    fighter_id: u8,
+    boxer_key: String,
 ) -> Result<BoxerIntroResponse, String> {
+    let fighter_id = get_boxer_id_from_key(&boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", boxer_key))?;
+
     let rom_guard = state.rom.lock();
 
     if let Some(ref rom) = *rom_guard {
@@ -604,8 +868,11 @@ pub fn validate_intro_text(
 #[tauri::command]
 pub fn get_cornerman_texts(
     state: State<AppState>,
-    fighter_id: u8,
+    boxer_key: String,
 ) -> Result<Vec<CornermanTextResponse>, String> {
+    let fighter_id = get_boxer_id_from_key(&boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", boxer_key))?;
+
     let rom_guard = state.rom.lock();
 
     if let Some(ref rom) = *rom_guard {
@@ -614,14 +881,24 @@ pub fn get_cornerman_texts(
             .load_cornerman_texts(fighter_id)
             .map_err(|e| e.to_string())?;
 
+        let encoder = SpoTextEncoder::new();
         Ok(texts
             .into_iter()
-            .map(|t| CornermanTextResponse {
-                id: t.id,
-                boxer_key: t.boxer_key.clone(),
-                fighter_id: get_boxer_id_from_key(&t.boxer_key).unwrap_or(255),
-                condition: format!("{:?}", t.condition),
-                text: t.text,
+            .map(|t| {
+                let byte_length = encoder.encode(&t.text).len();
+                let is_valid = byte_length <= t.max_length && encoder.can_encode(&t.text);
+                CornermanTextResponse {
+                    id: t.id,
+                    boxer_key: t.boxer_key.clone(),
+                    fighter_id: get_boxer_id_from_key(&t.boxer_key).unwrap_or(255),
+                    round: t.round,
+                    condition: t.condition.display_name().to_string(),
+                    condition_value: t.condition.to_byte(),
+                    text: t.text,
+                    byte_length,
+                    max_length: t.max_length,
+                    is_valid,
+                }
             })
             .collect())
     } else {
@@ -637,8 +914,11 @@ pub fn get_cornerman_texts(
 #[tauri::command]
 pub fn get_victory_quotes(
     state: State<AppState>,
-    fighter_id: u8,
+    boxer_key: String,
 ) -> Result<Vec<VictoryQuoteResponse>, String> {
+    let fighter_id = get_boxer_id_from_key(&boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", boxer_key))?;
+
     let rom_guard = state.rom.lock();
 
     if let Some(ref rom) = *rom_guard {
@@ -742,7 +1022,7 @@ pub fn scan_for_text_tables(state: State<AppState>) -> Result<Vec<serde_json::Va
 // HELPER FUNCTIONS
 // ============================================================================
 
-fn get_boxer_id_from_key(key: &str) -> Option<u8> {
+pub(crate) fn get_boxer_id_from_key(key: &str) -> Option<u8> {
     match key {
         "gabby_jay" => Some(0),
         "bear_hugger" => Some(1),

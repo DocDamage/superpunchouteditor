@@ -1,6 +1,7 @@
 use crate::text::TextEncoder;
 
 use super::constants::*;
+use super::layout::{detect_roster_layout, RosterLayout};
 use super::types::*;
 
 // ============================================================================
@@ -11,6 +12,7 @@ use super::types::*;
 pub struct RosterLoader<'a> {
     rom: &'a crate::Rom,
     encoder: TextEncoder,
+    layout: RosterLayout,
 }
 
 impl<'a> RosterLoader<'a> {
@@ -19,15 +21,30 @@ impl<'a> RosterLoader<'a> {
         Self {
             rom,
             encoder: TextEncoder::new(),
+            layout: detect_roster_layout(rom),
         }
     }
 
     /// Load complete roster data from ROM
     pub fn load_roster(&self) -> Result<RosterData, RosterError> {
         let mut data = RosterData::new();
+        let boxer_count = self.layout.boxer_count.min(u8::MAX as usize);
+
+        if boxer_count > data.boxers.len() {
+            for id in data.boxers.len()..boxer_count {
+                data.boxers
+                    .push(BoxerRosterEntry::new(id as u8, format!("BOXER {}", id + 1)));
+            }
+        } else {
+            data.boxers.truncate(boxer_count);
+        }
+        data.name_table_offset = Some(self.layout.name_blob_pc);
+        data.circuit_table_offset = Some(self.layout.circuit_table_pc);
+        data.unlock_table_offset = Some(self.layout.unlock_table_pc);
+        data.intro_text_table_offset = Some(self.layout.intro_table_pc);
 
         // Load boxer names
-        for id in 0..BOXER_COUNT as u8 {
+        for id in 0..boxer_count as u8 {
             if let Ok(name) = self.load_boxer_name(id) {
                 if let Some(boxer) = data.get_boxer_mut(id) {
                     boxer.name = name;
@@ -36,7 +53,7 @@ impl<'a> RosterLoader<'a> {
         }
 
         // Load circuit assignments
-        for id in 0..BOXER_COUNT as u8 {
+        for id in 0..boxer_count as u8 {
             if let Ok(circuit) = self.load_circuit_assignment(id) {
                 if let Some(boxer) = data.get_boxer_mut(id) {
                     boxer.circuit = circuit;
@@ -45,7 +62,7 @@ impl<'a> RosterLoader<'a> {
         }
 
         // Load unlock orders
-        for id in 0..BOXER_COUNT as u8 {
+        for id in 0..boxer_count as u8 {
             if let Ok(order) = self.load_unlock_order(id) {
                 if let Some(boxer) = data.get_boxer_mut(id) {
                     boxer.unlock_order = order;
@@ -69,18 +86,11 @@ impl<'a> RosterLoader<'a> {
 
     /// Load a boxer's name from ROM
     pub fn load_boxer_name(&self, boxer_id: u8) -> Result<String, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
-        // Read pointer from pointer table
-        let ptr_addr = BOXER_NAME_POINTERS + (boxer_id as usize * 2);
-        let ptr_bytes = self.rom.read_bytes(ptr_addr, 2).map_err(|_| {
-            RosterError::AddressNotFound(format!("Name pointer at 0x{:06X}", ptr_addr))
-        })?;
-
-        let name_offset = u16::from_le_bytes([ptr_bytes[0], ptr_bytes[1]]) as usize;
-        let name_pc = self.snes_to_pc(0x0C, name_offset as u16);
+        let name_pc = self.resolve_name_pc(boxer_id)?;
 
         // Read name bytes until terminator (0xFF)
         let mut bytes = Vec::new();
@@ -109,11 +119,11 @@ impl<'a> RosterLoader<'a> {
 
     /// Load a boxer's intro data from ROM
     pub fn load_boxer_intro(&self, boxer_id: u8) -> Result<BoxerIntro, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
-        let base = BOXER_INTRO_TABLE + (boxer_id as usize * INTRO_DATA_SIZE);
+        let base = self.layout.intro_table_pc + (boxer_id as usize * INTRO_DATA_SIZE);
 
         let name_offset = base;
         let origin_offset = base + INTRO_FIELD_SIZE;
@@ -140,13 +150,13 @@ impl<'a> RosterLoader<'a> {
 
     /// Load circuit assignment for a boxer
     pub fn load_circuit_assignment(&self, boxer_id: u8) -> Result<CircuitType, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
         let byte = self
             .rom
-            .read_bytes(CIRCUIT_TABLE + boxer_id as usize, 1)
+            .read_bytes(self.layout.circuit_table_pc + boxer_id as usize, 1)
             .map_err(|_| RosterError::AddressNotFound("Circuit table".to_string()))?[0];
 
         Ok(CircuitType::from_byte(byte))
@@ -154,13 +164,13 @@ impl<'a> RosterLoader<'a> {
 
     /// Load unlock order for a boxer
     pub fn load_unlock_order(&self, boxer_id: u8) -> Result<u8, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
         let byte = self
             .rom
-            .read_bytes(UNLOCK_ORDER_TABLE + boxer_id as usize, 1)
+            .read_bytes(self.layout.unlock_table_pc + boxer_id as usize, 1)
             .map_err(|_| RosterError::AddressNotFound("Unlock order table".to_string()))?[0];
 
         Ok(byte)
@@ -168,7 +178,7 @@ impl<'a> RosterLoader<'a> {
 
     /// Load cornerman texts for a boxer
     pub fn load_cornerman_texts(&self, boxer_id: u8) -> Result<Vec<CornermanText>, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
@@ -224,7 +234,7 @@ impl<'a> RosterLoader<'a> {
 
     /// Load victory quotes for a boxer
     pub fn load_victory_quotes(&self, boxer_id: u8) -> Result<Vec<VictoryQuote>, RosterError> {
-        if boxer_id as usize >= BOXER_COUNT {
+        if boxer_id as usize >= self.layout.boxer_count {
             return Err(RosterError::InvalidFighterId(boxer_id));
         }
 
@@ -315,6 +325,36 @@ impl<'a> RosterLoader<'a> {
     // Helper: Convert SNES address to PC offset
     fn snes_to_pc(&self, bank: u8, addr: u16) -> usize {
         ((bank as usize & 0x7F) * 0x8000) | (addr as usize & 0x7FFF)
+    }
+
+    fn resolve_name_pc(&self, boxer_id: u8) -> Result<usize, RosterError> {
+        let boxer_index = boxer_id as usize;
+
+        if self.layout.expanded {
+            let ptr_addr = self.layout.name_long_pointer_table_pc + (boxer_index * 3);
+            let ptr_bytes = self.rom.read_bytes(ptr_addr, 3).map_err(|_| {
+                RosterError::AddressNotFound(format!("Long name pointer at 0x{:06X}", ptr_addr))
+            })?;
+
+            let bank = ptr_bytes[0];
+            let addr = u16::from_le_bytes([ptr_bytes[1], ptr_bytes[2]]);
+            if bank != 0 && addr >= 0x8000 {
+                return Ok(self.rom.snes_to_pc(bank, addr));
+            }
+        }
+
+        let ptr_addr = self.layout.name_pointer_table_pc + (boxer_index * 2);
+        let ptr_bytes = self.rom.read_bytes(ptr_addr, 2).map_err(|_| {
+            RosterError::AddressNotFound(format!("Name pointer at 0x{:06X}", ptr_addr))
+        })?;
+        let addr = u16::from_le_bytes([ptr_bytes[0], ptr_bytes[1]]);
+
+        let bank = if self.layout.expanded {
+            self.rom.pc_to_snes(self.layout.name_blob_pc).0
+        } else {
+            0x0C
+        };
+        Ok(self.snes_to_pc(bank, addr))
     }
 }
 

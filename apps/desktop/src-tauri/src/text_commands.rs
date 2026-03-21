@@ -18,7 +18,7 @@ use rom_core::{
         MAX_CORNERMAN_TEXT_LENGTH, MAX_MENU_TEXT_LENGTH, MAX_VICTORY_QUOTE_LENGTH,
     },
     roster::{
-        BoxerIntro, CornermanText, VictoryQuote,
+        BoxerIntro, CornermanText, RosterLoader, RosterWriter, VictoryQuote,
     },
 };
 
@@ -73,6 +73,7 @@ impl From<CornermanText> for CornermanTextDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateCornermanRequest {
     pub id: u8,
+    pub boxer_key: String,
     pub text: String,
     pub condition: Option<u8>,
     pub round: Option<u8>,
@@ -163,6 +164,7 @@ impl From<VictoryQuote> for VictoryQuoteDto {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateVictoryQuoteRequest {
     pub id: u8,
+    pub boxer_key: String,
     pub text: String,
 }
 
@@ -323,33 +325,39 @@ pub fn get_cornerman_text(
 /// Update a cornerman text
 #[tauri::command]
 pub fn update_cornerman_text(
-    _state: State<AppState>,
+    state: State<AppState>,
     request: UpdateCornermanRequest,
 ) -> Result<CornermanTextDto, String> {
-    let mut db = get_text_db();
-    let encoder = get_encoder();
+    let fighter_id = crate::roster_commands::get_boxer_id_from_key(&request.boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", request.boxer_key))?;
 
-    let text = db
-        .get_cornerman_text_mut(request.id)
-        .ok_or_else(|| format!("Cornerman text with ID {} not found", request.id))?;
+    let mut rom_guard = state.rom.lock();
 
-    // Update text
-    text.text = request.text.clone();
+    if let Some(ref mut rom) = *rom_guard {
+        let mut writer = RosterWriter::new(rom);
+        writer
+            .write_cornerman_text(fighter_id, request.id, &request.text, request.condition)
+            .map_err(|e| e.to_string())?;
 
-    // Update condition if provided
-    if let Some(condition_byte) = request.condition {
-        text.condition = TextCondition::from_byte(condition_byte);
+        drop(rom_guard);
+        let mut modified = state.modified.lock();
+        *modified = true;
+        drop(modified);
+
+        let rom_guard = state.rom.lock();
+        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let texts = loader
+            .load_cornerman_texts(fighter_id)
+            .map_err(|e| e.to_string())?;
+        let updated = texts
+            .into_iter()
+            .find(|t| t.id == request.id)
+            .ok_or_else(|| format!("Cornerman text {} not found after write", request.id))?;
+
+        Ok(CornermanTextDto::from(updated))
+    } else {
+        Err("No ROM loaded".to_string())
     }
-
-    // Update round if provided
-    if let Some(round) = request.round {
-        text.round = round;
-    }
-
-    // Validate
-    text.validate(&encoder).map_err(|e| e.to_string())?;
-
-    Ok(text.clone().into())
 }
 
 /// Add a new cornerman text
@@ -459,49 +467,64 @@ fn validate_intro(intro: &BoxerIntro, encoder: &TextEncoder) -> IntroValidation 
 /// Update boxer intro data
 #[tauri::command]
 pub fn update_boxer_intro(
-    _state: State<AppState>,
+    state: State<AppState>,
     request: UpdateIntroRequest,
 ) -> Result<BoxerIntroResponse, String> {
-    let mut db = get_text_db();
+    let fighter_id = crate::roster_commands::get_boxer_id_from_key(&request.boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", request.boxer_key))?;
+
     let encoder = get_encoder();
 
-    let intro = db
-        .get_boxer_intro_mut(&request.boxer_key)
-        .ok_or_else(|| format!("Boxer intro for '{}' not found", request.boxer_key))?;
+    let mut rom_guard = state.rom.lock();
 
-    if let Some(name) = request.name_text {
-        intro.name_text = name;
-    }
-    if let Some(origin) = request.origin_text {
-        intro.origin_text = origin;
-    }
-    if let Some(record) = request.record_text {
-        intro.record_text = record;
-    }
-    if let Some(rank) = request.rank_text {
-        intro.rank_text = rank;
-    }
-    if let Some(quote) = request.intro_quote {
-        intro.intro_quote = quote;
-    }
+    if let Some(ref mut rom) = *rom_guard {
+        let mut writer = RosterWriter::new(rom);
 
-    // Validate
-    let errors = intro.validate(&encoder);
-    if !errors.is_empty() {
-        return Err(format!("Validation failed: {:?}", errors));
+        // Write only the fields that were provided
+        if let Some(ref name) = request.name_text {
+            writer.write_boxer_intro_field(fighter_id, 0, name)
+                .map_err(|e| e.to_string())?;
+        }
+        if let Some(ref origin) = request.origin_text {
+            writer.write_boxer_intro_field(fighter_id, 1, origin)
+                .map_err(|e| e.to_string())?;
+        }
+        if let Some(ref record) = request.record_text {
+            writer.write_boxer_intro_field(fighter_id, 2, record)
+                .map_err(|e| e.to_string())?;
+        }
+        if let Some(ref rank) = request.rank_text {
+            writer.write_boxer_intro_field(fighter_id, 3, rank)
+                .map_err(|e| e.to_string())?;
+        }
+        if let Some(ref intro_quote) = request.intro_quote {
+            writer.write_boxer_intro_field(fighter_id, 4, intro_quote)
+                .map_err(|e| e.to_string())?;
+        }
+
+        // Mark ROM as modified and reload updated intro
+        drop(rom_guard);
+        let mut modified = state.modified.lock();
+        *modified = true;
+        drop(modified);
+
+        let rom_guard = state.rom.lock();
+        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let intro = loader.load_boxer_intro(fighter_id).map_err(|e| e.to_string())?;
+        let validation = validate_intro(&intro, &encoder);
+
+        Ok(BoxerIntroResponse {
+            boxer_key: intro.boxer_key,
+            name_text: intro.name_text,
+            origin_text: intro.origin_text,
+            record_text: intro.record_text,
+            rank_text: intro.rank_text,
+            intro_quote: intro.intro_quote,
+            validation,
+        })
+    } else {
+        Err("No ROM loaded".to_string())
     }
-
-    let validation = validate_intro(intro, &encoder);
-
-    Ok(BoxerIntroResponse {
-        boxer_key: request.boxer_key,
-        name_text: intro.name_text.clone(),
-        origin_text: intro.origin_text.clone(),
-        record_text: intro.record_text.clone(),
-        rank_text: intro.rank_text.clone(),
-        intro_quote: intro.intro_quote.clone(),
-        validation,
-    })
 }
 
 // ============================================================================
@@ -513,15 +536,19 @@ pub fn update_boxer_intro(
 /// Update a victory quote
 #[tauri::command]
 pub fn update_victory_quote(
-    _state: State<AppState>,
+    state: State<AppState>,
     request: UpdateVictoryQuoteRequest,
 ) -> Result<VictoryQuoteDto, String> {
-    // TODO: Implement persistence
-    // For now, just return a mock response
+    let fighter_id = crate::roster_commands::get_boxer_id_from_key(&request.boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {}", request.boxer_key))?;
 
     let encoder = get_encoder();
-    let encoded = encoder.encode(&request.text);
 
+    if !encoder.can_encode(&request.text) {
+        return Err("Quote contains unsupported characters".to_string());
+    }
+
+    let encoded = encoder.encode(&request.text);
     if encoded.len() > MAX_VICTORY_QUOTE_LENGTH {
         return Err(format!(
             "Quote too long: {} bytes (max {})",
@@ -530,22 +557,58 @@ pub fn update_victory_quote(
         ));
     }
 
-    if !encoder.can_encode(&request.text) {
-        return Err("Quote contains unsupported characters".to_string());
-    }
+    let mut rom_guard = state.rom.lock();
 
-    // Return mock DTO (actual implementation would update storage)
-    Ok(VictoryQuoteDto {
-        id: request.id,
-        boxer_key: "mock".to_string(),
-        text: request.text,
-        condition: "Knockout".to_string(),
-        condition_value: 0,
-        is_loss_quote: false,
-        byte_length: encoded.len(),
-        max_length: MAX_VICTORY_QUOTE_LENGTH,
-        is_valid: true,
-    })
+    if let Some(ref mut rom) = *rom_guard {
+        // Load current quotes (immutable borrow) to get rom_offset and existing allocated size
+        let (rom_offset, original_byte_len, is_loss_quote, boxer_key, max_length) = {
+            let loader = RosterLoader::new(rom);
+            let quotes = loader
+                .load_victory_quotes(fighter_id)
+                .map_err(|e| e.to_string())?;
+            let q = quotes
+                .into_iter()
+                .find(|q| q.id == request.id)
+                .ok_or_else(|| format!("Victory quote {} not found for boxer '{}'", request.id, request.boxer_key))?;
+            let ro = q.rom_offset.ok_or("Victory quote has no ROM offset")?;
+            let orig_len = encoder.encode(&q.text).len();
+            (ro, orig_len, q.is_loss_quote, q.boxer_key, q.max_length)
+        }; // loader and immutable borrow dropped here
+
+        // New text cannot exceed the original allocated space in ROM
+        if encoded.len() > original_byte_len {
+            return Err(format!(
+                "New text is {} bytes but original is {} bytes. Quotes cannot be extended beyond their original size.",
+                encoded.len(),
+                original_byte_len
+            ));
+        }
+
+        // Write encoded bytes + 0xFF null terminator
+        let mut write_bytes = encoded.clone();
+        write_bytes.push(0xFF);
+        rom.write_bytes(rom_offset, &write_bytes)
+            .map_err(|e| e.to_string())?;
+
+        // Mark ROM as modified
+        drop(rom_guard);
+        let mut modified = state.modified.lock();
+        *modified = true;
+
+        Ok(VictoryQuoteDto {
+            id: request.id,
+            boxer_key,
+            text: request.text,
+            condition: (if is_loss_quote { "Loss" } else { "Victory" }).to_string(),
+            condition_value: if is_loss_quote { 1 } else { 0 },
+            is_loss_quote,
+            byte_length: encoded.len(),
+            max_length,
+            is_valid: true,
+        })
+    } else {
+        Err("No ROM loaded".to_string())
+    }
 }
 
 /// Get available victory conditions

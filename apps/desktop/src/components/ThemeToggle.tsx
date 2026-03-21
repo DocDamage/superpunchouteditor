@@ -9,7 +9,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeProvider';
 import type { Theme } from '../config/themes';
 
-interface ThemeToggleProps {
+export interface ThemeToggleProps {
   /** Display style variant */
   variant?: 'button' | 'dropdown' | 'minimal';
   /** Custom class name */

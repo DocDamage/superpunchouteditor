@@ -1,6 +1,5 @@
 use rom_core::roster::{
-    BOXER_INTRO_TABLE, BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_DATA_SIZE, INTRO_FIELD_SIZE,
-    UNLOCK_ORDER_TABLE,
+    detect_roster_layout, RosterLayout, BOXER_NAME_POINTERS, INTRO_DATA_SIZE, INTRO_FIELD_SIZE,
 };
 use rom_core::{Rom, TextEncoder};
 
@@ -23,10 +22,11 @@ pub fn expand_roster_tables(
     }
 
     let encoder = TextEncoder::new();
+    let source_layout = detect_roster_layout(rom);
     let names = (0..target_boxer_count)
         .map(|idx| {
-            let text = if idx < VANILLA_BOXER_COUNT {
-                read_existing_boxer_name(rom, idx).unwrap_or_else(|| default_boxer_name(idx))
+            let text = if idx < source_layout.boxer_count {
+                read_boxer_name_from_layout(rom, &source_layout, idx).unwrap_or_else(|| default_boxer_name(idx))
             } else {
                 format!("NEW BOXER {}", idx + 1)
             };
@@ -120,8 +120,8 @@ pub fn expand_roster_tables(
     let mut circuit_bytes = Vec::with_capacity(circuit_table_size);
     let mut unlock_bytes = Vec::with_capacity(unlock_table_size);
     for idx in 0..target_boxer_count {
-        let circuit = if idx < VANILLA_BOXER_COUNT {
-            rom.read_bytes(CIRCUIT_TABLE + idx, 1)
+        let circuit = if idx < source_layout.boxer_count {
+            rom.read_bytes(source_layout.circuit_table_pc + idx, 1)
                 .ok()
                 .map(|bytes| bytes[0])
                 .unwrap_or((idx / 4 % 4) as u8)
@@ -130,8 +130,8 @@ pub fn expand_roster_tables(
         };
         circuit_bytes.push(circuit);
 
-        let unlock = if idx < VANILLA_BOXER_COUNT {
-            rom.read_bytes(UNLOCK_ORDER_TABLE + idx, 1)
+        let unlock = if idx < source_layout.boxer_count {
+            rom.read_bytes(source_layout.unlock_table_pc + idx, 1)
                 .ok()
                 .map(|bytes| bytes[0])
                 .unwrap_or(idx as u8)
@@ -158,8 +158,8 @@ pub fn expand_roster_tables(
     // Intro table.
     let mut intro_bytes = Vec::with_capacity(intro_table_size);
     for idx in 0..target_boxer_count {
-        if idx < VANILLA_BOXER_COUNT {
-            let original_start = BOXER_INTRO_TABLE + idx * INTRO_DATA_SIZE;
+        if idx < source_layout.boxer_count {
+            let original_start = source_layout.intro_table_pc + idx * INTRO_DATA_SIZE;
             let original = rom
                 .read_bytes(original_start, INTRO_DATA_SIZE)
                 .ok()
@@ -182,6 +182,14 @@ pub fn expand_roster_tables(
         "Expanded roster tables were written to free space. Gameplay code still needs hook-based redirection to consume these tables."
             .to_string(),
     );
+    if source_layout.expanded {
+        notes.push(format!(
+            "Expansion source preserved {} existing expanded boxer entries from prior layout before growing to {}.",
+            source_layout.boxer_count, target_boxer_count
+        ));
+    } else {
+        notes.push("Expansion source used vanilla roster tables as baseline.".to_string());
+    }
     notes.push(
         "Long pointer entries are serialized as [bank, lo, hi] and intended for the in-ROM editor runtime."
             .to_string(),
@@ -208,11 +216,27 @@ pub fn expand_roster_tables(
     ))
 }
 
-fn read_existing_boxer_name(rom: &Rom, boxer_id: usize) -> Option<String> {
-    let pointer_pc = BOXER_NAME_POINTERS + (boxer_id * 2);
-    let ptr = rom.read_bytes(pointer_pc, 2).ok()?;
-    let snes_addr = u16::from_le_bytes([ptr[0], ptr[1]]);
-    let name_pc = ((0x0Cusize & 0x7F) * 0x8000) | ((snes_addr as usize) & 0x7FFF);
+fn read_boxer_name_from_layout(rom: &Rom, layout: &RosterLayout, boxer_id: usize) -> Option<String> {
+    let name_pc = if layout.expanded {
+        let long_ptr_pc = layout.name_long_pointer_table_pc + (boxer_id * 3);
+        let ptr = rom.read_bytes(long_ptr_pc, 3).ok()?;
+        let bank = ptr[0];
+        let addr = u16::from_le_bytes([ptr[1], ptr[2]]);
+        if bank == 0 || addr < 0x8000 {
+            let fallback_ptr_pc = layout.name_pointer_table_pc + (boxer_id * 2);
+            let fallback_ptr = rom.read_bytes(fallback_ptr_pc, 2).ok()?;
+            let fallback_addr = u16::from_le_bytes([fallback_ptr[0], fallback_ptr[1]]);
+            let fallback_bank = rom.pc_to_snes(layout.name_blob_pc).0;
+            rom.snes_to_pc(fallback_bank, fallback_addr)
+        } else {
+            rom.snes_to_pc(bank, addr)
+        }
+    } else {
+        let pointer_pc = BOXER_NAME_POINTERS + (boxer_id * 2);
+        let ptr = rom.read_bytes(pointer_pc, 2).ok()?;
+        let snes_addr = u16::from_le_bytes([ptr[0], ptr[1]]);
+        ((0x0Cusize & 0x7F) * 0x8000) | ((snes_addr as usize) & 0x7FFF)
+    };
 
     let mut encoded = Vec::new();
     for idx in 0..64usize {

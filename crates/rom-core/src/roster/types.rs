@@ -79,6 +79,7 @@ impl Default for CircuitType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoxerRosterEntry {
     /// Fighter ID (0-15)
+    #[serde(rename = "boxer_id", alias = "fighter_id")]
     pub fighter_id: u8,
     /// Display name (decoded)
     pub name: String,
@@ -761,6 +762,7 @@ pub enum RosterError {
 pub enum ValidationIssue {
     DuplicateName {
         name: String,
+        #[serde(rename = "boxer_ids", alias = "fighter_ids")]
         fighter_ids: Vec<u8>,
     },
     GapInUnlockOrder {
@@ -768,10 +770,12 @@ pub enum ValidationIssue {
         to: u8,
     },
     MissingChampionFlag {
+        #[serde(rename = "boxer_id", alias = "fighter_id")]
         fighter_id: u8,
         circuit: CircuitType,
     },
     BoxerNotInAnyCircuit {
+        #[serde(rename = "boxer_id", alias = "fighter_id")]
         fighter_id: u8,
         name: String,
     },

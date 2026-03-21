@@ -43,6 +43,7 @@ pub struct SnesDebugger {
     memory: MemoryWatcher,
     spc700: Option<Spc700Debugger>,
     tracer: ExecutionTracer,
+    #[allow(dead_code)]
     state: DebuggerState,
 }
 

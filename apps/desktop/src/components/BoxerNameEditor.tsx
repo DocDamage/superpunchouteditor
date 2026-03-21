@@ -15,7 +15,7 @@ interface BoxerNameEditorProps {
   disabled?: boolean;
 }
 
-const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id;
+const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id ?? boxer.fighter_id ?? -1;
 
 interface BoxerNameState {
   name: string;

@@ -5,7 +5,8 @@
 export type CircuitType = 'Minor' | 'Major' | 'World' | 'Special';
 
 export interface BoxerRosterEntry {
-  boxer_id: number;
+  boxer_id?: number;
+  fighter_id?: number;
   name: string;
   name_raw: number[];
   circuit: CircuitType;
@@ -31,7 +32,8 @@ export interface RosterData {
 export interface IntroText {
   text_id: number;
   text: string;
-  boxer_id: number;
+  boxer_id?: number;
+  fighter_id?: number;
 }
 
 export interface TextEncodingInfo {
@@ -51,18 +53,21 @@ export interface NameValidationResult {
 export interface ValidationIssue {
   DuplicateName?: {
     name: string;
-    boxer_ids: number[];
+    boxer_ids?: number[];
+    fighter_ids?: number[];
   };
   GapInUnlockOrder?: {
     from: number;
     to: number;
   };
   MissingChampionFlag?: {
-    boxer_id: number;
+    boxer_id?: number;
+    fighter_id?: number;
     circuit: CircuitType;
   };
   BoxerNotInAnyCircuit?: {
-    boxer_id: number;
+    boxer_id?: number;
+    fighter_id?: number;
     name: string;
   };
 }

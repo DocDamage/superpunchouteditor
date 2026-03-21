@@ -26,8 +26,8 @@ export { AnimationTimeline } from './AnimationTimeline';
 export { AnimationPreview } from './AnimationPreview';
 export type { 
   Animation, 
-  AnimationFrame, 
-  FrameEffect, 
+  AnimationFrame as EditorAnimationFrame, 
+  FrameEffect as EditorFrameEffect, 
   AnimationCategory,
   FighterAnimations,
   AnimationCategoryInfo 

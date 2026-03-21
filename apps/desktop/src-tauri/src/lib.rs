@@ -38,7 +38,7 @@ pub use utils::*;
 pub use audio_commands::AudioState;
 pub use emulator::{EmulatorLauncher, EmulatorSettings, EmulatorType};
 pub use emulator_embedded::{
-    ControllerInput, EmbeddedEmulatorState, EmulatorFrameData, EmulatorStatus,
+    ControllerInput, CreatorRuntimeState, CreatorSessionState, EmbeddedEmulatorState, EmulatorFrameData, EmulatorStatus,
 };
 pub use help_system::{HelpArticle, HelpArticleSummary, HelpCategory, HelpSystem, SearchResult};
 pub use settings_commands::{
@@ -91,6 +91,7 @@ pub fn run() {
             commands::rom::get_pending_writes,
             commands::rom::get_pending_bytes,
             commands::rom::get_rom_bytes,
+            commands::rom::get_loaded_rom_image,
             commands::rom::discard_bin_edit,
             commands::rom::is_rom_loaded,
             // Expansion Commands
@@ -101,6 +102,7 @@ pub fn run() {
             // Boxer Commands
             commands::boxer::get_boxers,
             commands::boxer::get_boxer,
+            commands::boxer::create_boxer_asset_owner,
             commands::boxer::get_fighter_list,
             commands::boxer::get_fighter_poses,
             commands::boxer::render_fighter_pose,
@@ -109,6 +111,7 @@ pub fn run() {
             commands::assets::get_runtime_theme_assets,
             commands::assets::export_asset_to_png,
             commands::assets::import_asset_from_png,
+            commands::assets::import_graphic_asset_from_png,
             commands::assets::export_sprite_bin_to_png,
             commands::assets::import_sprite_bin_from_png,
             commands::assets::get_bin_original_bytes,
@@ -201,6 +204,8 @@ pub fn run() {
             roster_commands::get_boxers_by_circuit,
             roster_commands::get_boxers_by_unlock_order,
             roster_commands::update_boxer_name,
+            roster_commands::commit_creator_session,
+            roster_commands::validate_creator_session,
             roster_commands::validate_boxer_name,
             roster_commands::preview_name_encoding,
             roster_commands::get_text_encoding_info,
@@ -280,6 +285,9 @@ pub fn run() {
             emulator_embedded::emulator_toggle_pause,
             emulator_embedded::emulator_reset,
             emulator_embedded::emulator_get_frame,
+            emulator_embedded::emulator_get_creator_runtime_state,
+            emulator_embedded::emulator_set_creator_session_state,
+            emulator_embedded::emulator_resolve_creator_runtime_action,
             emulator_embedded::emulator_set_input,
             emulator_embedded::emulator_set_controller_input,
             emulator_embedded::emulator_save_state,
@@ -330,6 +338,20 @@ pub fn run() {
             commands::bank_management::execute_defrag_plan,
             commands::bank_management::mark_bank_region,
             commands::bank_management::get_rom_statistics,
+            // Frame Reconstructor Commands
+            commands::frame_reconstructor::get_fighter_frames,
+            commands::frame_reconstructor::get_frame_detail,
+            commands::frame_reconstructor::render_frame_preview,
+            commands::frame_reconstructor::get_fighter_annotations,
+            // Frame Tag Commands
+            commands::frame_tags::get_frame_tags,
+            commands::frame_tags::add_frame_tag,
+            commands::frame_tags::remove_frame_tag,
+            commands::frame_tags::get_frame_annotation,
+            commands::frame_tags::update_frame_annotation,
+            commands::frame_tags::add_tag_to_frame,
+            commands::frame_tags::remove_tag_from_frame,
+            commands::frame_tags::get_boxer_annotations,
             // Animation Commands
             commands::animation::get_boxer_animation,
             commands::animation::play_animation,

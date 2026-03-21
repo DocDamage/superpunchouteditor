@@ -30,6 +30,17 @@ const CREATOR_RENDER_ROW1_WRAM: [u8; 4] = [0xF2, 0x1F, 0x7E, 0x00]; // $7E1FF2
 const CREATOR_RENDER_ROW2_WRAM: [u8; 4] = [0xF1, 0x1F, 0x7E, 0x00]; // $7E1FF1
 const CREATOR_RENDER_ROW3_WRAM: [u8; 4] = [0xF0, 0x1F, 0x7E, 0x00]; // $7E1FF0
 const CREATOR_RENDER_REVISION_WRAM: [u8; 4] = [0xEF, 0x1F, 0x7E, 0x00]; // $7E1FEF
+const CREATOR_SESSION_CIRCUIT_WRAM: [u8; 4] = [0xEC, 0x1F, 0x7E, 0x00]; // $7E1FEC
+const CREATOR_SESSION_UNLOCK_ORDER_WRAM: [u8; 4] = [0xEB, 0x1F, 0x7E, 0x00]; // $7E1FEB
+const CREATOR_SESSION_INTRO_TEXT_ID_WRAM: [u8; 4] = [0xEA, 0x1F, 0x7E, 0x00]; // $7E1FEA
+const CREATOR_SESSION_STATUS_WRAM: [u8; 4] = [0xE9, 0x1F, 0x7E, 0x00]; // $7E1FE9
+const CREATOR_SESSION_ERROR_CODE_WRAM: [u8; 4] = [0xE8, 0x1F, 0x7E, 0x00]; // $7E1FE8
+const CREATOR_NAME_EDIT_ACTIVE_WRAM: [u8; 4] = [0xE7, 0x1F, 0x7E, 0x00]; // $7E1FE7
+const CREATOR_NAME_CURSOR_WRAM: [u8; 4] = [0xE6, 0x1F, 0x7E, 0x00]; // $7E1FE6
+const CREATOR_INTRO_EDIT_ACTIVE_WRAM: [u8; 4] = [0xE4, 0x1F, 0x7E, 0x00]; // $7E1FE4
+const CREATOR_INTRO_CURSOR_WRAM: [u8; 4] = [0xE3, 0x1F, 0x7E, 0x00]; // $7E1FE3
+const CREATOR_INTRO_BUFFER_BASE: [u8; 4] = [0xD0, 0x1F, 0x7E, 0x00]; // $7E1FD0
+const CREATOR_NAME_BUFFER_BASE: [u8; 4] = [0xC0, 0x1F, 0x7E, 0x00]; // $7E1FC0
 const JOY1_LOW_MMIO: [u8; 4] = [0x18, 0x42, 0x00, 0x00]; // $00:4218
 const JOY1_HIGH_MMIO: [u8; 4] = [0x19, 0x42, 0x00, 0x00]; // $00:4219
 const CREATOR_MODE_LOW_MASK: u8 = 0x0C; // Select + Start
@@ -42,7 +53,14 @@ const CREATOR_ACTION_NAME_EDIT: u8 = 0x11;
 const CREATOR_ACTION_CIRCUIT_EDIT: u8 = 0x12;
 const CREATOR_ACTION_PORTRAIT_EDIT: u8 = 0x13;
 const CREATOR_ACTION_COMMIT: u8 = 0x14;
+const CREATOR_ACTION_INTRO_EDIT: u8 = 0x15;
+const CREATOR_ACTION_CANCEL: u8 = 0x16;
 const CREATOR_ACTION_EXIT: u8 = 0xFF;
+const CREATOR_SESSION_STATUS_DRAFT_READY: u8 = 0x02;
+const CREATOR_SESSION_STATUS_COMMIT_PENDING: u8 = 0x03;
+const CREATOR_SESSION_STATUS_CANCELLED: u8 = 0x07;
+const CREATOR_INTRO_MAX_LEN: u8 = 16;
+const CREATOR_NAME_MAX_LEN: u8 = 16;
 const CREATOR_PAGE0_ROW0: u8 = 0x21;
 const CREATOR_PAGE0_ROW1: u8 = 0x22;
 const CREATOR_PAGE0_ROW2: u8 = 0x23;
@@ -306,6 +324,7 @@ struct StubAssembler {
     bytes: Vec<u8>,
     labels: HashMap<&'static str, usize>,
     branches: Vec<(usize, &'static str)>,
+    long_branches: Vec<(usize, &'static str)>,
 }
 
 impl StubAssembler {
@@ -314,6 +333,7 @@ impl StubAssembler {
             bytes: Vec::with_capacity(capacity),
             labels: HashMap::new(),
             branches: Vec::new(),
+            long_branches: Vec::new(),
         }
     }
 
@@ -339,6 +359,12 @@ impl StubAssembler {
         self.branches.push((pos, target));
     }
 
+    fn branch_long(&mut self, target: &'static str) {
+        let pos = self.pos();
+        self.bytes(&[0x82, 0x00, 0x00]); // BRL
+        self.long_branches.push((pos, target));
+    }
+
     fn finalize(mut self) -> ExpansionResult<Vec<u8>> {
         for (branch_pos, target_label) in &self.branches {
             let target_pos = *self
@@ -352,6 +378,21 @@ impl StubAssembler {
                 )));
             }
             self.bytes[*branch_pos + 1] = (rel as i8) as u8;
+        }
+        for (branch_pos, target_label) in &self.long_branches {
+            let target_pos = *self
+                .labels
+                .get(target_label)
+                .ok_or_else(|| ExpansionError::Rom(format!("unresolved stub label: {target_label}")))?;
+            let rel = target_pos as isize - (*branch_pos as isize + 3);
+            if !(-32768..=32767).contains(&rel) {
+                return Err(ExpansionError::Rom(format!(
+                    "stub long branch out of range: label {target_label} from {branch_pos:#X} to {target_pos:#X}"
+                )));
+            }
+            let rel = rel as i16 as u16;
+            self.bytes[*branch_pos + 1] = (rel & 0xFF) as u8;
+            self.bytes[*branch_pos + 2] = (rel >> 8) as u8;
         }
         Ok(self.bytes)
     }
@@ -404,6 +445,10 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     sta_long(&mut asm, CREATOR_MODE_CURSOR_WRAM);
     sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
     sta_long(&mut asm, CREATOR_MODE_PAGE_WRAM);
+    sta_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    sta_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    sta_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    sta_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
     asm.bytes(&[0xA9, 0x01]); // LDA #$01
     sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
     asm.label("after_combo_enter");
@@ -428,7 +473,249 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.bytes(&[0xA9, 0x00]); // LDA #$00
     sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
 
+    // Intro edit mode owns the D-pad until cancelled/accepted.
+    lda_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    asm.branch(0xD0, "intro_edit_active"); // BNE
+    asm.branch_long("check_name_edit_mode");
+
+    asm.label("intro_edit_active");
+    // B exits intro edit mode without leaving creator mode.
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x01]); // AND #B
+    asm.branch(0xF0, "intro_edit_check_left"); // BEQ
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+    asm.branch_long("update_render_contract");
+
+    asm.label("intro_edit_check_left");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x40]); // AND #Left
+    asm.branch(0xF0, "intro_edit_check_right"); // BEQ
+    lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.branch(0xF0, "intro_edit_check_right"); // BEQ
+    asm.byte(0x3A); // DEC A
+    sta_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("intro_edit_check_right");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x80]); // AND #Right
+    asm.branch(0xF0, "intro_edit_check_up"); // BEQ
+    lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.bytes(&[0xC9, CREATOR_INTRO_MAX_LEN - 1]);
+    asm.branch(0xB0, "intro_edit_check_up"); // BCS
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("intro_edit_check_up");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x10]); // AND #Up
+    asm.branch(0xF0, "intro_edit_check_down"); // BEQ
+    asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
+    lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.byte(0xAA); // TAX
+    asm.bytes(&[0xBF, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // LDA $7E1FD0,X
+    asm.bytes(&[0xC9, 0x20]); // CMP #' '
+    asm.branch(0x90, "intro_edit_up_wrap"); // BCC
+    asm.bytes(&[0xC9, 0x5A]); // CMP #'Z'
+    asm.branch(0xB0, "intro_edit_up_wrap"); // BCS
+    asm.byte(0x1A); // INC A
+    asm.branch(0x80, "intro_edit_up_store"); // BRA
+    asm.label("intro_edit_up_wrap");
+    asm.bytes(&[0xA9, 0x20]); // LDA #' '
+    asm.label("intro_edit_up_store");
+    asm.bytes(&[0x9F, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // STA $7E1FD0,X
+    asm.byte(0xFA); // PLX
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_INTRO_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("intro_edit_check_down");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x20]); // AND #Down
+    asm.branch(0xF0, "intro_edit_check_a"); // BEQ
+    asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
+    lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.byte(0xAA); // TAX
+    asm.bytes(&[0xBF, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // LDA $7E1FD0,X
+    asm.bytes(&[0xC9, 0x20]); // CMP #' '
+    asm.branch(0xB0, "intro_edit_down_decrement"); // BCS
+    asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
+    asm.branch(0x80, "intro_edit_down_store"); // BRA
+    asm.label("intro_edit_down_decrement");
+    asm.bytes(&[0xC9, 0x21]); // CMP #'!'+1
+    asm.branch(0xB0, "intro_edit_down_real_decrement"); // BCS
+    asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
+    asm.branch(0x80, "intro_edit_down_store"); // BRA
+    asm.label("intro_edit_down_real_decrement");
+    asm.byte(0x3A); // DEC A
+    asm.label("intro_edit_down_store");
+    asm.bytes(&[0x9F, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // STA $7E1FD0,X
+    asm.byte(0xFA); // PLX
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_INTRO_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("intro_edit_check_a");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_HIGH_WRAM);
+    asm.bytes(&[0x29, 0x01]); // AND #A
+    asm.branch(0xD0, "intro_edit_accept_input"); // BNE
+    asm.branch_long("update_render_contract");
+    asm.label("intro_edit_accept_input");
+    lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.bytes(&[0xC9, CREATOR_INTRO_MAX_LEN - 1]);
+    asm.branch(0xB0, "intro_edit_finish"); // BCS
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.branch(0x80, "intro_edit_accept_done"); // BRA
+    asm.label("intro_edit_finish");
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    asm.label("intro_edit_accept_done");
+    asm.bytes(&[0xA9, CREATOR_ACTION_INTRO_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+    asm.branch_long("update_render_contract");
+
+    asm.label("check_name_edit_mode");
+    // Name edit mode owns the D-pad until cancelled/accepted.
+    lda_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    asm.branch(0xD0, "name_edit_active"); // BNE
+    asm.branch_long("check_left");
+
+    asm.label("name_edit_active");
+    // B exits name edit mode without leaving creator mode.
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x01]); // AND #B
+    asm.branch(0xF0, "name_edit_check_left"); // BEQ
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+    asm.branch_long("update_render_contract");
+
+    asm.label("name_edit_check_left");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x40]); // AND #Left
+    asm.branch(0xF0, "name_edit_check_right"); // BEQ
+    lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.branch(0xF0, "name_edit_check_right"); // BEQ
+    asm.byte(0x3A); // DEC A
+    sta_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("name_edit_check_right");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x80]); // AND #Right
+    asm.branch(0xF0, "name_edit_check_up"); // BEQ
+    lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.bytes(&[0xC9, CREATOR_NAME_MAX_LEN - 1]);
+    asm.branch(0xB0, "name_edit_check_up"); // BCS
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("name_edit_check_up");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x10]); // AND #Up
+    asm.branch(0xF0, "name_edit_check_down"); // BEQ
+    asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
+    lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.byte(0xAA); // TAX
+    asm.bytes(&[0xBF, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // LDA $7E1FC0,X
+    asm.bytes(&[0xC9, 0x20]); // CMP #' '
+    asm.branch(0x90, "name_edit_up_wrap"); // BCC
+    asm.bytes(&[0xC9, 0x5A]); // CMP #'Z'
+    asm.branch(0xB0, "name_edit_up_wrap"); // BCS
+    asm.byte(0x1A); // INC A
+    asm.branch(0x80, "name_edit_up_store"); // BRA
+    asm.label("name_edit_up_wrap");
+    asm.bytes(&[0xA9, 0x20]); // LDA #' '
+    asm.label("name_edit_up_store");
+    asm.bytes(&[0x9F, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // STA $7E1FC0,X
+    asm.byte(0xFA); // PLX
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("name_edit_check_down");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
+    asm.bytes(&[0x29, 0x20]); // AND #Down
+    asm.branch(0xF0, "name_edit_check_a"); // BEQ
+    asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
+    lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.byte(0xAA); // TAX
+    asm.bytes(&[0xBF, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // LDA $7E1FC0,X
+    asm.bytes(&[0xC9, 0x20]); // CMP #' '
+    asm.branch(0xB0, "name_edit_down_decrement"); // BCS
+    asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
+    asm.branch(0x80, "name_edit_down_store"); // BRA
+    asm.label("name_edit_down_decrement");
+    asm.bytes(&[0xC9, 0x21]); // CMP #'!'+1
+    asm.branch(0xB0, "name_edit_down_real_decrement"); // BCS
+    asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
+    asm.branch(0x80, "name_edit_down_store"); // BRA
+    asm.label("name_edit_down_real_decrement");
+    asm.byte(0x3A); // DEC A
+    asm.label("name_edit_down_store");
+    asm.bytes(&[0x9F, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // STA $7E1FC0,X
+    asm.byte(0xFA); // PLX
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+
+    asm.label("name_edit_check_a");
+    lda_long(&mut asm, CREATOR_MODE_INPUT_HIGH_WRAM);
+    asm.bytes(&[0x29, 0x01]); // AND #A
+    asm.branch(0xD0, "name_edit_accept_input"); // BNE
+    asm.branch_long("update_render_contract");
+    asm.label("name_edit_accept_input");
+    lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.bytes(&[0xC9, CREATOR_NAME_MAX_LEN - 1]);
+    asm.branch(0xB0, "name_edit_finish"); // BCS
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.branch(0x80, "name_edit_accept_done"); // BRA
+    asm.label("name_edit_finish");
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    asm.label("name_edit_accept_done");
+    asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
+    sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
+    asm.branch_long("update_render_contract");
+
     // Left: previous page (wrap), reset cursor, mark dirty.
+    asm.label("check_left");
     lda_long(&mut asm, CREATOR_MODE_INPUT_LOW_WRAM);
     asm.bytes(&[0x29, 0x40]); // AND #Left
     asm.branch(0xF0, "check_right"); // BEQ
@@ -493,34 +780,117 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.label("check_a");
     lda_long(&mut asm, CREATOR_MODE_INPUT_HIGH_WRAM);
     asm.bytes(&[0x29, 0x01]); // AND #A
-    asm.branch(0xF0, "check_b"); // BEQ
+    asm.branch(0xD0, "dispatch_action"); // BNE
+    asm.branch_long("check_b");
+    asm.label("dispatch_action");
     lda_long(&mut asm, CREATOR_MODE_PAGE_WRAM);
     asm.bytes(&[0xC9, 0x00]); // CMP #0
-    asm.branch(0xF0, "action_name");
+    asm.branch(0xD0, "check_page_one"); // BNE
+    asm.branch_long("action_identity");
+    asm.label("check_page_one");
     asm.bytes(&[0xC9, 0x01]); // CMP #1
-    asm.branch(0xF0, "action_circuit");
+    asm.branch(0xD0, "check_page_two"); // BNE
+    asm.branch_long("action_circuit");
+    asm.label("check_page_two");
     asm.bytes(&[0xC9, 0x02]); // CMP #2
-    asm.branch(0xF0, "action_portrait");
+    asm.branch(0xD0, "check_page_three"); // BNE
+    asm.branch_long("action_portrait");
+    asm.label("check_page_three");
     asm.bytes(&[0xC9, 0x03]); // CMP #3
-    asm.branch(0xF0, "action_commit");
-    asm.branch(0x80, "check_b"); // BRA
+    asm.branch(0xD0, "dispatch_action_done"); // BNE
+    asm.branch_long("action_commit");
+    asm.label("dispatch_action_done");
+    asm.branch_long("check_b");
 
-    asm.label("action_name");
+    asm.label("action_identity");
+    lda_long(&mut asm, CREATOR_MODE_CURSOR_WRAM);
+    asm.bytes(&[0xC9, 0x00]); // CMP #name row
+    asm.branch(0xF0, "action_name_enter");
+    asm.bytes(&[0xC9, 0x01]); // CMP #intro row
+    asm.branch(0xF0, "action_intro_enter");
+    asm.bytes(&[0xC9, 0x02]); // CMP #unlock row
+    asm.branch(0xF0, "action_unlock_order");
+    asm.bytes(&[0xC9, 0x03]); // CMP #intro slot row
+    asm.branch(0xF0, "action_intro_text");
     asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
-    asm.branch(0x80, "store_action");
+    asm.branch_long("store_action");
+    asm.label("action_name_enter");
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
+    asm.branch_long("store_action");
+    asm.label("action_intro_enter");
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_NAME_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x01]);
+    sta_long(&mut asm, CREATOR_INTRO_EDIT_ACTIVE_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_INTRO_EDIT]);
+    asm.branch_long("store_action");
+    asm.label("action_intro_text");
+    lda_long(&mut asm, CREATOR_SESSION_INTRO_TEXT_ID_WRAM);
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_SESSION_INTRO_TEXT_ID_WRAM);
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_INTRO_EDIT]);
+    asm.branch_long("store_action");
+    asm.label("action_unlock_order");
+    lda_long(&mut asm, CREATOR_SESSION_UNLOCK_ORDER_WRAM);
+    asm.byte(0x1A); // INC A
+    sta_long(&mut asm, CREATOR_SESSION_UNLOCK_ORDER_WRAM);
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_NAME_EDIT]);
+    asm.branch_long("store_action");
     asm.label("action_circuit");
+    lda_long(&mut asm, CREATOR_MODE_CURSOR_WRAM);
+    sta_long(&mut asm, CREATOR_SESSION_CIRCUIT_WRAM);
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
     asm.bytes(&[0xA9, CREATOR_ACTION_CIRCUIT_EDIT]);
-    asm.branch(0x80, "store_action");
+    asm.branch_long("store_action");
     asm.label("action_portrait");
     asm.bytes(&[0xA9, CREATOR_ACTION_PORTRAIT_EDIT]);
-    asm.branch(0x80, "store_action");
+    asm.branch_long("store_action");
     asm.label("action_commit");
+    lda_long(&mut asm, CREATOR_MODE_CURSOR_WRAM);
+    asm.bytes(&[0xC9, 0x01]); // CMP #commit row
+    asm.branch(0xD0, "action_cancel_check"); // BNE
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_COMMIT_PENDING]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
     asm.bytes(&[0xA9, CREATOR_ACTION_COMMIT]);
+    asm.branch_long("store_action");
+    asm.label("action_cancel_check");
+    lda_long(&mut asm, CREATOR_MODE_CURSOR_WRAM);
+    asm.bytes(&[0xC9, 0x02]); // CMP #cancel row
+    asm.branch(0xD0, "action_commit_noop"); // BNE
+    asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_CANCELLED]);
+    sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
+    asm.bytes(&[0xA9, 0x00]);
+    sta_long(&mut asm, CREATOR_SESSION_ERROR_CODE_WRAM);
+    asm.bytes(&[0xA9, CREATOR_ACTION_CANCEL]);
+    asm.branch_long("store_action");
+    asm.label("action_commit_noop");
+    asm.bytes(&[0xA9, 0x00]);
     asm.label("store_action");
     sta_long(&mut asm, CREATOR_MODE_ACTION_WRAM);
     asm.bytes(&[0xA9, 0x01]); // LDA #$01
     sta_long(&mut asm, CREATOR_MODE_DIRTY_WRAM);
-    asm.branch(0x80, "check_b"); // BRA
+    asm.branch_long("check_b");
 
     // B button exits creator mode.
     asm.label("check_b");
@@ -936,6 +1306,39 @@ mod tests {
         assert!(stub
             .windows(4)
             .any(|window| window == [0x8F, 0xEF, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xEC, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xEB, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE9, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE8, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE7, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE6, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE4, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x8F, 0xE3, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x9F, 0xC0, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(4)
+            .any(|window| window == [0x9F, 0xD0, 0x1F, 0x7E]));
+        assert!(stub
+            .windows(2)
+            .any(|window| window == [0xA9, CREATOR_ACTION_CANCEL]));
         // Signature remains present.
         assert!(stub.ends_with(b"INGAME"));
     }

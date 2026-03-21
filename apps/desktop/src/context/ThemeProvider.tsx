@@ -33,7 +33,7 @@ import {
   DEFAULT_THEME,
 } from '../config/themes';
 
-interface ThemeContextType {
+export interface ThemeContextType {
   /** Current theme setting ('dark', 'light', or 'system') */
   theme: Theme;
   /** Currently active theme colors */

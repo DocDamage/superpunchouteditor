@@ -362,7 +362,7 @@ mod tests {
 
         controller.press(SnesButton::B);
         controller.press(SnesButton::START);
-        assert_eq!(controller.buttons, 0x0109);
+        assert_eq!(controller.buttons, SnesButton::B.0 | SnesButton::START.0);
     }
 
     #[test]
@@ -370,10 +370,16 @@ mod tests {
         let manager = InputManager::new();
 
         manager.press_button(0, SnesButton::A);
-        assert_eq!(manager.get_state(0, 0, 8), 1);
+        assert!(manager
+            .get_controller_state(0)
+            .expect("controller state should exist")
+            .is_pressed(SnesButton::A));
 
         manager.release_button(0, SnesButton::A);
-        assert_eq!(manager.get_state(0, 0, 8), 0);
+        assert!(!manager
+            .get_controller_state(0)
+            .expect("controller state should exist")
+            .is_pressed(SnesButton::A));
     }
 
     #[test]
