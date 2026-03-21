@@ -194,7 +194,7 @@ pub fn generate_defrag_plan(
 #[tauri::command]
 pub fn execute_defrag_plan(
     _state: State<AppState>,
-    operations: Vec<DefragOperation>,
+    _operations: Vec<DefragOperation>,
 ) -> Result<(), String> {
     // This would execute the defragmentation
     // For safety, this should create a backup first
@@ -205,11 +205,11 @@ pub fn execute_defrag_plan(
 #[tauri::command]
 pub fn mark_bank_region(
     _state: State<AppState>,
-    bank: u8,
-    offset: usize,
-    size: usize,
-    region_type: String,
-    description: Option<String>,
+    _bank: u8,
+    _offset: usize,
+    _size: usize,
+    _region_type: String,
+    _description: Option<String>,
 ) -> Result<(), String> {
     // Placeholder - would update the bank map
     Ok(())

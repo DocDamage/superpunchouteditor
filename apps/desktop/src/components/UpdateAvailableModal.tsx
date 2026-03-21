@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { open } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { UpdateInfo } from '../store/useStore';
 
 interface UpdateAvailableModalProps {
@@ -23,7 +23,7 @@ export function UpdateAvailableModal({
 
   const handleOpenChangelog = async () => {
     try {
-      await open(manualDownloadUrl);
+      await openUrl(manualDownloadUrl);
     } catch (e) {
       console.error('Failed to open changelog:', e);
     }

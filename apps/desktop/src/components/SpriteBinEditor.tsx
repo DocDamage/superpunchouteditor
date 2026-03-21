@@ -34,6 +34,13 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [duplicatingKey, setDuplicatingKey] = useState<string | null>(null);
   const previewRef = useRef<HTMLImageElement>(null);
+  const uniqueSpriteBins = boxer.unique_sprite_bins ?? [];
+  const sharedSpriteBins = boxer.shared_sprite_bins ?? [];
+  const paletteFiles = boxer.palette_files ?? [];
+  const getSharedWith = (sharedWith: string[] | undefined): string[] =>
+    Array.isArray(sharedWith) ? sharedWith : [];
+  const getOrCreateState = (key: string): BinState =>
+    binStates[key] ?? { tileCount: null, diff: [], status: null, isEdited: false, isDuplicated: false };
 
   // Load bank duplications when boxer changes
   useEffect(() => {
@@ -45,8 +52,8 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
     const newStates = { ...binStates };
     let hasChanges = false;
     
-    for (const bin of [...boxer.unique_sprite_bins, ...boxer.shared_sprite_bins]) {
-      const existingState = newStates[bin.start_pc];
+    for (const bin of [...uniqueSpriteBins, ...sharedSpriteBins]) {
+      const existingState = getOrCreateState(bin.start_pc);
       const duplication = bankDuplications.find(
         d => d.original_pc_offset === parseInt(bin.start_pc)
       );
@@ -65,7 +72,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
     if (hasChanges) {
       setBinStates(newStates);
     }
-  }, [bankDuplications, boxer]);
+  }, [bankDuplications, boxer.key, uniqueSpriteBins, sharedSpriteBins]);
 
   // Shared bank warning modal state
   const [warningOpen, setWarningOpen] = useState(false);
@@ -76,8 +83,8 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
   } | null>(null);
 
   const allBins = [
-    ...boxer.unique_sprite_bins.map(b => ({ ...b, isShared: false })),
-    ...boxer.shared_sprite_bins.map(b => ({ ...b, isShared: true })),
+    ...uniqueSpriteBins.map(b => ({ ...b, isShared: false })),
+    ...sharedSpriteBins.map(b => ({ ...b, isShared: true })),
   ];
 
   if (allBins.length === 0) {
@@ -88,11 +95,8 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
     );
   }
 
-  const pal = boxer.palette_files[0];
+  const pal = paletteFiles[0];
   const widthTiles = 16; // Standard 16-tile wide sheet
-
-  const getOrCreateState = (key: string): BinState =>
-    binStates[key] ?? { tileCount: null, diff: [], status: null, isEdited: false, isDuplicated: false };
 
   const updateState = (key: string, patch: Partial<BinState>) => {
     setBinStates(prev => ({
@@ -363,9 +367,9 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                       <span style={{ marginLeft: '8px', color: '#6bdb7d' }}>
                         (duplicated to 0x{state.duplicationInfo.new_pc_offset.toString(16).toUpperCase().padStart(6, '0')})
                       </span>
-                    ) : bin.isShared && bin.shared_with.length > 0 ? (
+                    ) : bin.isShared && getSharedWith(bin.shared_with).length > 0 ? (
                       <span style={{ marginLeft: '8px', color: '#ff8888' }}>
-                        (shared with {bin.shared_with.filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(', ')})
+                        (shared with {getSharedWith(bin.shared_with).filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(', ')})
                       </span>
                     ) : null}
                   </div>
@@ -428,7 +432,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                       color: (bin.isShared && !state.isDuplicated) ? '#ff8888' : undefined,
                     }}
                     title={(bin.isShared && !state.isDuplicated)
-                      ? `⚠️ SHARED: Editing affects ${bin.shared_with.filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(' & ')}!` 
+                      ? `⚠️ SHARED: Editing affects ${getSharedWith(bin.shared_with).filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(' & ')}!` 
                       : state.isDuplicated
                         ? '✓ This bank is now unique - safe to edit'
                         : 'Import a PNG tile sheet into this bin'

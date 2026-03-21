@@ -33,6 +33,7 @@ emulator-core = { workspace = true }
 script-core = { workspace = true }
 relocation-core = { workspace = true }
 plugin-core = { workspace = true, features = ["lua-scripting"] }
+expansion-core = { workspace = true }
 thiserror = { workspace = true }
 sha1 = { workspace = true }
 image = { workspace = true }
@@ -49,6 +50,9 @@ log = { workspace = true }
 
 # Optional audio output support
 cpal = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [features]
 default = []

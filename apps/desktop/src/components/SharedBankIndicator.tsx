@@ -42,11 +42,12 @@ export const SharedBankIndicator = ({
     }
   };
 
-  if (!sharedWith || sharedWith.length === 0) return null;
+  const normalizedSharedWith = Array.isArray(sharedWith) ? sharedWith : [];
+  if (normalizedSharedWith.length === 0) return null;
 
   const otherFighters = currentBoxer
-    ? sharedWith.filter(f => f.toLowerCase() !== currentBoxer.toLowerCase())
-    : sharedWith;
+    ? normalizedSharedWith.filter(f => f.toLowerCase() !== currentBoxer.toLowerCase())
+    : normalizedSharedWith;
 
   if (otherFighters.length === 0) return null;
 
@@ -172,7 +173,8 @@ export const SharedBankSummary = ({
   // Get all unique fighters that share banks with this boxer
   const allSharedFighters = new Set<string>();
   sharedBins.forEach(bin => {
-    bin.shared_with.forEach(f => {
+    const sharedWith = Array.isArray(bin.shared_with) ? bin.shared_with : [];
+    sharedWith.forEach(f => {
       if (!currentBoxer || f.toLowerCase() !== currentBoxer.toLowerCase()) {
         allSharedFighters.add(f);
       }

@@ -148,7 +148,7 @@ impl PluginApi {
     }
     
     /// List all assets of a given type
-    pub fn list_assets(&self, asset_type: AssetType) -> PluginResult<Vec<AssetInfo>> {
+    pub fn list_assets(&self, _asset_type: AssetType) -> PluginResult<Vec<AssetInfo>> {
         // This would query the manifest or asset database
         // For now, return empty
         Ok(Vec::new())
@@ -287,6 +287,7 @@ pub struct RomStats {
 
 /// Batch operation helper
 pub struct BatchOperation<'a> {
+    #[allow(dead_code)]
     api: &'a PluginApi,
     operations: Vec<Box<dyn FnOnce() -> PluginResult<()> + Send>>,
 }

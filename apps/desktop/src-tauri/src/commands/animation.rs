@@ -44,8 +44,8 @@ pub struct HurtboxData {
 #[tauri::command]
 pub fn get_boxer_animation(
     _state: State<AppState>,
-    boxer_key: String,
-    animation_name: String,
+    _boxer_key: String,
+    _animation_name: String,
 ) -> Result<Vec<AnimationFrameData>, String> {
     // Placeholder - would load animation sequence
     Err("Animation system not yet fully integrated".into())
@@ -64,8 +64,8 @@ pub struct AnimationPlayerState {
 #[tauri::command]
 pub fn play_animation(
     _state: State<AppState>,
-    boxer_key: String,
-    animation_name: String,
+    _boxer_key: String,
+    _animation_name: String,
 ) -> Result<AnimationPlayerState, String> {
     Err("Animation system not yet fully integrated".into())
 }
@@ -86,7 +86,7 @@ pub fn stop_animation(_state: State<AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn seek_animation_frame(
     _state: State<AppState>,
-    frame: usize,
+    _frame: usize,
 ) -> Result<AnimationPlayerState, String> {
     Err("Animation system not yet fully integrated".into())
 }
@@ -95,7 +95,7 @@ pub fn seek_animation_frame(
 #[tauri::command]
 pub fn update_animation(
     _state: State<AppState>,
-    delta_time_ms: f32,
+    _delta_time_ms: f32,
 ) -> Result<AnimationPlayerState, String> {
     Err("Animation system not yet fully integrated".into())
 }
@@ -114,11 +114,11 @@ pub struct InterpolatedFrameData {
 #[tauri::command]
 pub fn get_interpolated_frame(
     _state: State<AppState>,
-    boxer_key: String,
-    animation_name: String,
-    frame1: usize,
-    frame2: usize,
-    t: f32,
+    _boxer_key: String,
+    _animation_name: String,
+    _frame1: usize,
+    _frame2: usize,
+    _t: f32,
 ) -> Result<InterpolatedFrameData, String> {
     Err("Animation system not yet fully integrated".into())
 }
@@ -152,8 +152,8 @@ pub fn get_hitbox_editor_state(_state: State<AppState>) -> Result<HitboxEditorSt
 #[tauri::command]
 pub fn create_hitbox(
     _state: State<AppState>,
-    boxer_key: String,
-    frame_index: usize,
+    _boxer_key: String,
+    _frame_index: usize,
     x: i16,
     y: i16,
     hitbox_type: String,
@@ -177,8 +177,8 @@ pub fn create_hitbox(
 #[tauri::command]
 pub fn create_hurtbox(
     _state: State<AppState>,
-    boxer_key: String,
-    frame_index: usize,
+    _boxer_key: String,
+    _frame_index: usize,
     x: i16,
     y: i16,
 ) -> Result<HurtboxData, String> {
@@ -197,10 +197,10 @@ pub fn create_hurtbox(
 #[tauri::command]
 pub fn update_hitbox(
     _state: State<AppState>,
-    boxer_key: String,
-    frame_index: usize,
-    hitbox_index: usize,
-    hitbox: HitboxData,
+    _boxer_key: String,
+    _frame_index: usize,
+    _hitbox_index: usize,
+    _hitbox: HitboxData,
 ) -> Result<(), String> {
     // Placeholder
     Ok(())
@@ -210,9 +210,9 @@ pub fn update_hitbox(
 #[tauri::command]
 pub fn delete_hitbox(
     _state: State<AppState>,
-    boxer_key: String,
-    frame_index: usize,
-    hitbox_index: usize,
+    _boxer_key: String,
+    _frame_index: usize,
+    _hitbox_index: usize,
 ) -> Result<(), String> {
     // Placeholder
     Ok(())
@@ -222,8 +222,8 @@ pub fn delete_hitbox(
 #[tauri::command]
 pub fn set_hitbox_editor_option(
     _state: State<AppState>,
-    option: String,
-    value: serde_json::Value,
+    _option: String,
+    _value: serde_json::Value,
 ) -> Result<(), String> {
     // Placeholder
     Ok(())

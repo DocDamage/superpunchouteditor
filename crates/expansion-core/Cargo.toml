@@ -12,3 +12,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+rom-core = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+debugger-core = { workspace = true }

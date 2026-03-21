@@ -41,7 +41,9 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
   const blobUrlRef = useRef<string | null>(null);
   const packMenuRef = useRef<HTMLDivElement>(null);
 
-  const totalBins = boxer.unique_sprite_bins.length + (includeShared ? boxer.shared_sprite_bins.length : 0);
+  const uniqueSpriteBins = boxer.unique_sprite_bins ?? [];
+  const sharedSpriteBins = boxer.shared_sprite_bins ?? [];
+  const totalBins = uniqueSpriteBins.length + (includeShared ? sharedSpriteBins.length : 0);
   
   // Close pack menu when clicking outside
   useEffect(() => {
@@ -112,12 +114,12 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
 
   // Auto-render when boxer changes and ROM is loaded
   useEffect(() => {
-    if (romSha1 && boxer.unique_sprite_bins.length > 0) {
+    if (romSha1 && uniqueSpriteBins.length > 0) {
       renderSheet();
     } else {
       setImageSrc(null);
     }
-  }, [boxer.key, romSha1]);
+  }, [boxer.key, romSha1, uniqueSpriteBins.length, renderSheet]);
 
   const handleExportSheet = async () => {
     if (!imageSrc) return;

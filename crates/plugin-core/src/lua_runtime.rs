@@ -68,6 +68,7 @@ impl LuaPlugin {
     }
     
     /// Update plugin info (called after worker extracts it from script)
+    #[allow(dead_code)]
     fn update_info(&mut self, info: PluginInfo) {
         self.info = info;
     }

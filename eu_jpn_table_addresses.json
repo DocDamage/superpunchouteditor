@@ -1,0 +1,242 @@
+{
+  "EU": {
+    "palettes": {
+      "Gabby Jay": {
+        "address": 440787,
+        "snes": "$8D:B9D3",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Bear Hugger": {
+        "address": 441397,
+        "snes": "$8D:BC35",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Piston Hurricane": {
+        "address": 442007,
+        "snes": "$8D:BE97",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Bald Bull": {
+        "address": 442617,
+        "snes": "$8D:C0F9",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Bob Charlie": {
+        "address": 443259,
+        "snes": "$8D:C37B",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Dragon Chan": {
+        "address": 443869,
+        "snes": "$8D:C5DD",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Masked Muscle": {
+        "address": 444479,
+        "snes": "$8D:C83F",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Mr. Sandman": {
+        "address": 445057,
+        "snes": "$8D:CA81",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Aran Ryan": {
+        "address": 445635,
+        "snes": "$8D:CCC3",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Heike Kagero": {
+        "address": 446245,
+        "snes": "$8D:CF25",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Mad Clown": {
+        "address": 446855,
+        "snes": "$8D:D187",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Super Macho Man": {
+        "address": 447465,
+        "snes": "$8D:D3E9",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Narcis Prince": {
+        "address": 448075,
+        "snes": "$8D:D64B",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Hoy Quarlow": {
+        "address": 448685,
+        "snes": "$8D:D8AD",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Rick Bruiser": {
+        "address": 449295,
+        "snes": "$8D:DB0F",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      },
+      "Nick Bruiser": {
+        "address": 449873,
+        "snes": "$8D:DD51",
+        "offset_from_usa": -7,
+        "confidence": "HIGH"
+      }
+    },
+    "icons": {
+      "Gabby Jay": {
+        "address": 440273,
+        "snes": "$8D:B7D1",
+        "offset": -7
+      },
+      "Bear Hugger": {
+        "address": 440883,
+        "snes": "$8D:BA33",
+        "offset": -7
+      },
+      "Piston Hurricane": {
+        "address": 441493,
+        "snes": "$8D:BC95",
+        "offset": -7
+      }
+    },
+    "circuits": {},
+    "text": {},
+    "ai_scripts": {}
+  },
+  "JPN": {
+    "palettes": {
+      "Gabby Jay": {
+        "address": 440523,
+        "snes": "$8D:B8CB",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Bear Hugger": {
+        "address": 441133,
+        "snes": "$8D:BB2D",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Piston Hurricane": {
+        "address": 441743,
+        "snes": "$8D:BD8F",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Bald Bull": {
+        "address": 442353,
+        "snes": "$8D:BFF1",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Bob Charlie": {
+        "address": 442995,
+        "snes": "$8D:C273",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Dragon Chan": {
+        "address": 443605,
+        "snes": "$8D:C4D5",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Masked Muscle": {
+        "address": 444215,
+        "snes": "$8D:C737",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Mr. Sandman": {
+        "address": 444793,
+        "snes": "$8D:C979",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Aran Ryan": {
+        "address": 445371,
+        "snes": "$8D:CBBB",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Heike Kagero": {
+        "address": 445981,
+        "snes": "$8D:CE1D",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Mad Clown": {
+        "address": 446591,
+        "snes": "$8D:D07F",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Super Macho Man": {
+        "address": 447201,
+        "snes": "$8D:D2E1",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Narcis Prince": {
+        "address": 447811,
+        "snes": "$8D:D543",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Hoy Quarlow": {
+        "address": 448421,
+        "snes": "$8D:D7A5",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Rick Bruiser": {
+        "address": 449031,
+        "snes": "$8D:DA07",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      },
+      "Nick Bruiser": {
+        "address": 449609,
+        "snes": "$8D:DC49",
+        "offset_from_usa": -271,
+        "confidence": "HIGH"
+      }
+    },
+    "icons": {
+      "Gabby Jay": {
+        "address": 440009,
+        "snes": "$8D:B6C9",
+        "offset": -271
+      },
+      "Bear Hugger": {
+        "address": 440619,
+        "snes": "$8D:B92B",
+        "offset": -271
+      },
+      "Piston Hurricane": {
+        "address": 441229,
+        "snes": "$8D:BB8D",
+        "offset": -271
+      }
+    },
+    "circuits": {},
+    "text": {},
+    "ai_scripts": {}
+  }
+}

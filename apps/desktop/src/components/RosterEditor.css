@@ -158,6 +158,193 @@
   font-size: 1rem;
 }
 
+/* In-ROM expansion panel */
+.roster-expansion-panel {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--panel-bg) 86%, var(--blue) 14%);
+}
+
+.roster-expansion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.roster-expansion-header h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.roster-expansion-badge {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #f9c74f;
+  border: 1px solid rgba(249, 199, 79, 0.5);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.roster-expansion-help {
+  margin: 0.5rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.roster-expansion-controls {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.expansion-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.expansion-field input,
+.expansion-field select,
+.expansion-field textarea {
+  padding: 0.5rem 0.6rem;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.expansion-field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.expansion-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  margin-top: 1.45rem;
+}
+
+.roster-expansion-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.roster-expansion-error {
+  margin-top: 0.75rem;
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+.roster-expansion-report {
+  margin-top: 0.85rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--glass);
+}
+
+.expansion-report-row {
+  color: var(--text);
+  font-size: 0.84rem;
+  margin-bottom: 0.35rem;
+}
+
+.expansion-report-row code {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.08rem 0.3rem;
+  border-radius: 4px;
+  margin-right: 0.25rem;
+}
+
+.expansion-notes {
+  margin: 0.55rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+
+.roster-hook-candidates {
+  margin-top: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--glass);
+}
+
+.roster-hook-candidates-header {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.roster-hook-candidates-list {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.hook-candidate-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(180px, 1fr) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.hook-candidate-row:last-child {
+  border-bottom: none;
+}
+
+.hook-candidate-cell {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.hook-candidate-cell code {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.08rem 0.28rem;
+  border-radius: 4px;
+}
+
+.hook-candidate-instr,
+.hook-candidate-bytes {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.character-create-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.character-create-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.roster-create-success {
+  margin-top: 0.75rem;
+  color: #4ade80;
+  font-size: 0.85rem;
+}
+
 /* Tabs */
 .roster-editor-tabs {
   display: flex;

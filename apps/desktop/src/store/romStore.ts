@@ -1,8 +1,10 @@
 /**
- * ROM Store
- * 
- * Manages ROM loading, validation, and core ROM state.
- * This is the foundational store that other stores depend on.
+ * @deprecated This store is superseded by the monolithic `useStore` (useStore.ts),
+ * which is the single authoritative source of ROM state in the running app.
+ * Do not add new consumers of `useRomStore`. Migrate existing consumers to
+ * `useStore` and remove this file once all references are gone.
+ *
+ * ROM Store — legacy modular store (not used in production paths)
  */
 
 import { create } from 'zustand';

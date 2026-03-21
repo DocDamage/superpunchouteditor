@@ -29,7 +29,8 @@ export interface RegionDetectionResult {
 export interface RegionSelectorProps {
   romPath?: string;
   onRegionDetected?: (result: RegionDetectionResult) => void;
-  onRegionSelected?: (region: string) => void;
+  /** Called exactly once when the user confirms loading the ROM. */
+  onRegionSelected?: () => void;
   showForceLoad?: boolean;
   disabled?: boolean;
 }
@@ -97,11 +98,11 @@ export function RegionSelector({
     detectRegion();
   }, [romPath, onRegionDetected]);
 
-  // Handle region selection
+  // Handle radio change: update local selection only.
+  // The actual load is triggered by the explicit confirm button below.
   const handleRegionSelect = useCallback((regionCode: string) => {
     setSelectedRegion(regionCode);
-    onRegionSelected?.(regionCode);
-  }, [onRegionSelected]);
+  }, []);
 
   // Handle force load confirmation
   const handleForceLoad = useCallback(() => {
@@ -109,10 +110,9 @@ export function RegionSelector({
   }, []);
 
   const confirmForceLoad = useCallback(() => {
-    // Allow loading even though region is not recognized
-    onRegionSelected?.(selectedRegion || 'usa');
     setShowForceConfirm(false);
-  }, [onRegionSelected, selectedRegion]);
+    onRegionSelected?.();
+  }, [onRegionSelected]);
 
   // Get status icon for a region
   const getStatusIcon = (region: RomRegionInfo) => {
@@ -246,8 +246,8 @@ export function RegionSelector({
         <ul style={notesListStyle}>
           <li>Text encoding may differ between regions</li>
           <li>Some boxers may have different names in JPN/PAL versions</li>
-          <li>Assets may be at different offsets in non-USA versions</li>
-          <li>Only USA version is currently fully supported</li>
+          <li>Assets may be at different offsets between regions</li>
+          <li>The app now loads region-specific manifests for USA, JPN, and PAL ROMs</li>
         </ul>
       </div>
 
@@ -287,18 +287,19 @@ export function RegionSelector({
         </div>
       )}
 
-      {/* Load Region Manifest Button */}
-      {selectedRegion && (
+      {/* Load ROM button — the single confirmation action that triggers loading */}
+      {selectedRegion && detectedRegion?.is_supported && (
         <button
-          onClick={() => onRegionSelected?.(selectedRegion)}
-          disabled={disabled || (!detectedRegion?.is_supported && !showForceConfirm)}
+          type="button"
+          onClick={() => onRegionSelected?.()}
+          disabled={disabled}
           style={{
             ...loadButtonStyle,
-            opacity: (disabled || (!detectedRegion?.is_supported && !showForceConfirm)) ? 0.5 : 1,
-            cursor: (disabled || (!detectedRegion?.is_supported && !showForceConfirm)) ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
+            cursor: disabled ? 'not-allowed' : 'pointer',
           }}
         >
-          Load Region Manifest
+          Open ROM
         </button>
       )}
     </div>
@@ -438,13 +439,6 @@ const spinnerStyle: React.CSSProperties = {
   margin: '0 auto',
 };
 
-// Add keyframes for spinner
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(styleSheet);
+// Spinner keyframes are defined in App.css (@keyframes spin).
 
 export default RegionSelector;

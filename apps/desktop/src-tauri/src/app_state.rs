@@ -11,7 +11,7 @@
 //!
 //! # Access Pattern
 //!
-//! ```rust
+//! ```ignore
 //! // Simple lock - never fails
 //! let rom = state.rom.lock();
 //!
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_app_state_has_rom_initially_false() {
-        let manifest = Manifest::default();
+        let manifest = Manifest::empty();
         let state = AppState::new(manifest);
         assert!(!state.has_rom());
         assert!(state.get_rom_sha1().is_none());

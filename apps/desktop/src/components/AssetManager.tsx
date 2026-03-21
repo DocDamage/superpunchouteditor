@@ -13,14 +13,22 @@ interface AssetWithShared extends AssetFile {
 
 export const AssetManager = ({ boxer }: AssetManagerProps) => {
   const { exportAsset, importAsset } = useStore();
+  const iconFiles = boxer.icon_files ?? [];
+  const portraitFiles = boxer.portrait_files ?? [];
+  const largePortraitFiles = boxer.large_portrait_files ?? [];
+  const otherFiles = boxer.other_files ?? [];
+  const paletteFiles = boxer.palette_files ?? [];
 
   // Combine all assets with their type info
   const allAssets: AssetWithShared[] = [
-    ...boxer.icon_files.map((a, i) => ({ ...a, assetType: 'icon' as const, index: i })),
-    ...boxer.portrait_files.map((a, i) => ({ ...a, assetType: 'portrait' as const, index: i })),
-    ...boxer.large_portrait_files.map((a, i) => ({ ...a, assetType: 'large_portrait' as const, index: i })),
-    ...boxer.other_files.map((a, i) => ({ ...a, assetType: 'other' as const, index: i })),
+    ...iconFiles.map((a, i) => ({ ...a, assetType: 'icon' as const, index: i })),
+    ...portraitFiles.map((a, i) => ({ ...a, assetType: 'portrait' as const, index: i })),
+    ...largePortraitFiles.map((a, i) => ({ ...a, assetType: 'large_portrait' as const, index: i })),
+    ...otherFiles.map((a, i) => ({ ...a, assetType: 'other' as const, index: i })),
   ];
+
+  const getSharedWith = (sharedWith: string[] | undefined): string[] =>
+    Array.isArray(sharedWith) ? sharedWith : [];
 
   const handleExport = async (asset: AssetWithShared) => {
     try {
@@ -28,8 +36,8 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
         defaultPath: `${boxer.name}_${asset.subtype}${asset.index > 0 ? '_' + (asset.index + 1) : ''}.png`
       });
-      if (path && boxer.palette_files.length > 0) {
-        await exportAsset(asset, boxer.palette_files[0], path);
+      if (path && paletteFiles.length > 0) {
+        await exportAsset(asset, paletteFiles[0], path);
         alert(`Exported to ${path}`);
       }
     } catch (e) {
@@ -39,8 +47,9 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
 
   const handleImport = async (asset: AssetWithShared) => {
     // Check if this is a shared asset
-    if (asset.shared_with && asset.shared_with.length > 0) {
-      const otherFighters = asset.shared_with.filter(
+    const sharedWith = getSharedWith(asset.shared_with);
+    if (sharedWith.length > 0) {
+      const otherFighters = sharedWith.filter(
         f => f.toLowerCase() !== boxer.name.toLowerCase()
       );
       
@@ -60,8 +69,8 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
         filters: [{ name: 'PNG Image', extensions: ['png'] }],
         multiple: false
       });
-      if (typeof path === 'string' && boxer.palette_files.length > 0) {
-        const bytes = await importAsset(boxer.palette_files[0], path);
+      if (typeof path === 'string' && paletteFiles.length > 0) {
+        const bytes = await importAsset(paletteFiles[0], path);
         if (bytes) {
           alert(`Successfully imported ${bytes.length} bytes for ${asset.subtype}. (Saving to ROM pending Project System)`);
         }
@@ -99,7 +108,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
 
   // Count shared assets
   const sharedAssetCount = allAssets.filter(
-    a => a.shared_with && a.shared_with.length > 0
+    a => getSharedWith(a.shared_with).length > 0
   ).length;
 
   return (
@@ -133,9 +142,10 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
       
       <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
         {allAssets.map((asset, idx) => {
-          const isShared = asset.shared_with && asset.shared_with.length > 0;
+          const sharedWith = getSharedWith(asset.shared_with);
+          const isShared = sharedWith.length > 0;
           const otherFighters = isShared
-            ? asset.shared_with.filter(f => f.toLowerCase() !== boxer.name.toLowerCase())
+            ? sharedWith.filter(f => f.toLowerCase() !== boxer.name.toLowerCase())
             : [];
 
           return (
@@ -159,7 +169,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
                   <strong>{getAssetTypeLabel(asset)}</strong>
                   {isShared && (
                     <SharedBankIndicator
-                      sharedWith={asset.shared_with}
+                      sharedWith={sharedWith}
                       currentBoxer={boxer.name}
                       size="small"
                     />

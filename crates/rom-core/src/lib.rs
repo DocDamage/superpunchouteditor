@@ -23,7 +23,10 @@ pub const HEADER_SIZE: usize = 512;
 pub const KNOWN_SHA1_HASHES: &[&str] = &[
     // USA version (verified)
     "3604c855790f37db567e9b425252625045f86697",
-    // NOTE: JPN and PAL hashes to be added when those regions are supported
+    // JPN version (verified)
+    "0f42b17e721671931e1eb3d9701d464db163cfd3",
+    // PAL version (verified)
+    "658c4a3dd0b62577781df2e05a28c43806b6dbc5",
 ];
 
 /// Standard SNES ROM sizes
@@ -146,8 +149,8 @@ impl Rom {
             if actual_sha1 == hash {
                 return match i {
                     0 => Ok(RomRegion::Usa),
-                    // 1 => Ok(RomRegion::Jpn), // NOTE: Enable when JPN hash added
-                    // 2 => Ok(RomRegion::Pal), // NOTE: Enable when PAL hash added
+                    1 => Ok(RomRegion::Jpn),
+                    2 => Ok(RomRegion::Pal),
                     _ => Err(RomError::ChecksumMismatch {
                         expected: "known region".to_string(),
                         actual: actual_sha1,

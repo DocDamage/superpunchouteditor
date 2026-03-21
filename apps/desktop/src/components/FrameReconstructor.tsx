@@ -560,7 +560,7 @@ export const FrameReconstructor: React.FC = () => {
               <span style={styles.statusSeparator}>|</span>
               <span>Tileset 1: {currentFrame.tileset1_id}</span>
               {currentFrame.tileset2_id > 0 && (
-                <>, <span>Tileset 2: {currentFrame.tileset2_id}</span>
+                <><span>Tileset 2: {currentFrame.tileset2_id}</span></>
               )}
             </>
           )}

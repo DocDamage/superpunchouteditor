@@ -85,3 +85,5 @@ patch-core = { path = "crates/patch-core" }
 script-core = { path = "crates/script-core" }
 relocation-core = { path = "crates/relocation-core" }
 plugin-core = { path = "crates/plugin-core" }
+expansion-core = { path = "crates/expansion-core" }
+debugger-core = { path = "crates/debugger-core" }

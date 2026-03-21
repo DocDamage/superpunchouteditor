@@ -49,15 +49,16 @@ export const SharedBankWarning = ({
   };
 
   if (!isOpen || !bankInfo) return null;
+  const sharedWith = Array.isArray(bankInfo.shared_with) ? bankInfo.shared_with : [];
 
   // Get the pair info for this bank
   const pairInfo = sharedPairs.find(pair =>
     pair.fighters.some(f =>
-      bankInfo.shared_with.some(sf => sf.toLowerCase() === f.toLowerCase())
+      sharedWith.some(sf => sf.toLowerCase() === f.toLowerCase())
     )
   );
 
-  const otherFighters = bankInfo.shared_with.filter(
+  const otherFighters = sharedWith.filter(
     f => f.toLowerCase() !== currentBoxer.toLowerCase()
   );
 

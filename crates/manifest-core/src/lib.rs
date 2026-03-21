@@ -39,7 +39,10 @@ pub struct AssetFile {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BoxerRecord {
-    /// Boxer display name
+    /// Boxer display name.
+    /// Older manifests (JPN, PAL) may use the legacy field name `fighter`;
+    /// both forms are accepted during deserialization.
+    #[serde(alias = "fighter")]
     pub name: String,
     /// Boxer key (unique identifier)
     pub key: String,
@@ -69,6 +72,23 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Construct an empty placeholder manifest.
+    ///
+    /// Use this when no ROM is loaded yet. The real manifest is loaded by
+    /// `open_rom` once the user selects a ROM file.
+    pub fn empty() -> Self {
+        Self {
+            source_rom: SourceRomInfo {
+                filename: String::new(),
+                sha1: String::new(),
+                size_bytes: 0,
+                format: String::new(),
+            },
+            asset_counts: HashMap::new(),
+            fighters: HashMap::new(),
+        }
+    }
+
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ManifestError> {
         let content = fs::read_to_string(path)?;
         let manifest: Manifest = serde_json::from_str(&content)?;

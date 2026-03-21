@@ -3,7 +3,7 @@ import { UpdateSettings as UpdateSettingsType, UpdateInfo } from '../store/useSt
 import { useStore } from '../store/useStore';
 import { UpdateAvailableModal } from './UpdateAvailableModal';
 import { UpdateProgress } from './UpdateProgress';
-import { open } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 const UPDATE_INTERVALS = [
   { value: 'daily', label: 'Daily' },
@@ -95,7 +95,7 @@ export function UpdateSettings() {
 
   const handleOpenManualDownload = async () => {
     try {
-      await open(manualUrl);
+      await openUrl(manualUrl);
     } catch (e) {
       console.error('Failed to open download URL:', e);
     }

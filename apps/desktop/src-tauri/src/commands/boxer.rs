@@ -5,7 +5,7 @@
 use tauri::State;
 
 use crate::app_state::AppState;
-use asset_core::fighter::BoxerManager;
+use asset_core::fighter::{BoxerManager, BoxerMetadata, PoseInfo};
 use manifest_core::{
     comparison::{find_similar_boxers, BoxerComparison, BoxerSimilarity, FighterStats, StatField},
     BoxerRecord,
@@ -32,6 +32,48 @@ pub fn get_boxer(state: State<AppState>, key: String) -> Option<BoxerRecord> {
         .values()
         .find(|f| f.key == key)
         .cloned()
+}
+
+/// Get the list of fighters/boxers available in the loaded ROM.
+///
+/// Compatibility wrapper kept for existing frontend components that still use
+/// the legacy fighter-viewer command names.
+#[tauri::command]
+pub fn get_fighter_list(state: State<AppState>) -> Result<Vec<BoxerMetadata>, String> {
+    let rom_guard = state.rom.lock();
+    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
+    Ok(BoxerManager::new(rom).get_boxer_list())
+}
+
+/// Get all poses for a fighter by ROM roster index.
+#[tauri::command]
+pub fn get_fighter_poses(state: State<AppState>, fighter_id: usize) -> Result<Vec<PoseInfo>, String> {
+    let rom_guard = state.rom.lock();
+    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
+    Ok(BoxerManager::new(rom).get_poses(fighter_id))
+}
+
+/// Render a fighter pose to PNG bytes.
+#[tauri::command]
+pub fn render_fighter_pose(
+    state: State<AppState>,
+    fighter_id: usize,
+    pose_id: usize,
+) -> Result<Vec<u8>, String> {
+    let rom_guard = state.rom.lock();
+    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
+
+    let manifest = state.manifest.lock();
+    let fighters = BoxerManager::new(rom).get_boxer_list();
+    let fighter = fighters
+        .get(fighter_id)
+        .ok_or_else(|| format!("Invalid fighter id {}", fighter_id))?;
+    let boxer = manifest
+        .fighters
+        .get(&fighter.name)
+        .ok_or_else(|| format!("Boxer '{}' not found in manifest", fighter.name))?;
+
+    BoxerManager::new(rom).render_pose(fighter_id, pose_id, boxer)
 }
 
 /// Get the curated layout for a boxer

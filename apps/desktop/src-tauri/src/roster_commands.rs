@@ -38,6 +38,7 @@ impl From<RosterData> for RosterDataResponse {
 }
 
 /// Request to update a boxer name
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateNameRequest {
     pub fighter_id: u8,
@@ -45,6 +46,7 @@ pub struct UpdateNameRequest {
 }
 
 /// Request to update circuit assignment
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateCircuitRequest {
     pub fighter_id: u8,
@@ -52,6 +54,7 @@ pub struct UpdateCircuitRequest {
 }
 
 /// Request to update unlock order
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateUnlockOrderRequest {
     pub fighter_id: u8,

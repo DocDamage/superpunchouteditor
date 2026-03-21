@@ -2,36 +2,46 @@
 //!
 //! Commands for ROM loading, validation, and basic operations.
 
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::AppState;
-use crate::utils::{parse_offset, validation::validate_rom_path};
+use crate::utils::{load_manifest_for_region, parse_offset, validation::validate_rom_path};
 
 /// Open a ROM file from the specified path
 ///
 /// Validates the ROM, calculates its SHA1 hash, and stores it in the app state.
 /// Clears any pending writes and edit history from previous ROMs.
 #[tauri::command]
-pub fn open_rom(state: State<AppState>, path: String) -> Result<String, String> {
+pub fn open_rom(app: AppHandle, state: State<AppState>, path: String) -> Result<String, String> {
     // Validate path first
     validate_rom_path(&path)?;
 
     let rom = Rom::load(&path).map_err(|e| e.to_string())?;
+    let region = rom.detect_region().ok_or_else(|| {
+        format!(
+            "Unknown ROM region. SHA1: {}",
+            rom.calculate_sha1()
+        )
+    })?;
 
-    // Validate the ROM format
-    rom.validate().map_err(|e| e.to_string())?;
+    // Resolve the Tauri resource directory for manifest loading.
+    // This is populated in packaged builds and may be absent in some dev setups.
+    let resource_dir = app.path().resource_dir().ok();
+    let manifest = load_manifest_for_region(region, resource_dir.as_deref())?;
 
     let sha1 = rom.calculate_sha1();
 
     // Update state
     *state.rom.lock() = Some(rom);
     *state.rom_path.lock() = Some(path);
+    *state.manifest.lock() = manifest;
 
     // Clear pending writes when new ROM is loaded
     state.pending_writes.lock().clear();
 
     // Clear edit history when loading new ROM (can't undo across different ROMs)
     state.edit_history.lock().clear();
+    *state.modified.lock() = false;
 
     Ok(sha1)
 }

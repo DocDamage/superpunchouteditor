@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { UpdateAvailableModal } from './UpdateAvailableModal';
 import { UpdateProgress } from './UpdateProgress';
-import { open } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 interface UpdateCheckerProps {
   children: React.ReactNode;
@@ -119,7 +119,7 @@ export function UpdateChecker({ children }: UpdateCheckerProps) {
 
   const handleOpenChangelog = async () => {
     try {
-      await open(manualUrl);
+      await openUrl(manualUrl);
     } catch (e) {
       console.error('Failed to open changelog:', e);
     }

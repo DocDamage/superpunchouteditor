@@ -142,6 +142,43 @@ export interface BoxerRecord {
   other_files: AssetFile[];
 }
 
+function normalizeAssetFile(asset: Partial<AssetFile> | null | undefined): AssetFile {
+  return {
+    file: asset?.file ?? '',
+    filename: asset?.filename ?? '',
+    category: asset?.category ?? '',
+    subtype: asset?.subtype ?? '',
+    size: asset?.size ?? 0,
+    start_snes: asset?.start_snes ?? '',
+    end_snes: asset?.end_snes ?? '',
+    start_pc: asset?.start_pc ?? '',
+    end_pc: asset?.end_pc ?? '',
+    shared_with: Array.isArray(asset?.shared_with) ? asset!.shared_with : [],
+  };
+}
+
+function normalizeAssetList(assets: Partial<AssetFile>[] | null | undefined): AssetFile[] {
+  if (!Array.isArray(assets)) return [];
+  return assets.map(normalizeAssetFile);
+}
+
+function normalizeBoxerRecord(boxer: Partial<BoxerRecord> | null | undefined): BoxerRecord | null {
+  if (!boxer) return null;
+
+  return {
+    name: boxer.name ?? '',
+    key: boxer.key ?? '',
+    reference_sheet: boxer.reference_sheet ?? '',
+    palette_files: normalizeAssetList(boxer.palette_files),
+    icon_files: normalizeAssetList(boxer.icon_files),
+    portrait_files: normalizeAssetList(boxer.portrait_files),
+    large_portrait_files: normalizeAssetList(boxer.large_portrait_files),
+    unique_sprite_bins: normalizeAssetList(boxer.unique_sprite_bins),
+    shared_sprite_bins: normalizeAssetList(boxer.shared_sprite_bins),
+    other_files: normalizeAssetList(boxer.other_files),
+  };
+}
+
 /** @deprecated Use BoxerRecord with 'name' field instead */
 export type FighterRecord = BoxerRecord;
 
@@ -169,7 +206,7 @@ export interface PoseInfo {
 }
 
 // Frame reconstructor types
-export { FrameData, FrameSummary } from '../types/frame';
+export type { FrameData, FrameSummary } from '../types/frame';
 
 export interface ProjectMetadata {
   name: string;
@@ -336,6 +373,52 @@ export interface DownloadProgress {
   downloaded: number;
   total: number;
   state: 'idle' | 'checking' | 'downloading' | 'verifying' | 'ready' | 'installing' | 'error';
+}
+
+export interface InGameExpansionOptions {
+  targetBoxerCount: number;
+  patchEditorHook?: boolean;
+  editorHookPcOffset?: string | null;
+  editorHookOverwriteLen?: number | null;
+}
+
+export interface InGameExpansionWriteRange {
+  start_pc: string;
+  size: number;
+  description: string;
+}
+
+export interface InGameHookSiteCandidate {
+  hook_pc: string;
+  overwrite_len: number;
+  return_pc: string;
+  first_instruction: string;
+  preview_bytes_hex: string;
+}
+
+export interface InGameHookPreset extends InGameHookSiteCandidate {
+  id: string;
+  label: string;
+  description: string;
+  region: string;
+  source: 'curated' | 'scanned';
+  verified: boolean;
+}
+
+export interface InGameExpansionReport {
+  boxer_count: number;
+  header_pc: string;
+  editor_stub_pc: string;
+  editor_hook_patched: boolean;
+  editor_hook_overwrite_len: number;
+  name_pointer_table_pc: string;
+  name_long_pointer_table_pc: string;
+  name_blob_pc: string;
+  circuit_table_pc: string;
+  unlock_table_pc: string;
+  intro_table_pc: string;
+  write_ranges: InGameExpansionWriteRange[];
+  notes: string[];
 }
 
 interface AppStore {
@@ -534,6 +617,19 @@ interface AppStore {
   removeFrameAnnotation: (fighterId: number, frameIndex: number, annotationId: string) => Promise<void>;
   updateFrameAnnotation: (fighterId: number, frameIndex: number, annotationId: string, updates: Partial<FrameAnnotation>) => Promise<void>;
   getFrameAnnotations: (fighterId: number, frameIndex: number) => Promise<FrameAnnotation[]>;
+
+  // In-ROM expansion actions
+  applyInGameExpansion: (options: InGameExpansionOptions) => Promise<InGameExpansionReport>;
+  analyzeInGameHookSites: (options?: {
+    startPcOffset?: string | null;
+    endPcOffset?: string | null;
+    limit?: number;
+  }) => Promise<InGameHookSiteCandidate[]>;
+  verifyInGameHookSite: (options: {
+    hookPcOffset: string;
+    overwriteLen?: number | null;
+  }) => Promise<InGameHookSiteCandidate>;
+  getInGameHookPresets: (limit?: number) => Promise<InGameHookPreset[]>;
   
   // Update state
   updateSettings: UpdateSettings;
@@ -741,7 +837,7 @@ export const useStore = create<AppStore>((set, get) => ({
   loadBoxers: async () => {
     try {
       const boxers = await invoke<BoxerRecord[]>('get_boxers');
-      set({ boxers });
+      set({ boxers: boxers.map(normalizeBoxerRecord).filter((boxer): boxer is BoxerRecord => boxer !== null) });
     } catch (e) {
       console.error('Failed to load boxers:', e);
       set({ error: (e as Error).toString() });
@@ -750,8 +846,31 @@ export const useStore = create<AppStore>((set, get) => ({
 
   openRom: async (path: string) => {
     try {
+      // Reset all ROM-bound state before invoking the backend so stale data
+      // is never visible if the load fails partway through.
+      set({
+        romSha1: null,
+        boxers: [],
+        selectedBoxer: null,
+        currentPalette: null,
+        currentPaletteOffset: null,
+        fighters: [],
+        selectedFighterId: null,
+        poses: [],
+        frames: [],
+        currentFrame: null,
+        currentFrameIndex: 0,
+        pendingWrites: new Set(),
+        error: null,
+      });
+
       const sha1 = await invoke<string>('open_rom', { path });
-      set({ romSha1: sha1, error: null, pendingWrites: new Set() });
+      set({ romSha1: sha1 });
+
+      // Reload boxer list from the region-specific manifest now loaded by the backend.
+      await get().loadBoxers();
+      // Sync undo state (history was cleared server-side on ROM load).
+      await get().refreshUndoState();
     } catch (e) {
       console.error('Failed to open ROM:', e);
       set({ error: (e as Error).toString() });
@@ -760,7 +879,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   selectBoxer: async (key: string) => {
     try {
-      const boxer = await invoke<BoxerRecord | null>('get_boxer', { key });
+      const boxer = normalizeBoxerRecord(await invoke<BoxerRecord | null>('get_boxer', { key }));
       set({ selectedBoxer: boxer, currentPalette: null, currentPaletteOffset: null });
 
       // Auto-load first palette if available
@@ -1680,6 +1799,62 @@ export const useStore = create<AppStore>((set, get) => ({
     } catch (e) {
       console.error('Failed to get frame annotations:', e);
       return [];
+    }
+  },
+
+  applyInGameExpansion: async (options: InGameExpansionOptions) => {
+    try {
+      const report = await invoke<InGameExpansionReport>('apply_in_game_expansion', {
+        request: {
+          target_boxer_count: options.targetBoxerCount,
+          patch_editor_hook: options.patchEditorHook ?? false,
+          editor_hook_pc_offset: options.editorHookPcOffset ?? null,
+          editor_hook_overwrite_len: options.editorHookOverwriteLen ?? null,
+        },
+      });
+      set({ isProjectModified: true, error: null });
+      return report;
+    } catch (e) {
+      const message = String(e);
+      console.error('Failed to apply in-game expansion:', e);
+      set({ error: message });
+      throw e;
+    }
+  },
+
+  analyzeInGameHookSites: async (options) => {
+    try {
+      const request = {
+        start_pc_offset: options?.startPcOffset ?? null,
+        end_pc_offset: options?.endPcOffset ?? null,
+        limit: options?.limit ?? 25,
+      };
+      return await invoke<InGameHookSiteCandidate[]>('analyze_in_game_hook_sites', { request });
+    } catch (e) {
+      console.error('Failed to analyze in-game hook sites:', e);
+      throw e;
+    }
+  },
+
+  verifyInGameHookSite: async (options) => {
+    try {
+      const request = {
+        hook_pc_offset: options.hookPcOffset,
+        overwrite_len: options.overwriteLen ?? null,
+      };
+      return await invoke<InGameHookSiteCandidate>('verify_in_game_hook_site', { request });
+    } catch (e) {
+      console.error('Failed to verify in-game hook site:', e);
+      throw e;
+    }
+  },
+
+  getInGameHookPresets: async (limit = 8) => {
+    try {
+      return await invoke<InGameHookPreset[]>('get_in_game_hook_presets', { limit });
+    } catch (e) {
+      console.error('Failed to get in-game hook presets:', e);
+      throw e;
     }
   },
   

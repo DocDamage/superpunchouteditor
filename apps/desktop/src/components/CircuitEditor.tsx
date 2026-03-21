@@ -16,6 +16,8 @@ interface CircuitEditorProps {
   disabled?: boolean;
 }
 
+const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id;
+
 export function CircuitEditor({
   boxers,
   circuits,
@@ -30,7 +32,7 @@ export function CircuitEditor({
   const getBoxersInCircuit = useCallback((circuitType: CircuitType) => {
     return boxers
       .filter(b => b.circuit === circuitType)
-      .sort((a, b) => a.fighter_id - b.fighter_id);
+      .sort((a, b) => getBoxerId(a) - getBoxerId(b));
   }, [boxers]);
 
   // Handle drag start
@@ -60,7 +62,7 @@ export function CircuitEditor({
     e.preventDefault();
     
     if (draggedBoxer && draggedBoxer.circuit !== targetCircuit) {
-      onUpdateCircuit(draggedBoxer.fighter_id, targetCircuit);
+      onUpdateCircuit(getBoxerId(draggedBoxer), targetCircuit);
     }
     
     setDraggedBoxer(null);
@@ -138,13 +140,13 @@ export function CircuitEditor({
                 ) : (
                   circuitBoxers.map(boxer => (
                     <div
-                      key={boxer.fighter_id}
+                      key={getBoxerId(boxer)}
                       className={`circuit-boxer-item ${boxer.is_champion ? 'champion' : ''}`}
                       draggable={!disabled}
                       onDragStart={() => handleDragStart(boxer)}
                       onDragEnd={handleDragEnd}
                       style={{
-                        opacity: draggedBoxer?.fighter_id === boxer.fighter_id ? 0.5 : 1,
+                        opacity: draggedBoxer && getBoxerId(draggedBoxer) === getBoxerId(boxer) ? 0.5 : 1,
                         borderLeft: boxer.is_champion 
                           ? `3px solid ${getCircuitColor(circuit.circuit_type)}` 
                           : undefined,
@@ -155,7 +157,7 @@ export function CircuitEditor({
                       
                       <select
                         value={boxer.circuit}
-                        onChange={(e) => handleCircuitChange(boxer.fighter_id, e.target.value)}
+                        onChange={(e) => handleCircuitChange(getBoxerId(boxer), e.target.value)}
                         disabled={disabled}
                         className="circuit-selector"
                         onClick={(e) => e.stopPropagation()}
@@ -170,7 +172,7 @@ export function CircuitEditor({
                         <input
                           type="checkbox"
                           checked={boxer.is_champion}
-                          onChange={(e) => onUpdateChampion(boxer.fighter_id, e.target.checked)}
+                          onChange={(e) => onUpdateChampion(getBoxerId(boxer), e.target.checked)}
                           disabled={disabled}
                         />
                         <span className="champion-star">★</span>

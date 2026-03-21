@@ -21,9 +21,12 @@ import { invoke } from '@tauri-apps/api/core';
 import {
   type Theme,
   type ThemeColors,
+  type RuntimeSkin,
   darkTheme,
   lightTheme,
   applyThemeToCSS,
+  applyRuntimeSkinToCSS,
+  deriveRuntimeThemeColors,
   getEffectiveTheme,
   getThemeColors,
   THEME_STORAGE_KEY,
@@ -39,6 +42,8 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
   /** Toggle between dark and light (skips system) */
   toggleTheme: () => void;
+  setRuntimeSkin: (skin: RuntimeSkin | null) => void;
+  runtimeSkin: RuntimeSkin | null;
   /** Whether the effective theme is dark */
   isDark: boolean;
   /** Whether the theme has been loaded from storage */
@@ -66,13 +71,17 @@ interface ThemeSettings {
  */
 export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElement {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [runtimeSkin, setRuntimeSkin] = useState<RuntimeSkin | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Get effective theme (resolve 'system' to actual theme)
   const effectiveTheme = useMemo(() => getEffectiveTheme(theme), [theme]);
   
   // Get current theme colors
-  const colors = useMemo(() => getThemeColors(theme), [theme]);
+  const colors = useMemo(() => {
+    const baseColors = getThemeColors(theme);
+    return runtimeSkin ? deriveRuntimeThemeColors(baseColors, runtimeSkin) : baseColors;
+  }, [theme, runtimeSkin]);
   
   // Check if currently in dark mode
   const isDark = effectiveTheme === 'dark';
@@ -80,12 +89,16 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
   /**
    * Apply theme to document
    */
-  const applyTheme = useCallback((newTheme: Theme) => {
+  const applyTheme = useCallback((newTheme: Theme, skin: RuntimeSkin | null) => {
     const effective = getEffectiveTheme(newTheme);
-    const themeColors = effective === 'dark' ? darkTheme : lightTheme;
+    const baseThemeColors = effective === 'dark' ? darkTheme : lightTheme;
+    const themeColors = skin
+      ? deriveRuntimeThemeColors(baseThemeColors, skin)
+      : baseThemeColors;
     
     // Apply CSS variables
     applyThemeToCSS(themeColors);
+    applyRuntimeSkinToCSS(skin);
     
     // Update body class for global styling
     document.body.classList.remove('theme-dark', 'theme-light');
@@ -142,9 +155,8 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
    */
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    applyTheme(newTheme);
     saveTheme(newTheme);
-  }, [applyTheme, saveTheme]);
+  }, [saveTheme]);
 
   /**
    * Toggle between dark and light themes
@@ -162,7 +174,6 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
     loadTheme().then((savedTheme) => {
       if (isMounted) {
         setThemeState(savedTheme);
-        applyTheme(savedTheme);
         setIsLoaded(true);
       }
     });
@@ -170,7 +181,11 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
     return () => {
       isMounted = false;
     };
-  }, [loadTheme, applyTheme]);
+  }, [loadTheme]);
+
+  useEffect(() => {
+    applyTheme(theme, runtimeSkin);
+  }, [theme, runtimeSkin, applyTheme]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -180,8 +195,12 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
     
     const handleChange = (e: MediaQueryListEvent) => {
       const newEffectiveTheme = e.matches ? 'dark' : 'light';
-      const themeColors = newEffectiveTheme === 'dark' ? darkTheme : lightTheme;
+      const baseThemeColors = newEffectiveTheme === 'dark' ? darkTheme : lightTheme;
+      const themeColors = runtimeSkin
+        ? deriveRuntimeThemeColors(baseThemeColors, runtimeSkin)
+        : baseThemeColors;
       applyThemeToCSS(themeColors);
+      applyRuntimeSkinToCSS(runtimeSkin);
       document.body.classList.remove('theme-dark', 'theme-light');
       document.body.classList.add(`theme-${newEffectiveTheme}`);
     };
@@ -192,13 +211,15 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
     return () => {
       mediaQuery.removeEventListener('change', handleChange);
     };
-  }, [theme]);
+  }, [theme, runtimeSkin]);
 
   const contextValue: ThemeContextType = {
     theme,
     colors,
     setTheme,
     toggleTheme,
+    setRuntimeSkin,
+    runtimeSkin,
     isDark,
     isLoaded,
   };

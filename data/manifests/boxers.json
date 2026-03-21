@@ -16,7 +16,6 @@
   },
   "fighters": {
     "Gabby Jay": {
-      "fighter": "Gabby Jay",
       "key": "GabbyJay",
       "reference_sheet": "sprites/Gabby Jay.png",
       "palette_files": [
@@ -317,10 +316,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Gabby Jay"
     },
     "Bear Hugger": {
-      "fighter": "Bear Hugger",
       "key": "BearHugger",
       "reference_sheet": "sprites/Bear Hugger.png",
       "palette_files": [
@@ -1068,10 +1067,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Bear Hugger"
     },
     "Piston Hurricane": {
-      "fighter": "Piston Hurricane",
       "key": "PistonHurricane",
       "reference_sheet": "sprites/Piston Hurricane.png",
       "palette_files": [
@@ -1483,10 +1482,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Piston Hurricane"
     },
     "Bald Bull": {
-      "fighter": "Bald Bull",
       "key": "BaldBull",
       "reference_sheet": "sprites/Bald Bull.png",
       "palette_files": [
@@ -2165,10 +2164,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Bald Bull"
     },
     "Bob Charlie": {
-      "fighter": "Bob Charlie",
       "key": "BobCharlie",
       "reference_sheet": "sprites/Bob Charlie.png",
       "palette_files": [
@@ -2482,10 +2481,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Bob Charlie"
     },
     "Dragon Chan": {
-      "fighter": "Dragon Chan",
       "key": "DragonChan",
       "reference_sheet": "sprites/Dragon Chan.png",
       "palette_files": [
@@ -2937,10 +2936,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Dragon Chan"
     },
     "Masked Muscle": {
-      "fighter": "Masked Muscle",
       "key": "MaskedMuscle",
       "reference_sheet": "sprites/Masked Muscle.png",
       "palette_files": [
@@ -3742,10 +3741,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Masked Muscle"
     },
     "Mr. Sandman": {
-      "fighter": "Mr. Sandman",
       "key": "MrSandman",
       "reference_sheet": "sprites/Mr. Sandman.png",
       "palette_files": [
@@ -4424,10 +4423,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Mr. Sandman"
     },
     "Aran Ryan": {
-      "fighter": "Aran Ryan",
       "key": "AranRyan",
       "reference_sheet": "sprites/Aran Ryan.png",
       "palette_files": [
@@ -4839,10 +4838,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Aran Ryan"
     },
     "Heike Kagero": {
-      "fighter": "Heike Kagero",
       "key": "HeikeKagero",
       "reference_sheet": "sprites/Heike Kagero.png",
       "palette_files": [
@@ -5294,10 +5293,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Heike Kagero"
     },
     "Mad Clown": {
-      "fighter": "Mad Clown",
       "key": "MadClown",
       "reference_sheet": "sprites/Mad Clown.png",
       "palette_files": [
@@ -6057,10 +6056,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Mad Clown"
     },
     "Super Macho Man": {
-      "fighter": "Super Macho Man",
       "key": "SuperMachoMan",
       "reference_sheet": "sprites/Super Macho Man.png",
       "palette_files": [
@@ -6850,10 +6849,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Super Macho Man"
     },
     "Narcis Prince": {
-      "fighter": "Narcis Prince",
       "key": "NarcisPrince",
       "reference_sheet": "sprites/Narcis Prince.png",
       "palette_files": [
@@ -7274,10 +7273,10 @@
         }
       ],
       "shared_sprite_bins": [],
-      "other_files": []
+      "other_files": [],
+      "name": "Narcis Prince"
     },
     "Hoy Quarlow": {
-      "fighter": "Hoy Quarlow",
       "key": "HoyQuarlow",
       "reference_sheet": "sprites/Hoy Quarlow.png",
       "palette_files": [
@@ -7890,10 +7889,10 @@
         }
       ],
       "shared_sprite_bins": [],
-      "other_files": []
+      "other_files": [],
+      "name": "Hoy Quarlow"
     },
     "Rick Bruiser": {
-      "fighter": "Rick Bruiser",
       "key": "RickBruiser",
       "reference_sheet": "sprites/Rick Bruiser.png",
       "palette_files": [
@@ -8669,10 +8668,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Rick Bruiser"
     },
     "Nick Bruiser": {
-      "fighter": "Nick Bruiser",
       "key": "NickBruiser",
       "reference_sheet": "sprites/Nick Bruiser.png",
       "palette_files": [
@@ -9448,10 +9447,10 @@
           ]
         }
       ],
-      "other_files": []
+      "other_files": [],
+      "name": "Nick Bruiser"
     },
     "Little Mac": {
-      "fighter": "Little Mac",
       "key": "Player",
       "reference_sheet": "sprites/Little Mac.png",
       "palette_files": [],
@@ -9473,7 +9472,8 @@
         }
       ],
       "shared_sprite_bins": [],
-      "other_files": []
+      "other_files": [],
+      "name": "Little Mac"
     }
   },
   "shared_bank_pairs": [

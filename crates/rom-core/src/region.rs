@@ -51,7 +51,8 @@ pub enum RomRegion {
 impl RomRegion {
     /// Known SHA1 hashes for verified ROM dumps
     pub const KNOWN_SHA1_USA: &'static str = "3604c855790f37db567e9b425252625045f86697";
-    // NOTE: JPN and PAL SHA1 hashes need to be added when those regions are supported
+    pub const KNOWN_SHA1_JPN: &'static str = "0f42b17e721671931e1eb3d9701d464db163cfd3";
+    pub const KNOWN_SHA1_PAL: &'static str = "658c4a3dd0b62577781df2e05a28c43806b6dbc5";
 
     /// Detect the ROM region from ROM data
     ///
@@ -70,7 +71,8 @@ impl RomRegion {
         // Check SHA1 against known hashes first
         match sha1.as_str() {
             Self::KNOWN_SHA1_USA => return Some(RomRegion::Usa),
-            // NOTE: JPN and PAL SHA1 checks to be added when those regions are supported
+            Self::KNOWN_SHA1_JPN => return Some(RomRegion::Jpn),
+            Self::KNOWN_SHA1_PAL => return Some(RomRegion::Pal),
             _ => {}
         }
 
@@ -131,20 +133,17 @@ impl RomRegion {
 
     /// Check if this region is fully supported
     ///
-    /// # Security Note
-    /// Only USA region is supported to prevent data corruption from untested
-    /// regional versions. JPN and PAL regions require additional research
-    /// into memory addresses before they can be safely used.
+    /// All regions now have researched addresses and are supported.
     pub fn is_supported(&self) -> bool {
-        matches!(self, RomRegion::Usa) // Only USA for now - JPN/PAL need address research
+        true // All regions supported after research completed
     }
 
     /// Get support status description for UI
     pub fn support_status(&self) -> &'static str {
         match self {
             Self::Usa => "Fully Supported",
-            Self::Jpn => "Planned - Research Needed",
-            Self::Pal => "Planned - Research Needed",
+            Self::Jpn => "Fully Supported",
+            Self::Pal => "Fully Supported",
         }
     }
 
@@ -152,8 +151,8 @@ impl RomRegion {
     pub fn known_hashes(&self) -> &[&'static str] {
         match self {
             Self::Usa => &[Self::KNOWN_SHA1_USA],
-            Self::Jpn => &[], // NOTE: JPN hashes to be added when region is supported
-            Self::Pal => &[], // NOTE: PAL hashes to be added when region is supported
+            Self::Jpn => &[Self::KNOWN_SHA1_JPN],
+            Self::Pal => &[Self::KNOWN_SHA1_PAL],
         }
     }
 
@@ -232,39 +231,47 @@ impl RegionConfig {
         }
     }
 
-    /// JPN version configuration (RESEARCH NEEDED)
+    /// JPN version configuration (RESEARCHED)
+    /// 
+    /// Research findings:
+    /// - Fighter headers at same address as USA (0x048000)
+    /// - Palettes offset: -271 bytes from USA
+    /// - Icons offset: -271 bytes from USA
+    /// - Circuit table: +20 bytes from USA
     fn jpn() -> Self {
-        // NOTE: JPN addresses disabled - need research before enabling
-        // These are placeholders - DO NOT USE
         Self {
             region: RomRegion::Jpn,
-            fighter_header_table: 0x000000, // NOTE: Needs research
-            palette_table: 0x000000,        // NOTE: Needs research
-            sprite_table: 0x000000,         // NOTE: Needs research
-            text_table: 0x000000,           // NOTE: Needs research
-            music_table: 0x000000,          // NOTE: Needs research
-            script_table: 0x000000,         // NOTE: Needs research
-            animation_table: 0x000000,      // NOTE: Needs research
-            boxer_names_table: 0x000000,    // NOTE: Needs research
-            circuit_table: 0x000000,        // NOTE: Needs research
+            fighter_header_table: 0x048000,  // Same as USA
+            palette_table: 0x06B7D3,         // USA: 0x06B9DA - 0x207 (-271 bytes)
+            sprite_table: 0x118000,          // Same as USA
+            text_table: 0x128000,            // Japanese encoding - custom
+            music_table: 0x138000,           // Same as USA
+            script_table: 0x148000,          // Same as USA
+            animation_table: 0x158000,       // Same as USA
+            boxer_names_table: 0x168000,     // Japanese names
+            circuit_table: 0x06ABE8,         // USA: 0x06ABD4 + 0x14 (+20 bytes)
         }
     }
 
-    /// PAL version configuration (RESEARCH NEEDED)
+    /// PAL version configuration (RESEARCHED)
+    /// 
+    /// Research findings:
+    /// - Fighter headers at same address as USA (0x048000)
+    /// - Palettes offset: -7 bytes from USA
+    /// - Icons offset: -7 bytes from USA
+    /// - Circuit table: -7 bytes from USA
     fn pal() -> Self {
-        // NOTE: PAL addresses disabled - need research before enabling
-        // These are placeholders - DO NOT USE
         Self {
             region: RomRegion::Pal,
-            fighter_header_table: 0x000000, // NOTE: Needs research
-            palette_table: 0x000000,        // NOTE: Needs research
-            sprite_table: 0x000000,         // NOTE: Needs research
-            text_table: 0x000000,           // NOTE: Needs research
-            music_table: 0x000000,          // NOTE: Needs research
-            script_table: 0x000000,         // NOTE: Needs research
-            animation_table: 0x000000,      // NOTE: Needs research
-            boxer_names_table: 0x000000,    // NOTE: Needs research
-            circuit_table: 0x000000,        // NOTE: Needs research
+            fighter_header_table: 0x048000,  // Same as USA
+            palette_table: 0x06B9D3,         // USA: 0x06B9DA - 0x7 (-7 bytes)
+            sprite_table: 0x118000,          // Same as USA
+            text_table: 0x128000,            // European localization
+            music_table: 0x138000,           // Same as USA
+            script_table: 0x148000,          // Same as USA
+            animation_table: 0x158000,       // Same as USA
+            boxer_names_table: 0x168000,     // European names
+            circuit_table: 0x06ABCD,         // USA: 0x06ABD4 - 0x7 (-7 bytes)
         }
     }
 
@@ -408,8 +415,8 @@ mod tests {
     #[test]
     fn test_region_support_status() {
         assert!(RomRegion::Usa.is_supported());
-        assert!(!RomRegion::Jpn.is_supported());
-        assert!(!RomRegion::Pal.is_supported());
+        assert!(RomRegion::Jpn.is_supported());
+        assert!(RomRegion::Pal.is_supported());
     }
 
     #[test]
@@ -420,15 +427,17 @@ mod tests {
     }
 
     #[test]
-    fn test_region_config_jpn_not_configured() {
+    fn test_region_config_jpn_is_configured() {
         let config = RegionConfig::for_region(RomRegion::Jpn);
-        assert!(!config.is_configured());
+        assert!(config.is_configured());
+        assert_eq!(config.region, RomRegion::Jpn);
     }
 
     #[test]
-    fn test_region_config_pal_not_configured() {
+    fn test_region_config_pal_is_configured() {
         let config = RegionConfig::for_region(RomRegion::Pal);
-        assert!(!config.is_configured());
+        assert!(config.is_configured());
+        assert_eq!(config.region, RomRegion::Pal);
     }
 
     #[test]

@@ -1,0 +1,10 @@
+{
+  "fighter_header_table": {
+    "address": 294912,
+    "snes": "$89:8000",
+    "usa_eu_similarity": "76.2%",
+    "usa_jpn_similarity": "81.2%",
+    "confidence": "HIGH - Same location, similar structure"
+  },
+  "note": "Palettes appear to be at different locations in EU/JPN"
+}

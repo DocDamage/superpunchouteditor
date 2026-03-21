@@ -15,6 +15,8 @@ interface BoxerNameEditorProps {
   disabled?: boolean;
 }
 
+const getBoxerId = (boxer: BoxerRosterEntry): number => boxer.boxer_id;
+
 interface BoxerNameState {
   name: string;
   validation: NameValidationResult | null;
@@ -45,8 +47,9 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
     setNameStates(prev => {
       const newStates: Record<number, BoxerNameState> = { ...prev };
       boxers.forEach(boxer => {
-        if (!newStates[boxer.fighter_id]) {
-          newStates[boxer.fighter_id] = {
+        const boxerId = getBoxerId(boxer);
+        if (!newStates[boxerId]) {
+          newStates[boxerId] = {
             name: boxer.name,
             validation: null,
             isEditing: false,
@@ -135,7 +138,7 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
   };
 
   // Sort boxers by fighter ID for consistent display
-  const sortedBoxers = [...boxers].sort((a, b) => a.fighter_id - b.fighter_id);
+  const sortedBoxers = [...boxers].sort((a, b) => getBoxerId(a) - getBoxerId(b));
 
   return (
     <div className="name-editor">
@@ -176,7 +179,8 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
 
       <div className="name-list">
         {sortedBoxers.map(boxer => {
-          const state = nameStates[boxer.fighter_id] || {
+          const boxerId = getBoxerId(boxer);
+          const state = nameStates[boxerId] || {
             name: boxer.name,
             validation: null,
             isEditing: false,
@@ -186,9 +190,9 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
           const isValid = state.validation?.valid ?? true;
           
           return (
-            <div key={boxer.fighter_id} className="name-item">
+            <div key={boxerId} className="name-item">
               <div className="name-item-id">
-                {boxer.fighter_id}
+                {boxerId}
               </div>
               
               <span className={`name-item-circuit ${getCircuitClass(boxer.circuit)}`}>
@@ -199,9 +203,9 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
                 <input
                   type="text"
                   value={state.name}
-                  onChange={(e) => handleNameChange(boxer.fighter_id, e.target.value)}
-                  onBlur={() => hasChanges && isValid && handleSave(boxer.fighter_id)}
-                  onKeyDown={(e) => handleKeyDown(boxer.fighter_id, boxer.name, e)}
+                  onChange={(e) => handleNameChange(boxerId, e.target.value)}
+                  onBlur={() => hasChanges && isValid && handleSave(boxerId)}
+                  onKeyDown={(e) => handleKeyDown(boxerId, boxer.name, e)}
                   disabled={disabled}
                   className={`name-input ${!isValid ? 'invalid' : ''}`}
                   placeholder="Boxer name"
@@ -226,7 +230,7 @@ export function BoxerNameEditor({ boxers, onUpdateName, disabled }: BoxerNameEdi
               
               {hasChanges && (
                 <button
-                  onClick={() => handleSave(boxer.fighter_id)}
+                  onClick={() => handleSave(boxerId)}
                   disabled={disabled || !isValid}
                   className="save-btn"
                   title="Save changes"

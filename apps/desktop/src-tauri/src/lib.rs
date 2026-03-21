@@ -62,19 +62,15 @@ pub use update_commands::{
 // Imports
 // ============================================================================
 
-use manifest_core::Manifest;
-
 // ============================================================================
 // Main Entry Point
 // ============================================================================
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load the manifest
-    let manifest_path = "../../data/manifests/boxers.json";
-    let manifest = Manifest::load(manifest_path).unwrap_or_else(|_| {
-        panic!("Failed to load manifest from {}", manifest_path);
-    });
+    // The manifest is loaded per-region when a ROM is opened (see open_rom command).
+    // Start with an empty default so startup never fails due to missing manifest files.
+    let manifest = manifest_core::Manifest::empty();
 
     // Load saved settings
     let _emulator_settings = commands::settings::load_emulator_settings().unwrap_or_default();
@@ -97,9 +93,28 @@ pub fn run() {
             commands::rom::get_rom_bytes,
             commands::rom::discard_bin_edit,
             commands::rom::is_rom_loaded,
+            // Expansion Commands
+            commands::expansion::apply_in_game_expansion,
+            commands::expansion::analyze_in_game_hook_sites,
+            commands::expansion::verify_in_game_hook_site,
+            commands::expansion::get_in_game_hook_presets,
             // Boxer Commands
             commands::boxer::get_boxers,
             commands::boxer::get_boxer,
+            commands::boxer::get_fighter_list,
+            commands::boxer::get_fighter_poses,
+            commands::boxer::render_fighter_pose,
+            // Asset Commands
+            commands::assets::get_palette,
+            commands::assets::get_runtime_theme_assets,
+            commands::assets::export_asset_to_png,
+            commands::assets::import_asset_from_png,
+            commands::assets::export_sprite_bin_to_png,
+            commands::assets::import_sprite_bin_from_png,
+            commands::assets::get_bin_original_bytes,
+            commands::assets::get_sprite_bin_diff,
+            commands::assets::get_fighter_tiles,
+            commands::assets::render_sprite_sheet,
             commands::boxer::get_boxer_layout,
             commands::boxer::get_all_layouts,
             commands::boxer::compare_boxers,
@@ -135,6 +150,10 @@ pub fn run() {
             commands::comparison::get_sprite_bin_diff_comparison,
             commands::comparison::get_binary_diff,
             commands::comparison::export_comparison_report,
+            // Region Commands
+            commands::region::get_supported_regions,
+            commands::region::detect_rom_region,
+            commands::region::validate_region_manifest,
             // Settings Import/Export
             export_settings,
             import_settings,
