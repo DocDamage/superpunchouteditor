@@ -1,6 +1,7 @@
 # Rust
 target/
 target_codex/
+target2/
 Cargo.lock
 **/*.rs.bk
 *.pdb
