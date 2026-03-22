@@ -139,6 +139,27 @@
   cursor: not-allowed;
 }
 
+.text-editor__reset-btn {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid var(--warning, #e6a817);
+  border-radius: 4px;
+  color: var(--warning, #e6a817);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.text-editor__reset-btn:hover:not(:disabled) {
+  background-color: var(--warning, #e6a817);
+  color: white;
+}
+
+.text-editor__reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Text List */
 .text-editor__list {
   display: flex;

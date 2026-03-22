@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useStore } from '../store/useStore';
+import type { Difference } from '../store/useStore';
 import { ComparisonCanvas } from './ComparisonCanvas';
 import { ComparisonTable } from './ComparisonTable';
 import { DiffReport } from './DiffReport';
@@ -33,21 +34,18 @@ export const ComparisonView: React.FC = () => {
     let diffs = comparison.differences;
     
     if (selectedBoxer !== 'all') {
-      diffs = diffs.filter(d => {
-        const boxer = 'boxer' in d ? (d as any).boxer : null;
-        return boxer === selectedBoxer;
-      });
+      diffs = diffs.filter(d => 'boxer' in d && d.boxer === selectedBoxer);
     }
-    
+
     if (assetTypeFilter !== 'all') {
       diffs = diffs.filter(d => d.type.toLowerCase() === assetTypeFilter);
     }
-    
+
     if (showDiffOnly) {
       diffs = diffs.filter(d => {
-        if (d.type === 'Palette') return (d as any).changed_indices?.length > 0;
-        if (d.type === 'Sprite') return (d as any).changed_tile_indices?.length > 0;
-        if (d.type === 'Header') return (d as any).changed_fields?.length > 0;
+        if (d.type === 'Palette') return d.changed_indices.length > 0;
+        if (d.type === 'Sprite') return d.changed_tile_indices.length > 0;
+        if (d.type === 'Header') return d.changed_fields.length > 0;
         return true;
       });
     }
@@ -204,7 +202,7 @@ export const ComparisonView: React.FC = () => {
 
         <select
           value={assetTypeFilter}
-          onChange={(e) => setAssetTypeFilter(e.target.value as any)}
+          onChange={(e) => setAssetTypeFilter(e.target.value as 'all' | 'palette' | 'sprite' | 'header' | 'animation')}
           style={{
             padding: '0.375rem 0.75rem',
             borderRadius: '4px',
@@ -309,7 +307,7 @@ export const ComparisonView: React.FC = () => {
 };
 
 interface AssetListItemProps {
-  diff: any;
+  diff: Difference;
   isSelected: boolean;
   onClick: () => void;
 }
@@ -321,21 +319,21 @@ const AssetListItem: React.FC<AssetListItemProps> = ({ diff, isSelected, onClick
         return {
           icon: '🎨',
           title: diff.boxer,
-          subtitle: `Palette - ${diff.changed_indices?.length || 0} colors changed`,
+          subtitle: `Palette - ${diff.changed_indices.length} colors changed`,
           color: '#f59e0b'
         };
       case 'Sprite':
         return {
           icon: '🖼️',
           title: diff.boxer,
-          subtitle: `${diff.bin_name} - ${diff.changed_tile_indices?.length || 0} tiles`,
+          subtitle: `${diff.bin_name} - ${diff.changed_tile_indices.length} tiles`,
           color: '#3b82f6'
         };
       case 'Header':
         return {
           icon: '📋',
           title: diff.boxer,
-          subtitle: `${diff.changed_fields?.length || 0} fields changed`,
+          subtitle: `${diff.changed_fields.length} fields changed`,
           color: '#10b981'
         };
       case 'Animation':
@@ -349,7 +347,7 @@ const AssetListItem: React.FC<AssetListItemProps> = ({ diff, isSelected, onClick
         return {
           icon: '💾',
           title: 'Binary',
-          subtitle: `${diff.bytes_changed} bytes at 0x${diff.offset?.toString(16)}`,
+          subtitle: `${diff.bytes_changed} bytes at 0x${diff.offset.toString(16)}`,
           color: '#6b7280'
         };
       default:

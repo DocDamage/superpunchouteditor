@@ -6,8 +6,9 @@
  * @module AudioEditor
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { SoundList } from './SoundList';
 import { MusicEditor } from './MusicEditor';
@@ -54,8 +55,11 @@ export const AudioEditor = () => {
   const [music, setMusic] = useState<MusicEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [playbackState, setPlaybackState] = useState<'stopped' | 'playing' | 'paused'>('stopped');
   const [currentPlayingId, setCurrentPlayingId] = useState<number | null>(null);
+  // Hidden audio element used for preview playback
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load initial data
   useEffect(() => {
@@ -101,31 +105,45 @@ export const AudioEditor = () => {
   };
 
   const handlePreviewSound = useCallback(async (soundId: number) => {
+    setError(null);
+    setInfo(null);
+    if (playbackState === 'playing' && currentPlayingId === soundId) {
+      // Stop if already playing this sound
+      audioRef.current?.pause();
+      await invoke('stop_preview');
+      setPlaybackState('stopped');
+      setCurrentPlayingId(null);
+      return;
+    }
+
     try {
-      if (playbackState === 'playing' && currentPlayingId === soundId) {
-        // Stop if already playing this sound
-        await invoke('stop_preview');
+      // Backend returns the path to a decoded temp WAV file
+      const wavPath = await invoke<string>('preview_sound', { soundId });
+      const url = convertFileSrc(wavPath);
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      audioRef.current.pause();
+      audioRef.current.src = url;
+      audioRef.current.onended = () => {
         setPlaybackState('stopped');
         setCurrentPlayingId(null);
-      } else {
-        // Play new sound
-        await invoke('preview_sound', { soundId });
-        setPlaybackState('playing');
-        setCurrentPlayingId(soundId);
-      }
+      };
+      await audioRef.current.play();
+      setPlaybackState('playing');
+      setCurrentPlayingId(soundId);
     } catch (e) {
-      setError(`Failed to preview sound: ${e}`);
+      // Show import-needed info rather than a hard error
+      setInfo(String(e));
     }
   }, [playbackState, currentPlayingId]);
 
   const handleStopPreview = useCallback(async () => {
-    try {
-      await invoke('stop_preview');
-      setPlaybackState('stopped');
-      setCurrentPlayingId(null);
-    } catch (e) {
-      setError(`Failed to stop preview: ${e}`);
-    }
+    audioRef.current?.pause();
+    await invoke('stop_preview').catch(() => {});
+    setPlaybackState('stopped');
+    setCurrentPlayingId(null);
   }, []);
 
   const handleExportSound = useCallback(async (soundId: number, format: 'wav' | 'brr') => {
@@ -155,20 +173,15 @@ export const AudioEditor = () => {
   }, []);
 
   const handlePreviewMusic = useCallback(async (musicId: number) => {
+    setError(null);
+    setInfo(null);
     try {
-      if (playbackState === 'playing' && currentPlayingId === musicId) {
-        await invoke('stop_preview');
-        setPlaybackState('stopped');
-        setCurrentPlayingId(null);
-      } else {
-        await invoke('preview_music', { musicId });
-        setPlaybackState('playing');
-        setCurrentPlayingId(musicId);
-      }
+      await invoke('preview_music', { musicId });
     } catch (e) {
-      setError(`Failed to preview music: ${e}`);
+      // Backend intentionally returns an informational error for music preview
+      setInfo(String(e));
     }
-  }, [playbackState, currentPlayingId]);
+  }, []);
 
   const handleExportMusic = useCallback(async (musicId: number, format: 'wav' | 'spc') => {
     try {
@@ -197,39 +210,40 @@ export const AudioEditor = () => {
   }, []);
 
   const handleImportWav = useCallback(async () => {
+    setError(null);
+    setInfo(null);
     try {
       const selected = await open({
         multiple: false,
-        filters: [{
-          name: 'WAV Audio',
-          extensions: ['wav', 'wave']
-        }]
+        filters: [{ name: 'WAV Audio', extensions: ['wav', 'wave'] }]
       });
-      
+
       if (typeof selected === 'string') {
-        // Show import dialog with options
         const confirmed = window.confirm(
-          'Import this WAV file? It will be converted to BRR format.'
+          'Import this WAV file? It will be encoded to BRR format and stored for preview/export.'
         );
-        
-        if (confirmed) {
-          const result = await invoke('import_sound_from_wav', {
-            wavPath: selected,
-            options: {
-              sampleId: 0xFF, // Auto-assign
-              enableLoop: false,
-              targetSampleRate: 32000
-            }
-          });
-          console.log('Import result:', result);
-          // Reload sounds list
-          await loadSounds();
-        }
+        if (!confirmed) return;
+
+        const result = await invoke<{
+          sample_id: number;
+          brr_size: number;
+          duration_ms: number;
+          ready_for_preview: boolean;
+        }>('import_sound_from_wav', {
+          wavPath: selected,
+          options: { sampleId: 0xFF, enableLoop: false, targetSampleRate: 32000 }
+        });
+
+        setInfo(
+          `Imported: ${result.brr_size} bytes BRR (sample ID ${result.sample_id}). ` +
+          `Click the preview button to listen.`
+        );
+        await loadSounds();
       }
     } catch (e) {
       setError(`Failed to import WAV: ${e}`);
     }
-  }, []);
+  }, [loadSounds]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -288,6 +302,12 @@ export const AudioEditor = () => {
       {error && (
         <div className="audio-error" onClick={() => setError(null)}>
           ⚠️ {error}
+        </div>
+      )}
+
+      {info && !error && (
+        <div className="audio-info-banner" onClick={() => setInfo(null)}>
+          ℹ️ {info}
         </div>
       )}
 

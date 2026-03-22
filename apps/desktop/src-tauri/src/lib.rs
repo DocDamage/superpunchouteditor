@@ -330,6 +330,10 @@ pub fn run() {
             commands::plugins::get_plugins_directory,
             commands::plugins::open_plugins_directory,
             commands::plugins::reload_all_plugins,
+            // Edit History Commands
+            commands::history::undo,
+            commands::history::redo,
+            commands::history::clear_history,
             // Bank Management Commands
             commands::bank_management::get_bank_visualization,
             commands::bank_management::find_free_regions,

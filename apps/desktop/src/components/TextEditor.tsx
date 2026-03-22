@@ -328,6 +328,30 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
     }
   };
 
+  // Reset current tab's texts to original ROM values
+  const resetToDefaults = async () => {
+    if (!selectedBoxer) return;
+    if (!window.confirm('Reset all text for this boxer to the original ROM values? Unsaved edits will be lost.')) return;
+
+    try {
+      setSaving(true);
+      await invoke('reset_text_to_defaults', {
+        textType: activeTab,
+        id: selectedBoxer,
+      });
+      // Reload whichever tab is active
+      switch (activeTab) {
+        case 'cornerman': await loadCornermanTexts(); break;
+        case 'intros': await loadBoxerIntro(); break;
+        case 'victory': await loadVictoryQuotes(); break;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reset text');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Preview text
   const handlePreviewText = async (text: string) => {
     setPreviewText(text);
@@ -372,6 +396,15 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
           disabled={!selectedBoxer || saving}
         >
           + Add Text
+        </button>
+        <button
+          className="text-editor__reset-btn"
+          onClick={resetToDefaults}
+          disabled={!selectedBoxer || saving}
+          type="button"
+          title="Restore all cornerman texts for this boxer to the original ROM values"
+        >
+          Reset to Default
         </button>
       </div>
 
@@ -509,6 +542,15 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
     <div className="text-editor__tab-content">
       <div className="text-editor__header">
         {renderBoxerSelector()}
+        <button
+          className="text-editor__reset-btn"
+          onClick={resetToDefaults}
+          disabled={!selectedBoxer || saving}
+          type="button"
+          title="Restore all intro fields for this boxer to the original ROM values"
+        >
+          Reset to Default
+        </button>
       </div>
 
       {boxerIntro && editingIntro && (
@@ -652,6 +694,15 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
     <div className="text-editor__tab-content">
       <div className="text-editor__header">
         {renderBoxerSelector()}
+        <button
+          type="button"
+          className="text-editor__reset-btn"
+          onClick={resetToDefaults}
+          disabled={!selectedBoxer || saving}
+          title="Restore all victory quotes for this boxer to the original ROM values"
+        >
+          Reset to Default
+        </button>
       </div>
 
       {selectedBoxer && (

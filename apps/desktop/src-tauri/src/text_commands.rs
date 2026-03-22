@@ -345,7 +345,7 @@ pub fn update_cornerman_text(
         drop(modified);
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let texts = loader
             .load_cornerman_texts(fighter_id)
             .map_err(|e| e.to_string())?;
@@ -509,7 +509,7 @@ pub fn update_boxer_intro(
         drop(modified);
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let intro = loader.load_boxer_intro(fighter_id).map_err(|e| e.to_string())?;
         let validation = validate_intro(&intro, &encoder);
 
@@ -859,16 +859,135 @@ pub fn search_texts(
     Ok(results)
 }
 
-/// Reset text to defaults
+/// Reset text to the values stored in the original on-disk ROM.
+///
+/// Reads the unedited ROM file, extracts the original text for the given boxer,
+/// and writes those values back into the current ROM state, discarding any edits.
+///
+/// # Parameters
+/// - `text_type`: `"cornerman"`, `"intro"`, or `"victory"`
+/// - `id`: boxer key (e.g. `"bald_bull"`)
 #[tauri::command]
 pub fn reset_text_to_defaults(
-    _state: State<AppState>,
-    _text_type: String,
-    _id: String,
+    state: State<AppState>,
+    text_type: String,
+    id: String,
 ) -> Result<(), String> {
-    // TODO: Implement reset functionality
-    // This would restore original ROM values
-    Ok(())
+    // ---- locate original ROM file ----------------------------------------
+    let rom_path = state
+        .rom_path
+        .lock()
+        .clone()
+        .ok_or("No ROM loaded; cannot reset to defaults")?;
+
+    let original_bytes =
+        std::fs::read(&rom_path).map_err(|e| format!("Failed to read original ROM: {}", e))?;
+
+    let original_rom = rom_core::Rom::new(original_bytes);
+
+    // ---- resolve boxer ID ------------------------------------------------
+    let fighter_id = crate::roster_commands::get_boxer_id_from_key(&id)
+        .ok_or_else(|| format!("Unknown boxer key: {}", id))?;
+
+    let encoder = get_encoder();
+
+    match text_type.as_str() {
+        "intro" => {
+            // Load original intro from disk ROM
+            let orig_loader = RosterLoader::new(&original_rom);
+            let orig_intro = orig_loader
+                .load_boxer_intro(fighter_id)
+                .map_err(|e| e.to_string())?;
+
+            // Write each field back into the current (edited) ROM
+            let mut rom_guard = state.rom.lock();
+            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
+            let mut writer = RosterWriter::new(rom);
+            writer
+                .write_boxer_intro_field(fighter_id, 0, &orig_intro.name_text)
+                .map_err(|e| e.to_string())?;
+            writer
+                .write_boxer_intro_field(fighter_id, 1, &orig_intro.origin_text)
+                .map_err(|e| e.to_string())?;
+            writer
+                .write_boxer_intro_field(fighter_id, 2, &orig_intro.record_text)
+                .map_err(|e| e.to_string())?;
+            writer
+                .write_boxer_intro_field(fighter_id, 3, &orig_intro.rank_text)
+                .map_err(|e| e.to_string())?;
+            writer
+                .write_boxer_intro_field(fighter_id, 4, &orig_intro.intro_quote)
+                .map_err(|e| e.to_string())?;
+            drop(rom_guard);
+
+            *state.modified.lock() = true;
+            Ok(())
+        }
+
+        "cornerman" => {
+            // Load original cornerman texts from disk ROM
+            let orig_loader = RosterLoader::new(&original_rom);
+            let orig_texts = orig_loader
+                .load_cornerman_texts(fighter_id)
+                .map_err(|e| e.to_string())?;
+
+            let mut rom_guard = state.rom.lock();
+            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
+            let mut writer = RosterWriter::new(rom);
+            for ct in &orig_texts {
+                writer
+                    .write_cornerman_text(
+                        fighter_id,
+                        ct.id,
+                        &ct.text,
+                        Some(ct.condition.to_byte()),
+                    )
+                    .map_err(|e| e.to_string())?;
+            }
+            drop(rom_guard);
+
+            *state.modified.lock() = true;
+            Ok(())
+        }
+
+        "victory" => {
+            // Load original quotes from disk ROM, then write their encoded bytes
+            // back into the current ROM at the same ROM offsets.
+            let orig_loader = RosterLoader::new(&original_rom);
+            let orig_quotes = orig_loader
+                .load_victory_quotes(fighter_id)
+                .map_err(|e| e.to_string())?;
+
+            let mut rom_guard = state.rom.lock();
+            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
+
+            for q in &orig_quotes {
+                let rom_offset = match q.rom_offset {
+                    Some(o) => o,
+                    None => continue, // no write-back target; skip
+                };
+
+                let mut encoded = encoder.encode(&q.text);
+                encoded.push(0xFF); // null terminator
+
+                rom.write_bytes(rom_offset, &encoded).map_err(|_| {
+                    format!(
+                        "Victory quote reset would write past ROM end at offset 0x{:X}",
+                        rom_offset
+                    )
+                })?;
+            }
+            drop(rom_guard);
+
+            *state.modified.lock() = true;
+            Ok(())
+        }
+
+        other => Err(format!(
+            "Unknown text type '{}'; expected 'cornerman', 'intro', or 'victory'",
+            other
+        )),
+    }
 }
 
 /// Get text statistics

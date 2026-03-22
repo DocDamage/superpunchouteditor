@@ -241,7 +241,7 @@ pub fn init_emulator(
             .find(|p| std::path::Path::new(p).exists());
 
         if let Some(path) = found_path {
-            println!("Found core at: {}", path);
+            log::info!("Found core at: {}", path);
             resolved_core_path = path.to_string();
         } else {
             return Err(format!(
@@ -261,7 +261,7 @@ pub fn init_emulator(
 
     let emulator_state = state.embedded_emulator.lock();
     *emulator_state.core.lock() = Some(core);
-    println!("Snes9x core initialized successfully");
+    log::info!("Snes9x core initialized successfully");
 
     Ok(())
 }
@@ -286,7 +286,7 @@ pub fn emulator_load_rom(
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load ROM into core: {}", e))?;
         *emulator_state.loaded_rom_path.lock() = Some(rom_path);
-        println!("ROM loaded successfully: {} bytes", rom_size);
+        log::info!("ROM loaded successfully: {} bytes", rom_size);
         Ok(())
     } else {
         Err("Emulator not initialized. Call init_emulator first.".to_string())
@@ -310,7 +310,7 @@ pub fn emulator_load_rom_from_memory(
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load ROM: {}", e))?;
         *emulator_state.loaded_rom_path.lock() = None; // No file path for memory-loaded ROM
-        println!("ROM loaded from memory: {} bytes", rom_size);
+        log::info!("ROM loaded from memory: {} bytes", rom_size);
         Ok(())
     } else {
         Err("Emulator not initialized".to_string())
@@ -331,6 +331,13 @@ pub fn emulator_load_rom_with_edits(
     // Apply pending edits
     for (offset_str, bytes) in edits {
         let offset = parse_offset(&offset_str)?;
+        if offset >= rom_data.len() {
+            return Err(format!(
+                "Edit offset 0x{:X} is out of ROM bounds (ROM size: 0x{:X})",
+                offset,
+                rom_data.len()
+            ));
+        }
         let len = bytes.len().min(rom_data.len() - offset);
         rom_data[offset..offset + len].copy_from_slice(&bytes[..len]);
     }
@@ -344,7 +351,7 @@ pub fn emulator_load_rom_with_edits(
         core.load_rom(rom_data)
             .map_err(|e| format!("Failed to load modified ROM: {}", e))?;
         *emulator_state.loaded_rom_path.lock() = Some(rom_path);
-        println!("ROM with edits loaded: {} bytes", rom_size);
+        log::info!("ROM with edits loaded: {} bytes", rom_size);
         Ok(())
     } else {
         Err("Emulator not initialized".to_string())
@@ -431,11 +438,11 @@ pub fn emulator_start(state: State<'_, AppState>) -> Result<(), String> {
             }
         }
 
-        println!("Emulation thread stopped");
+        log::debug!("Emulation thread stopped");
     });
 
     *emulator_state.thread_handle.lock() = Some(handle);
-    println!("Emulation started");
+    log::debug!("Emulation started");
 
     Ok(())
 }
@@ -452,7 +459,7 @@ pub fn emulator_stop(state: State<'_, AppState>) {
         let _ = handle.join();
     }
 
-    println!("Emulation stopped");
+    log::debug!("Emulation stopped");
 }
 
 /// Pause/resume emulation
@@ -460,7 +467,7 @@ pub fn emulator_stop(state: State<'_, AppState>) {
 pub fn emulator_set_paused(state: State<'_, AppState>, paused: bool) {
     let emulator_state = state.embedded_emulator.lock();
     *emulator_state.paused.lock() = paused;
-    println!("Emulation {}", if paused { "paused" } else { "resumed" });
+    log::debug!("Emulation {}", if paused { "paused" } else { "resumed" });
 }
 
 /// Toggle pause state
@@ -480,10 +487,10 @@ pub fn emulator_reset(state: State<'_, AppState>, hard: bool) {
     if let Some(ref mut core) = *core_guard {
         if hard {
             core.reset_hard();
-            println!("Hard reset performed");
+            log::debug!("Hard reset performed");
         } else {
             core.reset_soft();
-            println!("Soft reset performed");
+            log::debug!("Soft reset performed");
         }
     }
 }
@@ -604,7 +611,7 @@ pub fn emulator_save_state(
             .map_err(|e| format!("Failed to write state file: {}", e))?;
 
         *emulator_state.current_save_slot.lock() = slot;
-        println!("State saved to slot {}: {:?}", slot, path);
+        log::info!("State saved to slot {}: {:?}", slot, path);
         Ok(())
     } else {
         Err("Emulator not initialized".to_string())
@@ -633,7 +640,7 @@ pub fn emulator_load_state(
             .map_err(|e| format!("Failed to load state: {}", e))?;
 
         *emulator_state.current_save_slot.lock() = slot;
-        println!("State loaded from slot {}: {:?}", slot, path);
+        log::info!("State loaded from slot {}: {:?}", slot, path);
         Ok(())
     } else {
         Err("Emulator not initialized".to_string())
@@ -646,7 +653,7 @@ pub fn emulator_set_speed(state: State<'_, AppState>, speed: f32) {
     let clamped_speed = speed.clamp(0.25, 4.0);
     let emulator_state = state.embedded_emulator.lock();
     *emulator_state.speed.lock() = clamped_speed;
-    println!("Emulation speed set to {}x", clamped_speed);
+    log::debug!("Emulation speed set to {}x", clamped_speed);
 }
 
 /// Advance one frame (for debugging/frame stepping)
@@ -697,7 +704,7 @@ pub fn emulator_shutdown(state: State<'_, AppState>) {
     *emulator_state.core.lock() = None;
     *emulator_state.loaded_rom_path.lock() = None;
 
-    println!("Emulator shutdown complete");
+    log::info!("Emulator shutdown complete");
 }
 
 /// Get list of available save states
@@ -848,7 +855,7 @@ pub mod audio_output {
                     }
                 },
                 move |err| {
-                    eprintln!("Audio error: {}", err);
+                    log::error!("Audio error: {}", err);
                 },
                 None,
             )

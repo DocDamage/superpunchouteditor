@@ -20,15 +20,14 @@ use rom_core::{
         RosterLoader, RosterWriter, ValidationReport, BOXER_INTRO_TABLE,
         BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
     },
+    CREATOR_SESSION_STATUS_DRAFT_READY,
+    CREATOR_SESSION_STATUS_COMMIT_FAILED,
+    CREATOR_ERROR_GENERIC,
+    CREATOR_ERROR_BOXER_NOT_FOUND,
+    CREATOR_ERROR_INVALID_NAME,
+    CREATOR_ERROR_INVALID_INTRO_TEXT,
+    CREATOR_ERROR_INVALID_INTRO_SLOT,
 };
-
-const CREATOR_SESSION_STATUS_DRAFT_READY: u8 = 0x02;
-const CREATOR_SESSION_STATUS_COMMIT_FAILED: u8 = 0x05;
-const CREATOR_ERROR_GENERIC: u8 = 0x01;
-const CREATOR_ERROR_BOXER_NOT_FOUND: u8 = 0x02;
-const CREATOR_ERROR_INVALID_NAME: u8 = 0x03;
-const CREATOR_ERROR_INVALID_INTRO_TEXT: u8 = 0x04;
-const CREATOR_ERROR_INVALID_INTRO_SLOT: u8 = 0x05;
 
 /// Roster data response for the frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,29 +45,6 @@ impl From<RosterData> for RosterDataResponse {
     }
 }
 
-/// Request to update a boxer name
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateNameRequest {
-    pub fighter_id: u8,
-    pub name: String,
-}
-
-/// Request to update circuit assignment
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateCircuitRequest {
-    pub fighter_id: u8,
-    pub circuit: CircuitType,
-}
-
-/// Request to update unlock order
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateUnlockOrderRequest {
-    pub fighter_id: u8,
-    pub order: u8,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatorCommitResponse {
@@ -225,7 +201,7 @@ pub(crate) fn commit_creator_session_internal(
         *modified = true;
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let roster = loader.load_roster().map_err(|e| e.to_string())?;
 
         let boxer = roster
@@ -519,7 +495,7 @@ pub fn update_boxer_name(
 
         // Return updated entry
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let roster = loader.load_roster().map_err(|e| e.to_string())?;
 
         roster
@@ -620,7 +596,7 @@ pub fn update_boxer_circuit(
         *modified = true;
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let roster = loader.load_roster().map_err(|e| e.to_string())?;
 
         Ok(roster.into())
@@ -688,7 +664,7 @@ pub fn update_unlock_order(
         *modified = true;
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let roster = loader.load_roster().map_err(|e| e.to_string())?;
 
         roster
@@ -711,11 +687,7 @@ pub fn set_champion_status(
     // This is a convenience command that updates the boxer entry
     let rom_guard = state.rom.lock();
 
-    if rom_guard.is_none() {
-        return Err("No ROM loaded".to_string());
-    }
-
-    let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+    let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
     let mut roster = loader.load_roster().map_err(|e| e.to_string())?;
     drop(rom_guard);
 
@@ -776,7 +748,7 @@ pub fn update_boxer_intro_field(
         *modified = true;
 
         let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().unwrap());
+        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
         let intro = loader
             .load_boxer_intro(fighter_id)
             .map_err(|e| e.to_string())?;

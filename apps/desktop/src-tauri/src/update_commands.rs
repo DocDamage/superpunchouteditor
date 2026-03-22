@@ -116,21 +116,6 @@ pub struct UpdateState {
     pub download_progress: Mutex<DownloadProgress>,
 }
 
-impl UpdateState {
-    #[allow(dead_code)]
-    fn new() -> Self {
-        Self {
-            settings: Mutex::new(UpdateSettings::default()),
-            current_update: Mutex::new(None),
-            download_progress: Mutex::new(DownloadProgress {
-                percent: 0,
-                downloaded: 0,
-                total: 0,
-                state: DownloadState::Idle,
-            }),
-        }
-    }
-}
 
 /// Get the current application version
 #[tauri::command]

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useStore } from '../store/useStore';
+import type { Difference } from '../store/useStore';
 
 interface ComparisonCanvasProps {
   viewMode: 'side-by-side' | 'overlay' | 'difference' | 'split' | 'blink';
@@ -18,7 +19,7 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
     getSpriteBinDiff,
   } = useStore();
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLImageElement>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,15 +64,13 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
         let paletteOffset: string | undefined;
 
         if (selectedDiff.type === 'Sprite') {
-          const diff = selectedDiff as any;
-          boxerKey = diff.boxer?.toLowerCase().replace(/\s+/g, '_') || '';
+          boxerKey = selectedDiff.boxer.toLowerCase().replace(/\s+/g, '_');
           viewType = 'sprite';
-          assetOffset = `0x${diff.pc_offset?.toString(16)}`;
+          assetOffset = `0x${selectedDiff.pc_offset.toString(16)}`;
         } else if (selectedDiff.type === 'Palette') {
-          const diff = selectedDiff as any;
-          boxerKey = diff.boxer?.toLowerCase().replace(/\s+/g, '_') || '';
+          boxerKey = selectedDiff.boxer.toLowerCase().replace(/\s+/g, '_');
           viewType = 'palette';
-          paletteOffset = `0x${diff.offset?.toString(16)}`;
+          paletteOffset = `0x${selectedDiff.offset.toString(16)}`;
         }
 
         // If we can't determine the boxer key, show placeholder
@@ -250,11 +249,7 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
         ) : imageSrc ? (
           <div style={{ position: 'relative' }}>
             <img
-              ref={(img) => {
-                if (img && canvasRef.current !== img as any) {
-                  (canvasRef as any).current = img;
-                }
-              }}
+              ref={canvasRef}
               src={imageSrc}
               alt="Comparison"
               style={{
@@ -308,15 +303,15 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
 };
 
 // Asset info component
-const AssetInfo: React.FC<{ diff: any }> = ({ diff }) => {
+const AssetInfo: React.FC<{ diff: Difference }> = ({ diff }) => {
   switch (diff.type) {
     case 'Palette':
       return (
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <span><strong>Boxer:</strong> {diff.boxer}</span>
           <span><strong>Asset:</strong> {diff.asset_id}</span>
-          <span><strong>Offset:</strong> 0x{diff.offset?.toString(16).toUpperCase()}</span>
-          <span><strong>Colors Changed:</strong> {diff.changed_indices?.length || 0}</span>
+          <span><strong>Offset:</strong> 0x{diff.offset.toString(16).toUpperCase()}</span>
+          <span><strong>Colors Changed:</strong> {diff.changed_indices.length}</span>
         </div>
       );
     case 'Sprite':
@@ -324,21 +319,35 @@ const AssetInfo: React.FC<{ diff: any }> = ({ diff }) => {
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <span><strong>Boxer:</strong> {diff.boxer}</span>
           <span><strong>Bin:</strong> {diff.bin_name}</span>
-          <span><strong>Offset:</strong> 0x{diff.pc_offset?.toString(16).toUpperCase()}</span>
-          <span><strong>Tiles Changed:</strong> {diff.changed_tile_indices?.length || 0} / {diff.total_tiles}</span>
+          <span><strong>Offset:</strong> 0x{diff.pc_offset.toString(16).toUpperCase()}</span>
+          <span><strong>Tiles Changed:</strong> {diff.changed_tile_indices.length} / {diff.total_tiles}</span>
         </div>
       );
     case 'Header':
       return (
         <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <span><strong>Boxer:</strong> {diff.boxer}</span>
-          <span><strong>Fields Changed:</strong> {diff.changed_fields?.length || 0}</span>
+          <span><strong>Fields Changed:</strong> {diff.changed_fields.length}</span>
+        </div>
+      );
+    case 'Animation':
+      return (
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <span><strong>Boxer:</strong> {diff.boxer}</span>
+          <span><strong>Animation:</strong> {diff.anim_name}</span>
+        </div>
+      );
+    case 'Binary':
+      return (
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <span><strong>Offset:</strong> 0x{diff.offset.toString(16).toUpperCase()}</span>
+          <span><strong>Bytes Changed:</strong> {diff.bytes_changed}</span>
         </div>
       );
     default:
       return (
         <div>
-          <span><strong>Type:</strong> {diff.type}</span>
+          <span><strong>Type:</strong> {(diff as Difference).type}</span>
         </div>
       );
   }

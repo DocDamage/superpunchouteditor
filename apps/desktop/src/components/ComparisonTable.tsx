@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import type { Difference } from '../store/useStore';
+import type { Difference, HeaderFieldChange } from '../store/useStore';
+
+interface ColorValue {
+  r: number;
+  g: number;
+  b: number;
+  toHex?: () => string;
+}
 
 interface ComparisonTableProps {
   differences: Difference[];
@@ -144,15 +151,15 @@ const AssetTypeIcon: React.FC<{ type: string }> = ({ type }) => {
 const getAssetName = (diff: Difference): string => {
   switch (diff.type) {
     case 'Palette':
-      return `${(diff as any).boxer} - Palette`;
+      return `${diff.boxer} - Palette`;
     case 'Sprite':
-      return `${(diff as any).boxer} - ${(diff as any).bin_name}`;
+      return `${diff.boxer} - ${diff.bin_name}`;
     case 'Header':
-      return `${(diff as any).boxer} - Header`;
+      return `${diff.boxer} - Header`;
     case 'Animation':
-      return `${(diff as any).boxer} - ${(diff as any).anim_name}`;
+      return `${diff.boxer} - ${diff.anim_name}`;
     case 'Binary':
-      return `Binary at 0x${(diff as any).offset?.toString(16)}`;
+      return `Binary at 0x${diff.offset.toString(16)}`;
     default:
       return 'Unknown';
   }
@@ -161,14 +168,11 @@ const getAssetName = (diff: Difference): string => {
 const getOriginalValue = (diff: Difference): React.ReactNode => {
   switch (diff.type) {
     case 'Palette':
-      const p = diff as any;
-      return `${p.changed_indices?.length || 0} colors`;
+      return `${diff.changed_indices.length} colors`;
     case 'Sprite':
-      const s = diff as any;
-      return `${s.total_tiles - (s.changed_tile_indices?.length || 0)} tiles unchanged`;
+      return `${diff.total_tiles - diff.changed_tile_indices.length} tiles unchanged`;
     case 'Header':
-      const h = diff as any;
-      return `${h.changed_fields?.length || 0} fields`;
+      return `${diff.changed_fields.length} fields`;
     default:
       return '-';
   }
@@ -177,14 +181,11 @@ const getOriginalValue = (diff: Difference): React.ReactNode => {
 const getModifiedValue = (diff: Difference): React.ReactNode => {
   switch (diff.type) {
     case 'Palette':
-      const p = diff as any;
-      return `${p.changed_indices?.length || 0} colors changed`;
+      return `${diff.changed_indices.length} colors changed`;
     case 'Sprite':
-      const s = diff as any;
-      return `${s.changed_tile_indices?.length || 0} tiles changed`;
+      return `${diff.changed_tile_indices.length} tiles changed`;
     case 'Header':
-      const h = diff as any;
-      return `${h.changed_fields?.length || 0} fields modified`;
+      return `${diff.changed_fields.length} fields modified`;
     default:
       return '-';
   }
@@ -192,21 +193,21 @@ const getModifiedValue = (diff: Difference): React.ReactNode => {
 
 const getChangeSummary = (diff: Difference): React.ReactNode => {
   switch (diff.type) {
-    case 'Palette':
-      const p = diff as any;
-      const changedColors = p.changed_indices?.length || 0;
+    case 'Palette': {
+      const changedColors = diff.changed_indices.length;
       if (changedColors === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
       return <span style={{ color: '#f59e0b' }}>🔴 {changedColors} colors</span>;
-    case 'Sprite':
-      const s = diff as any;
-      const changedTiles = s.changed_tile_indices?.length || 0;
+    }
+    case 'Sprite': {
+      const changedTiles = diff.changed_tile_indices.length;
       if (changedTiles === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
       return <span style={{ color: '#3b82f6' }}>🔵 {changedTiles} tiles</span>;
-    case 'Header':
-      const h = diff as any;
-      const changedFields = h.changed_fields?.length || 0;
+    }
+    case 'Header': {
+      const changedFields = diff.changed_fields.length;
       if (changedFields === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
       return <span style={{ color: '#10b981' }}>🟢 {changedFields} fields</span>;
+    }
     default:
       return '-';
   }
@@ -215,17 +216,24 @@ const getChangeSummary = (diff: Difference): React.ReactNode => {
 const ExpandedDiffContent: React.FC<{ diff: Difference }> = ({ diff }) => {
   switch (diff.type) {
     case 'Palette':
-      return <PaletteDiffDetails diff={diff as any} />;
+      return <PaletteDiffDetails diff={diff} />;
     case 'Sprite':
-      return <SpriteDiffDetails diff={diff as any} />;
+      return <SpriteDiffDetails diff={diff} />;
     case 'Header':
-      return <HeaderDiffDetails diff={diff as any} />;
+      return <HeaderDiffDetails diff={diff} />;
     default:
       return <div style={{ color: 'var(--text-dim)' }}>No detailed view available</div>;
   }
 };
 
-const PaletteDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
+interface PaletteDiffDetailProps {
+  diff: Extract<Difference, { type: 'Palette' }> & {
+    original_colors?: ColorValue[];
+    modified_colors?: ColorValue[];
+  };
+}
+
+const PaletteDiffDetails: React.FC<PaletteDiffDetailProps> = ({ diff }) => {
   if (!diff.changed_indices || diff.changed_indices.length === 0) {
     return <div>No color changes</div>;
   }
@@ -268,7 +276,7 @@ const PaletteDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
   );
 };
 
-const ColorSwatch: React.FC<{ color: any }> = ({ color }) => {
+const ColorSwatch: React.FC<{ color: ColorValue | undefined }> = ({ color }) => {
   if (!color) return <div style={{ width: '24px', height: '24px', backgroundColor: '#333' }} />;
   return (
     <div style={{
@@ -281,7 +289,7 @@ const ColorSwatch: React.FC<{ color: any }> = ({ color }) => {
   );
 };
 
-const SpriteDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
+const SpriteDiffDetails: React.FC<{ diff: Extract<Difference, { type: 'Sprite' }> }> = ({ diff }) => {
   if (!diff.changed_tile_indices || diff.changed_tile_indices.length === 0) {
     return <div>No tile changes</div>;
   }
@@ -309,7 +317,7 @@ const SpriteDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
   );
 };
 
-const HeaderDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
+const HeaderDiffDetails: React.FC<{ diff: Extract<Difference, { type: 'Header' }> }> = ({ diff }) => {
   if (!diff.changed_fields || diff.changed_fields.length === 0) {
     return <div>No field changes</div>;
   }
@@ -327,7 +335,7 @@ const HeaderDiffDetails: React.FC<{ diff: any }> = ({ diff }) => {
           </tr>
         </thead>
         <tbody>
-          {diff.changed_fields.map((field: any, i: number) => (
+          {diff.changed_fields.map((field: HeaderFieldChange, i: number) => (
             <tr key={i}>
               <td style={{ padding: '0.25rem' }}>{field.display_name || field.field_name}</td>
               <td style={{ padding: '0.25rem', color: 'var(--text-dim)' }}>{field.original_value}</td>

@@ -77,6 +77,16 @@
   cursor: pointer;
 }
 
+/* Info / status banner (dismissable, click to close) */
+.audio-info-banner {
+  padding: 0.75rem 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--info, #3b82f6);
+  border-left: 3px solid var(--info, #3b82f6);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
 /* Tabs */
 .audio-tabs {
   display: flex;

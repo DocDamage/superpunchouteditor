@@ -143,7 +143,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       initEmbedded: async () => {
         set({ isLoading: true });
         try {
-          await invoke('init_embedded_emulator');
+          await invoke('init_emulator');
           set({ isLoading: false });
         } catch (e) {
           console.error('Failed to init embedded emulator:', e);
@@ -153,7 +153,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       loadRomInEmulator: async (romPath: string) => {
         try {
-          await invoke('embedded_load_rom', { romPath });
+          await invoke('emulator_load_rom', { romPath });
           set({ hasRom: true });
         } catch (e) {
           console.error('Failed to load ROM in emulator:', e);
@@ -163,7 +163,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       startEmulation: async () => {
         try {
-          await invoke('embedded_start_emulation');
+          await invoke('emulator_start');
           set({ isRunning: true, isPaused: false });
         } catch (e) {
           console.error('Failed to start emulation:', e);
@@ -173,7 +173,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       stopEmulation: async () => {
         try {
-          await invoke('embedded_stop_emulation');
+          await invoke('emulator_stop');
           set({ isRunning: false, isPaused: false });
         } catch (e) {
           console.error('Failed to stop emulation:', e);
@@ -182,7 +182,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       pauseEmulation: async () => {
         try {
-          await invoke('embedded_pause_emulation', { paused: true });
+          await invoke('emulator_set_paused', { paused: true });
           set({ isPaused: true });
         } catch (e) {
           console.error('Failed to pause emulation:', e);
@@ -191,7 +191,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       resumeEmulation: async () => {
         try {
-          await invoke('embedded_pause_emulation', { paused: false });
+          await invoke('emulator_set_paused', { paused: false });
           set({ isPaused: false });
         } catch (e) {
           console.error('Failed to resume emulation:', e);
@@ -209,7 +209,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       setSpeed: async (speed: number) => {
         try {
-          await invoke('embedded_set_speed', { speed });
+          await invoke('emulator_set_speed', { speed });
           set({ speed });
         } catch (e) {
           console.error('Failed to set speed:', e);
@@ -219,7 +219,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       saveState: async (slot?: number) => {
         const targetSlot = slot ?? get().currentSlot;
         try {
-          await invoke('embedded_save_state', { slot: targetSlot });
+          await invoke('emulator_save_state', { slot: targetSlot });
         } catch (e) {
           console.error('Failed to save state:', e);
           throw e;
@@ -229,7 +229,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       loadState: async (slot?: number) => {
         const targetSlot = slot ?? get().currentSlot;
         try {
-          await invoke('embedded_load_state', { slot: targetSlot });
+          await invoke('emulator_load_state', { slot: targetSlot });
           set({ currentSlot: targetSlot });
         } catch (e) {
           console.error('Failed to load state:', e);
@@ -239,7 +239,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       resetEmulator: async () => {
         try {
-          await invoke('embedded_reset_emulator');
+          await invoke('emulator_reset');
           set({ isPaused: false });
         } catch (e) {
           console.error('Failed to reset emulator:', e);
@@ -248,7 +248,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
       
       shutdownEmulator: async () => {
         try {
-          await invoke('embedded_shutdown_emulator');
+          await invoke('emulator_shutdown');
           set({ isRunning: false, isPaused: false, hasRom: false });
         } catch (e) {
           console.error('Failed to shutdown emulator:', e);

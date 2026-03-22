@@ -1,6 +1,9 @@
 use debugger_core::cpu::{Disassembler, MemoryAccess};
 use debugger_core::{DisassembledInstruction, SnesAddress};
-use rom_core::Rom;
+use rom_core::{
+    Rom, CREATOR_SESSION_STATUS_DRAFT_READY, CREATOR_SESSION_STATUS_COMMIT_PENDING,
+    CREATOR_SESSION_STATUS_CANCELLED,
+};
 use std::collections::HashMap;
 
 use crate::roster_expansion::expand_roster_tables;
@@ -56,9 +59,7 @@ const CREATOR_ACTION_COMMIT: u8 = 0x14;
 const CREATOR_ACTION_INTRO_EDIT: u8 = 0x15;
 const CREATOR_ACTION_CANCEL: u8 = 0x16;
 const CREATOR_ACTION_EXIT: u8 = 0xFF;
-const CREATOR_SESSION_STATUS_DRAFT_READY: u8 = 0x02;
-const CREATOR_SESSION_STATUS_COMMIT_PENDING: u8 = 0x03;
-const CREATOR_SESSION_STATUS_CANCELLED: u8 = 0x07;
+// CREATOR_SESSION_STATUS_DRAFT_READY / COMMIT_PENDING / CANCELLED imported from rom_core
 const CREATOR_INTRO_MAX_LEN: u8 = 16;
 const CREATOR_NAME_MAX_LEN: u8 = 16;
 const CREATOR_PAGE0_ROW0: u8 = 0x21;

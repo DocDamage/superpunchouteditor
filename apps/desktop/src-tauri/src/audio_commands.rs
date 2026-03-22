@@ -7,13 +7,24 @@
 //! - BRR sample import/export
 //! - SPC file handling
 //!
-//! # Research TODOs
-//! - [ ] Implement actual audio playback via OS audio APIs
-//! - [ ] Determine ROM addresses for SPO audio data
-//! - [ ] Reverse engineer sequence format
-//! - [ ] Implement proper BRR encoding quality
+//! ## ROM audio status
+//! SPC700 audio engine addresses and sample tables in the SPO ROM have not been
+//! reverse-engineered yet.  Browsing/preview/export of *in-game* sounds therefore
+//! operates on catalogue metadata only until that research is complete.
+//!
+//! Functionality that works today:
+//! - WAV → BRR import (real encode via `asset_core::brr`)
+//! - BRR → WAV export for *imported* samples
+//! - Preview of *imported* samples (temp WAV written to disk, path returned)
+//! - SPC file load / save / info
+//! - BRR ↔ PCM codec commands
 
-use asset_core::audio::{MusicEntry, PlaybackState, PreviewConfig, SoundEntry, Spc700Data};
+use std::collections::HashMap;
+
+use asset_core::audio::{
+    export_brr_to_wav, import_wav_to_brr, MusicEntry, PlaybackState, PreviewConfig, SoundEntry,
+    Spc700Data,
+};
 use asset_core::brr::{BrrDecoder, BrrEncodeOptions, BrrEncoder};
 use asset_core::spc::{Id666Tag, SpcFile};
 use parking_lot::Mutex;
@@ -30,14 +41,13 @@ pub struct AudioState {
     playback_state: Mutex<PlaybackState>,
     /// Preview configuration
     preview_config: Mutex<PreviewConfig>,
-    /// Audio buffer for preview (PCM data)
-    #[allow(dead_code)]
-    preview_buffer: Mutex<Vec<i16>>,
     /// Currently playing sound ID
-    #[allow(dead_code)]
     current_sound_id: Mutex<Option<u8>>,
     /// Currently playing music ID
     current_music_id: Mutex<Option<u8>>,
+    /// User-imported BRR data keyed by sample ID.
+    /// Populated by `import_sound_from_wav`; consumed by preview and export commands.
+    pub imported_samples: Mutex<HashMap<u8, Vec<u8>>>,
 }
 
 impl AudioState {
@@ -46,9 +56,9 @@ impl AudioState {
             current_spc: Mutex::new(None),
             playback_state: Mutex::new(PlaybackState::Stopped),
             preview_config: Mutex::new(PreviewConfig::default()),
-            preview_buffer: Mutex::new(Vec::new()),
             current_sound_id: Mutex::new(None),
             current_music_id: Mutex::new(None),
+            imported_samples: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -121,6 +131,32 @@ pub struct ImportOptions {
 }
 
 // ============================================================================
+// Internal helpers
+// ============================================================================
+
+/// Decode `brr_data` to PCM, write a temporary WAV file, and return its path.
+///
+/// The file is placed in the OS temp directory with a name derived from `sound_id`.
+/// The frontend can convert this path to a playable URL via Tauri's `convertFileSrc`.
+fn write_preview_wav(brr_data: &[u8], sound_id: u8) -> Result<String, String> {
+    use asset_core::audio::write_wav_file;
+
+    let decoder = BrrDecoder::new();
+    let pcm = decoder.decode(brr_data);
+
+    let temp_path = std::env::temp_dir().join(format!("spo_preview_{}.wav", sound_id));
+
+    write_wav_file(&temp_path, &pcm, 32000).map_err(|e| {
+        format!("Failed to write preview WAV: {}", e)
+    })?;
+
+    temp_path
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Preview WAV path contains non-UTF8 characters".to_string())
+}
+
+// ============================================================================
 // Sound/SFX Commands
 // ============================================================================
 
@@ -153,78 +189,122 @@ pub fn get_sound(sound_id: u8) -> Result<SoundEntry, String> {
     Spc700Data::get_sound_entry(sound_id).ok_or_else(|| format!("Sound ID {} not found", sound_id))
 }
 
-/// Preview a sound effect
+/// Preview a sound effect.
 ///
-/// # Research TODO
-/// - Implement actual audio playback via OS audio APIs
-/// - Or write to temp file and play via system player
+/// For samples imported via `import_sound_from_wav`, BRR data is decoded to PCM,
+/// written to a temporary WAV file, and the file path is returned so the frontend
+/// can play it via an HTML `<audio>` element + `convertFileSrc`.
+///
+/// In-game sounds whose ROM addresses have not been researched return an explanatory
+/// error rather than silently doing nothing.
 #[tauri::command]
-pub fn preview_sound(_state: State<AppState>, sound_id: u8) -> Result<(), String> {
-    // TODO: Implement actual audio preview
-    // For now, just validate the sound exists
+pub fn preview_sound(state: State<AppState>, sound_id: u8) -> Result<String, String> {
     let _sound = Spc700Data::get_sound_entry(sound_id)
         .ok_or_else(|| format!("Sound ID {} not found", sound_id))?;
 
-    // TODO: Play sound via:
-    // Option 1: Use rodio or similar Rust audio library
-    // Option 2: Write PCM to temp file, play with system command
-    // Option 3: Stream to frontend via Web Audio API
+    let brr = {
+        let audio = state.audio_state.lock();
+        audio.imported_samples.lock().get(&sound_id).cloned()
+    }
+    .ok_or_else(|| {
+        format!(
+            "Sound {} has no imported audio data. \
+             Import a WAV file first, or note that in-game ROM audio \
+             addresses have not yet been reverse-engineered.",
+            sound_id
+        )
+    })?;
 
+    let wav_path = write_preview_wav(&brr, sound_id)?;
+
+    {
+        let audio = state.audio_state.lock();
+        *audio.playback_state.lock() = PlaybackState::Playing;
+        *audio.current_sound_id.lock() = Some(sound_id);
+    }
+
+    Ok(wav_path)
+}
+
+/// Stop any playing preview and clear playback state.
+#[tauri::command]
+pub fn stop_preview(state: State<AppState>) -> Result<(), String> {
+    let audio = state.audio_state.lock();
+    *audio.playback_state.lock() = PlaybackState::Stopped;
+    *audio.current_sound_id.lock() = None;
+    *audio.current_music_id.lock() = None;
     Ok(())
 }
 
-/// Stop any playing preview
+/// Get current playback state as a string (`"playing"`, `"paused"`, or `"stopped"`).
 #[tauri::command]
-pub fn stop_preview(_state: State<AppState>) -> Result<(), String> {
-    // TODO: Implement actual audio playback control
-    // For now, just return OK
-    Ok(())
+pub fn get_playback_state(state: State<AppState>) -> Result<String, String> {
+    let audio = state.audio_state.lock();
+    let s = match *audio.playback_state.lock() {
+        PlaybackState::Playing => "playing",
+        PlaybackState::Paused => "paused",
+        PlaybackState::Stopped => "stopped",
+    };
+    Ok(s.to_string())
 }
 
-/// Get current playback state
-#[tauri::command]
-pub fn get_playback_state(_state: State<AppState>) -> Result<String, String> {
-    // Playback state is maintained in AudioState which is managed separately
-    // For now, return stopped state
-    Ok("stopped".to_string())
-}
-
-/// Export a sound as WAV file
+/// Export an imported sample as a WAV file.
+///
+/// Requires the sample to have been imported via `import_sound_from_wav`.
+/// Returns an error for in-game sounds (ROM audio addresses not yet researched).
 #[tauri::command]
 pub fn export_sound_as_wav(
+    state: State<AppState>,
     sound_id: u8,
-    _output_path: String,
+    output_path: String,
     options: Option<ExportOptions>,
 ) -> Result<(), String> {
     let _sound = Spc700Data::get_sound_entry(sound_id)
         .ok_or_else(|| format!("Sound ID {} not found", sound_id))?;
 
-    let _sample_rate = options
-        .as_ref()
-        .and_then(|o| o.sample_rate)
-        .unwrap_or(32000);
+    let brr = {
+        let audio = state.audio_state.lock();
+        audio.imported_samples.lock().get(&sound_id).cloned()
+    }
+    .ok_or_else(|| {
+        format!(
+            "Sound {} has no imported audio data. \
+             WAV export requires a prior WAV import. \
+             In-game ROM audio addresses have not yet been reverse-engineered.",
+            sound_id
+        )
+    })?;
 
-    // TODO:
-    // 1. Extract BRR data from ROM/SPC
-    // 2. Decode BRR to PCM
-    // 3. Write as WAV file
-
-    Err("WAV export not yet implemented - requires ROM audio data location".to_string())
+    let target_rate = options.as_ref().and_then(|o| o.sample_rate).unwrap_or(32000);
+    export_brr_to_wav(&brr, &output_path, target_rate).map_err(|e| e.to_string())
 }
 
-/// Export a sound as BRR file
+/// Export an imported sample as a BRR file.
+///
+/// Requires the sample to have been imported via `import_sound_from_wav`.
 #[tauri::command]
-pub fn export_sound_as_brr(sound_id: u8, output_path: String) -> Result<usize, String> {
+pub fn export_sound_as_brr(
+    state: State<AppState>,
+    sound_id: u8,
+    output_path: String,
+) -> Result<usize, String> {
     let _sound = Spc700Data::get_sound_entry(sound_id)
         .ok_or_else(|| format!("Sound ID {} not found", sound_id))?;
 
-    // TODO: Extract BRR data and write to file
-    // For now, return placeholder size
-    let size = 4096usize;
+    let brr = {
+        let audio = state.audio_state.lock();
+        audio.imported_samples.lock().get(&sound_id).cloned()
+    }
+    .ok_or_else(|| {
+        format!(
+            "Sound {} has no imported audio data. \
+             BRR export requires a prior WAV import.",
+            sound_id
+        )
+    })?;
 
-    // Create empty file as placeholder
-    std::fs::write(&output_path, &[]).map_err(|e| format!("Failed to write BRR file: {}", e))?;
-
+    let size = brr.len();
+    std::fs::write(&output_path, &brr).map_err(|e| format!("Failed to write BRR file: {}", e))?;
     Ok(size)
 }
 
@@ -281,28 +361,20 @@ pub fn get_music_sequence(music_id: u8) -> Result<SequenceDetail, String> {
     })
 }
 
-/// Preview a music track
+/// Preview a music track.
+///
+/// Music playback requires SPC700 emulation which is not yet implemented.
+/// This command returns an error so the frontend can show an informative message.
 #[tauri::command]
-pub fn preview_music(state: State<AppState>, music_id: u8) -> Result<(), String> {
+pub fn preview_music(_state: State<AppState>, music_id: u8) -> Result<(), String> {
     let _music = Spc700Data::get_music_entry(music_id)
         .ok_or_else(|| format!("Music ID {} not found", music_id))?;
 
-    // TODO: Implement music playback
-    // This is more complex than SFX - needs SPC700 emulation or
-    // conversion to a playable format
-
-    {
-        let audio = state.audio_state.lock();
-        let mut state_id = audio.current_music_id.lock();
-        *state_id = Some(music_id);
-    }
-    {
-        let audio = state.audio_state.lock();
-        let mut playback = audio.playback_state.lock();
-        *playback = PlaybackState::Playing;
-    }
-
-    Ok(())
+    Err(
+        "Music preview requires SPC700 emulation which is not yet implemented. \
+         Export the track as an SPC file and open it in a standalone SPC player."
+            .to_string(),
+    )
 }
 
 /// Update music sequence
@@ -361,37 +433,22 @@ pub fn export_music_as_spc(music_id: u8, output_path: String) -> Result<(), Stri
 /// Get sample details
 #[tauri::command]
 pub fn get_sample(sample_id: u8) -> Result<SampleDetail, String> {
-    // TODO: Get actual sample from loaded ROM/SPC
-    Ok(SampleDetail {
-        id: sample_id,
-        name: format!("Sample {}", sample_id),
-        format: "BRR".to_string(),
-        sample_rate: 32000,
-        loop_enabled: false,
-        duration_ms: 500,
-        size_bytes: 4096,
-        has_loop: false,
-        loop_start: 0,
-        loop_end: 0,
-    })
+    Err(format!(
+        "Sample {} metadata not available: SPO sample table addresses are not yet researched",
+        sample_id
+    ))
 }
 
-/// Import sound from WAV file
+/// Import a WAV file, encode it to BRR, and store it in `AudioState::imported_samples`.
 ///
-/// Converts WAV to BRR and prepares for injection into ROM
+/// The encoded BRR data can then be previewed via `preview_sound` and exported
+/// via `export_sound_as_wav` / `export_sound_as_brr`.
 #[tauri::command]
 pub fn import_sound_from_wav(
+    state: State<AppState>,
     wav_path: String,
     options: ImportOptions,
 ) -> Result<serde_json::Value, String> {
-    // TODO:
-    // 1. Read WAV file
-    // 2. Convert to 16-bit PCM if needed
-    // 3. Resample to target rate
-    // 4. Encode to BRR
-    // 5. Return metadata for ROM injection
-
-    let encoder = BrrEncoder::new();
     let encode_options = BrrEncodeOptions {
         looped: options.enable_loop,
         loop_start: options.loop_start.unwrap_or(0),
@@ -399,17 +456,33 @@ pub fn import_sound_from_wav(
         quality: 3,
     };
 
-    // Placeholder PCM data
-    let pcm_data = vec![0i16; 1024];
-    let brr_data = encoder.encode(&pcm_data, encode_options);
+    // Read WAV → PCM, resample if needed, encode to BRR
+    let brr_data =
+        import_wav_to_brr(&wav_path, encode_options).map_err(|e| e.to_string())?;
+
+    let brr_size = brr_data.len();
+    let sample_id = options.sample_id;
+
+    // Store in AudioState so preview/export commands can access it
+    {
+        let audio = state.audio_state.lock();
+        audio.imported_samples.lock().insert(sample_id, brr_data);
+    }
+
+    // Compute approximate duration from BRR size
+    // Each BRR block is 9 bytes → 16 samples at the target rate
+    let brr_blocks = brr_size / 9;
+    let duration_ms = (brr_blocks as u64 * 16 * 1000)
+        / options.target_sample_rate.max(1) as u64;
 
     Ok(serde_json::json!({
-        "sample_id": options.sample_id,
-        "original_size": wav_path.len(),
-        "brr_size": brr_data.len(),
+        "sample_id": sample_id,
+        "wav_path": wav_path,
+        "brr_size": brr_size,
         "sample_rate": options.target_sample_rate,
         "loop_enabled": options.enable_loop,
-        "ready_for_injection": false, // TODO: Set to true when implemented
+        "duration_ms": duration_ms,
+        "ready_for_preview": true,
     }))
 }
 

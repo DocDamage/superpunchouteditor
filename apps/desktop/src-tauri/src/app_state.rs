@@ -20,7 +20,9 @@
 //! ```
 
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use asset_core::frame_tags::FrameTagManager;
@@ -30,6 +32,21 @@ use crate::undo::EditHistory;
 use rom_core::Rom;
 
 use crate::audio_commands::AudioState;
+
+/// Batch job entry — mirrors the `BatchJob` type expected by the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchJobInfo {
+    pub id: String,
+    pub name: String,
+    pub plugin_id: String,
+    pub status: String, // "pending" | "running" | "completed" | "failed"
+    pub progress: u32,
+    pub total: u32,
+    pub current_item: Option<String>,
+    pub error: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+}
 use crate::emulator::EmulatorSettings;
 use crate::emulator_embedded::EmbeddedEmulatorState;
 use plugin_core::{PluginManager, PluginApi};
@@ -85,6 +102,12 @@ pub struct AppState {
 
     /// Plugin manager for loading and running plugins
     pub plugin_manager: Mutex<Arc<PluginManager>>,
+
+    /// Active and recently completed batch jobs
+    pub batch_jobs: Mutex<Vec<BatchJobInfo>>,
+
+    /// Cancellation flags for running batch jobs, keyed by job ID
+    pub batch_cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -134,6 +157,8 @@ impl AppState {
             embedded_emulator: Mutex::new(EmbeddedEmulatorState::new()),
             modified: Mutex::new(false),
             plugin_manager: Mutex::new(plugin_manager),
+            batch_jobs: Mutex::new(Vec::new()),
+            batch_cancel_flags: Mutex::new(HashMap::new()),
         }
     }
 

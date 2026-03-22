@@ -6,6 +6,9 @@ use thiserror::Error;
 pub mod comparison;
 pub use comparison::*;
 
+pub mod creator_session;
+pub use creator_session::*;
+
 pub mod roster;
 pub use roster::*;
 
@@ -14,6 +17,9 @@ pub use text::*;
 
 pub mod region;
 pub use region::*;
+
+pub mod animation;
+pub use animation::*;
 
 pub const EXPECTED_SHA1: &str = "3604c855790f37db567e9b425252625045f86697";
 pub const EXPECTED_SIZE: usize = 2097152;

@@ -11,6 +11,16 @@ use crate::{EmulatorError, Result};
 use rom_core::{
     SpoTextEncoder,
     roster::{CircuitType, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, RosterLoader, RosterWriter},
+    CREATOR_SESSION_STATUS_DRAFT_READY,
+    CREATOR_SESSION_STATUS_COMMIT_PENDING,
+    CREATOR_SESSION_STATUS_COMMIT_SUCCEEDED,
+    CREATOR_SESSION_STATUS_COMMIT_FAILED,
+    CREATOR_SESSION_STATUS_CANCELLED,
+    CREATOR_ERROR_GENERIC,
+    CREATOR_ERROR_BOXER_NOT_FOUND,
+    CREATOR_ERROR_INVALID_NAME,
+    CREATOR_ERROR_INVALID_INTRO_TEXT,
+    CREATOR_ERROR_INVALID_INTRO_SLOT,
 };
 use serde::{Deserialize, Serialize};
 
@@ -103,16 +113,7 @@ const CREATOR_ACTION_INTRO_EDIT: u8 = 0x15;
 const CREATOR_ACTION_CANCEL: u8 = 0x16;
 const CREATOR_ACTION_EXIT: u8 = 0xFF;
 const CREATOR_COMBO_INPUT: u16 = 0x2000 | 0x1000 | 0x0020 | 0x0010;
-const CREATOR_SESSION_STATUS_DRAFT_READY: u8 = 0x02;
-const CREATOR_SESSION_STATUS_COMMIT_PENDING: u8 = 0x03;
-const CREATOR_SESSION_STATUS_COMMIT_SUCCEEDED: u8 = 0x04;
-const CREATOR_SESSION_STATUS_COMMIT_FAILED: u8 = 0x05;
-const CREATOR_SESSION_STATUS_CANCELLED: u8 = 0x07;
-const CREATOR_ERROR_GENERIC: u8 = 0x01;
-const CREATOR_ERROR_BOXER_NOT_FOUND: u8 = 0x02;
-const CREATOR_ERROR_INVALID_NAME: u8 = 0x03;
-const CREATOR_ERROR_INVALID_INTRO_TEXT: u8 = 0x04;
-const CREATOR_ERROR_INVALID_INTRO_SLOT: u8 = 0x05;
+// Session status and error constants imported from rom_core::creator_session
 
 const CREATOR_PAGE0_ROWS: [u8; 4] = [0x21, 0x22, 0x23, 0x24];
 const CREATOR_PAGE1_ROWS: [u8; 4] = [0x31, 0x32, 0x33, 0x34];
@@ -1007,7 +1008,12 @@ impl Snes9xCore {
     fn get_wram(&self, offset: usize) -> u8 {
         match &self.runtime_backend {
             RuntimeBackend::Stub { system_ram } => system_ram.get(offset).copied().unwrap_or(0),
-            RuntimeBackend::Libretro(_) => 0,
+            // All callers of get_wram are reachable only via update_creator_runtime,
+            // which guards its body with `let RuntimeBackend::Stub { .. } = ... else { return; }`.
+            // A Libretro backend can never reach this point.
+            RuntimeBackend::Libretro(_) => unreachable!(
+                "get_wram called with Libretro backend; all callers require Stub backend"
+            ),
         }
     }
 }

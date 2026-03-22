@@ -3,10 +3,11 @@
 //! Commands for managing plugins, running scripts, and batch operations.
 
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::State;
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, BatchJobInfo};
 use plugin_core::{ScriptRunner, PluginApi};
 
 /// Plugin information response
@@ -155,42 +156,168 @@ pub fn run_script(
     Ok(ScriptExecutionResult::from(result))
 }
 
-/// Batch job information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BatchJobInfo {
-    pub id: String,
-    pub name: String,
-    pub status: String,
-    pub progress: f32,
+/// Returns the current Unix timestamp as a string (ISO-like seconds since epoch).
+fn now_timestamp() -> String {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .to_string()
 }
 
-/// Get all batch jobs
+/// Generate a unique job ID.
+fn new_job_id() -> String {
+    format!(
+        "batch_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    )
+}
+
+/// Get all batch jobs (active and recently completed).
 #[tauri::command]
-pub fn list_batch_jobs(_state: State<AppState>) -> Result<Vec<BatchJobInfo>, String> {
-    // Placeholder - batch job system not yet implemented
-    Ok(Vec::new())
+pub fn list_batch_jobs(state: State<AppState>) -> Result<Vec<BatchJobInfo>, String> {
+    Ok(state.batch_jobs.lock().clone())
 }
 
-/// Create a new batch job
+/// Create and immediately start a new batch job.
+///
+/// The script runs once per input item. Each input is injected into the Lua
+/// environment as a global called `INPUT` before the script executes.
+///
+/// Returns the job ID so the frontend can poll `list_batch_jobs` for progress.
 #[tauri::command]
 pub fn create_batch_job(
-    _state: State<AppState>,
-    _name: String,
-    _script: String,
-    _inputs: Vec<serde_json::Value>,
+    app_handle: tauri::AppHandle,
+    state: State<AppState>,
+    name: String,
+    script: String,
+    inputs: Vec<serde_json::Value>,
 ) -> Result<String, String> {
-    // Placeholder - batch job system not yet implemented
-    Err("Batch system not yet fully implemented".into())
+    let job_id = new_job_id();
+    let total = inputs.len() as u32;
+
+    let job = BatchJobInfo {
+        id: job_id.clone(),
+        name,
+        plugin_id: String::new(),
+        status: "pending".to_string(),
+        progress: 0,
+        total,
+        current_item: None,
+        error: None,
+        started_at: Some(now_timestamp()),
+        completed_at: None,
+    };
+
+    state.batch_jobs.lock().push(job);
+
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    state
+        .batch_cancel_flags
+        .lock()
+        .insert(job_id.clone(), Arc::clone(&cancel_flag));
+
+    let job_id_thread = job_id.clone();
+
+    std::thread::spawn(move || {
+        let state = app_handle.state::<AppState>();
+
+        // Mark running
+        if let Some(job) = state
+            .batch_jobs
+            .lock()
+            .iter_mut()
+            .find(|j| j.id == job_id_thread)
+        {
+            job.status = "running".to_string();
+        }
+
+        // Build a script runner with a fresh Lua context (same as run_script).
+        let context = Arc::new(parking_lot::RwLock::new(plugin_core::PluginContext::new(
+            std::path::PathBuf::from("."),
+            std::path::PathBuf::from("."),
+        )));
+        let api = Arc::new(PluginApi::new(context));
+        let runner = ScriptRunner::new(api);
+
+        let mut last_error: Option<String> = None;
+
+        for (i, input) in inputs.iter().enumerate() {
+            if cancel_flag.load(Ordering::Relaxed) {
+                if let Some(job) = state
+                    .batch_jobs
+                    .lock()
+                    .iter_mut()
+                    .find(|j| j.id == job_id_thread)
+                {
+                    job.status = "failed".to_string();
+                    job.error = Some("Cancelled by user".to_string());
+                    job.completed_at = Some(now_timestamp());
+                }
+                state.batch_cancel_flags.lock().remove(&job_id_thread);
+                return;
+            }
+
+            let input_str = input.to_string();
+
+            if let Some(job) = state
+                .batch_jobs
+                .lock()
+                .iter_mut()
+                .find(|j| j.id == job_id_thread)
+            {
+                job.progress = i as u32;
+                job.current_item = Some(input_str.clone());
+            }
+
+            // Prepend `INPUT = <json>` so the script can read the current item.
+            let script_with_input = format!("INPUT = {}\n{}", input_str, script);
+            match runner.run_string(&script_with_input, Some(&job_id_thread)) {
+                Ok(result) if !result.success => last_error = result.error,
+                Err(e) => last_error = Some(e.to_string()),
+                _ => {}
+            }
+        }
+
+        let final_status = if last_error.is_some() { "failed" } else { "completed" };
+
+        if let Some(job) = state
+            .batch_jobs
+            .lock()
+            .iter_mut()
+            .find(|j| j.id == job_id_thread)
+        {
+            job.status = final_status.to_string();
+            job.progress = total;
+            job.current_item = None;
+            job.error = last_error;
+            job.completed_at = Some(now_timestamp());
+        }
+
+        state.batch_cancel_flags.lock().remove(&job_id_thread);
+    });
+
+    Ok(job_id)
 }
 
-/// Cancel a batch job
+/// Cancel a running batch job.
+///
+/// Sets the job's cancellation flag. The worker thread checks this flag
+/// between inputs and exits cleanly when it is set.
 #[tauri::command]
 pub fn cancel_batch_job(
-    _state: State<AppState>,
-    _job_id: String,
+    state: State<AppState>,
+    job_id: String,
 ) -> Result<(), String> {
-    // Placeholder - batch job system not yet implemented
-    Err("Batch system not yet fully implemented".into())
+    let flags = state.batch_cancel_flags.lock();
+    if let Some(flag) = flags.get(&job_id) {
+        flag.store(true, Ordering::Relaxed);
+    }
+    // If the flag is not present the job is already finished — not an error.
+    Ok(())
 }
 
 /// Get the plugins directory path

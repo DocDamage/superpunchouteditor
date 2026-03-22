@@ -15,16 +15,6 @@ pub enum EditAction {
     /// Single color change in a palette
     PaletteEdit {
         pc_offset: String,
-        #[allow(dead_code)]
-        color_index: usize,
-        old_bytes: Vec<u8>,
-        new_bytes: Vec<u8>,
-        description: String,
-    },
-    /// Full palette replacement
-    #[allow(dead_code)]
-    PaletteReplace {
-        pc_offset: String,
         old_bytes: Vec<u8>,
         new_bytes: Vec<u8>,
         description: String,
@@ -41,25 +31,6 @@ pub enum EditAction {
         pc_offset: String,
         old_bytes: Vec<u8>,
         new_bytes: Vec<u8>,
-        #[allow(dead_code)]
-        source_path: String,
-        description: String,
-    },
-    /// Asset relocation in ROM
-    #[allow(dead_code)]
-    Relocation {
-        boxer_key: String,
-        asset_file: String,
-        old_pc_offset: String,
-        new_pc_offset: String,
-        size: usize,
-        old_data: Vec<u8>,
-        description: String,
-    },
-    /// Batch of multiple actions (for multi-asset operations)
-    #[allow(dead_code)]
-    BatchEdit {
-        actions: Vec<EditAction>,
         description: String,
     },
 }
@@ -69,11 +40,8 @@ impl EditAction {
     pub fn description(&self) -> &str {
         match self {
             EditAction::PaletteEdit { description, .. } => description,
-            EditAction::PaletteReplace { description, .. } => description,
             EditAction::SpriteBinEdit { description, .. } => description,
             EditAction::AssetImport { description, .. } => description,
-            EditAction::Relocation { description, .. } => description,
-            EditAction::BatchEdit { description, .. } => description,
         }
     }
 
@@ -81,11 +49,8 @@ impl EditAction {
     pub fn pc_offset(&self) -> Option<&str> {
         match self {
             EditAction::PaletteEdit { pc_offset, .. } => Some(pc_offset),
-            EditAction::PaletteReplace { pc_offset, .. } => Some(pc_offset),
             EditAction::SpriteBinEdit { pc_offset, .. } => Some(pc_offset),
             EditAction::AssetImport { pc_offset, .. } => Some(pc_offset),
-            EditAction::Relocation { old_pc_offset, .. } => Some(old_pc_offset),
-            EditAction::BatchEdit { .. } => None,
         }
     }
 
@@ -93,11 +58,8 @@ impl EditAction {
     pub fn action_type(&self) -> &'static str {
         match self {
             EditAction::PaletteEdit { .. } => "Palette Edit",
-            EditAction::PaletteReplace { .. } => "Palette Replace",
             EditAction::SpriteBinEdit { .. } => "Sprite Edit",
             EditAction::AssetImport { .. } => "Import",
-            EditAction::Relocation { .. } => "Relocation",
-            EditAction::BatchEdit { .. } => "Batch Edit",
         }
     }
 
@@ -105,11 +67,8 @@ impl EditAction {
     pub fn old_bytes(&self) -> Option<&Vec<u8>> {
         match self {
             EditAction::PaletteEdit { old_bytes, .. } => Some(old_bytes),
-            EditAction::PaletteReplace { old_bytes, .. } => Some(old_bytes),
             EditAction::SpriteBinEdit { old_bytes, .. } => Some(old_bytes),
             EditAction::AssetImport { old_bytes, .. } => Some(old_bytes),
-            EditAction::Relocation { .. } => None,
-            EditAction::BatchEdit { .. } => None,
         }
     }
 
@@ -117,11 +76,8 @@ impl EditAction {
     pub fn new_bytes(&self) -> Option<&Vec<u8>> {
         match self {
             EditAction::PaletteEdit { new_bytes, .. } => Some(new_bytes),
-            EditAction::PaletteReplace { new_bytes, .. } => Some(new_bytes),
             EditAction::SpriteBinEdit { new_bytes, .. } => Some(new_bytes),
             EditAction::AssetImport { new_bytes, .. } => Some(new_bytes),
-            EditAction::Relocation { .. } => None,
-            EditAction::BatchEdit { .. } => None,
         }
     }
 }
@@ -195,15 +151,9 @@ impl EditHistory {
     }
 
     /// Get the number of undoable actions
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn undo_count(&self) -> usize {
         self.undo_stack.len()
-    }
-
-    /// Get the number of redoable actions
-    #[allow(dead_code)]
-    pub fn redo_count(&self) -> usize {
-        self.redo_stack.len()
     }
 
     /// Pop the last action for undo
@@ -274,105 +224,15 @@ impl EditHistory {
         history.extend(self.get_redo_summary());
         history
     }
-
-    /// Peek at the last undo action without modifying stacks
-    #[allow(dead_code)]
-    pub fn peek_undo(&self) -> Option<&EditAction> {
-        self.undo_stack.last().map(|(action, _)| action)
-    }
-
-    /// Peek at the last redo action without modifying stacks
-    #[allow(dead_code)]
-    pub fn peek_redo(&self) -> Option<&EditAction> {
-        self.redo_stack.last().map(|(action, _)| action)
-    }
 }
 
-/// Helper function to create a palette edit action
-#[allow(dead_code)]
-pub fn create_palette_edit(
-    pc_offset: &str,
-    color_index: usize,
-    old_color: &[u8],
-    new_color: &[u8],
-) -> EditAction {
+#[cfg(test)]
+fn create_palette_edit(pc_offset: &str, old_color: &[u8], new_color: &[u8]) -> EditAction {
     EditAction::PaletteEdit {
         pc_offset: pc_offset.to_string(),
-        color_index,
         old_bytes: old_color.to_vec(),
         new_bytes: new_color.to_vec(),
-        description: format!("Changed color {} at {}", color_index, pc_offset),
-    }
-}
-
-/// Helper function to create a sprite bin edit action
-#[allow(dead_code)]
-pub fn create_sprite_bin_edit(pc_offset: &str, old_bytes: &[u8], new_bytes: &[u8]) -> EditAction {
-    EditAction::SpriteBinEdit {
-        pc_offset: pc_offset.to_string(),
-        old_bytes: old_bytes.to_vec(),
-        new_bytes: new_bytes.to_vec(),
-        description: format!(
-            "Edited sprite bin at {} ({} bytes)",
-            pc_offset,
-            new_bytes.len()
-        ),
-    }
-}
-
-/// Helper function to create an asset import action
-#[allow(dead_code)]
-pub fn create_asset_import(
-    pc_offset: &str,
-    old_bytes: &[u8],
-    new_bytes: &[u8],
-    source_path: &str,
-) -> EditAction {
-    EditAction::AssetImport {
-        pc_offset: pc_offset.to_string(),
-        old_bytes: old_bytes.to_vec(),
-        new_bytes: new_bytes.to_vec(),
-        source_path: source_path.to_string(),
-        description: format!(
-            "Imported from {}",
-            std::path::Path::new(source_path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(source_path)
-        ),
-    }
-}
-
-/// Helper function to create a relocation action
-#[allow(dead_code)]
-pub fn create_relocation(
-    boxer_key: &str,
-    asset_file: &str,
-    old_pc_offset: &str,
-    new_pc_offset: &str,
-    size: usize,
-    old_data: &[u8],
-) -> EditAction {
-    EditAction::Relocation {
-        boxer_key: boxer_key.to_string(),
-        asset_file: asset_file.to_string(),
-        old_pc_offset: old_pc_offset.to_string(),
-        new_pc_offset: new_pc_offset.to_string(),
-        size,
-        old_data: old_data.to_vec(),
-        description: format!(
-            "Relocated {} from {} to {}",
-            asset_file, old_pc_offset, new_pc_offset
-        ),
-    }
-}
-
-/// Helper function to create a batch edit action
-#[allow(dead_code)]
-pub fn create_batch_edit(actions: Vec<EditAction>, description: &str) -> EditAction {
-    EditAction::BatchEdit {
-        actions,
-        description: description.to_string(),
+        description: format!("Changed palette color at {}", pc_offset),
     }
 }
 
@@ -385,7 +245,7 @@ mod tests {
         let mut history = EditHistory::new();
 
         // Create a simple edit action
-        let action = create_palette_edit("0x1000", 0, &[0, 0], &[255, 255]);
+        let action = create_palette_edit("0x1000", &[0, 0], &[255, 255]);
         history.push(action);
 
         assert!(history.can_undo());
@@ -404,14 +264,14 @@ mod tests {
         let mut history = EditHistory::new();
 
         // Add and undo an action
-        let action1 = create_palette_edit("0x1000", 0, &[0, 0], &[255, 255]);
+        let action1 = create_palette_edit("0x1000", &[0, 0], &[255, 255]);
         history.push(action1);
         history.undo();
 
         assert!(history.can_redo());
 
         // Adding new action should clear redo stack
-        let action2 = create_palette_edit("0x1000", 1, &[0, 0], &[128, 128]);
+        let action2 = create_palette_edit("0x1000", &[0, 0], &[128, 128]);
         history.push(action2);
 
         assert!(!history.can_redo());
@@ -423,8 +283,8 @@ mod tests {
         let mut history = EditHistory::with_capacity(3);
 
         // Add 5 actions (exceeds capacity of 3)
-        for i in 0..5 {
-            let action = create_palette_edit("0x1000", i, &[0, 0], &[255, 255]);
+        for _ in 0..5 {
+            let action = create_palette_edit("0x1000", &[0, 0], &[255, 255]);
             history.push(action);
         }
 
@@ -436,7 +296,7 @@ mod tests {
     fn test_clear_history() {
         let mut history = EditHistory::new();
 
-        let action = create_palette_edit("0x1000", 0, &[0, 0], &[255, 255]);
+        let action = create_palette_edit("0x1000", &[0, 0], &[255, 255]);
         history.push(action);
         history.undo();
 

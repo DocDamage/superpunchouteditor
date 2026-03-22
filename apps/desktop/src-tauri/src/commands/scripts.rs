@@ -34,14 +34,12 @@ pub fn get_scripts_for_fighter(
 #[tauri::command]
 pub fn get_fighter_header(
     state: State<AppState>,
-    _fighter_index: usize,
+    fighter_index: usize,
 ) -> Result<BoxerHeader, String> {
     let rom_opt = state.rom.lock();
     let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
-    let _reader = ScriptReader::new(rom);
-    // TODO: Check if decode_boxer_header method exists
-    // For now, return an error
-    Err("decode_fighter_header not available".to_string())
+    let reader = ScriptReader::new(rom);
+    Ok(reader.decode_boxer_header(fighter_index))
 }
 
 /// Get editable fighter parameters
