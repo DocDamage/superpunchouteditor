@@ -11,7 +11,6 @@
   "get_frame_annotations": "research-blocked frame authoring",
   "get_patch_notes_data": "legacy report adapter; stable patch notes use generate_patch_notes",
   "get_shared_bank_info": "experimental bank-management tooling",
-  "launch_external_emulator": "legacy external-emulator path; stable testing uses canonical embedded/test pipeline",
   "load_boxer_animation": "research-blocked animation surface",
   "move_sprite": "research-blocked frame/sprite authoring",
   "preview_animation_frame": "research-blocked animation renderer",
