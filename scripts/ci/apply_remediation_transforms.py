@@ -299,7 +299,8 @@ def consolidate_frontend_edit_projection() -> None:
                 + text[refresh_pos + len(refresh):]
             )
 
-    # A loaded project can replace the active journal; refresh every backend-owned projection.
+    # A loaded project can replace the active journal. Normalize this projection refresh to exactly
+    # one line so repeated remediation runs cannot mutate the source tree.
     load_project_set = """      set({ 
         currentProject: project, 
         currentProjectPath: path,
@@ -307,13 +308,14 @@ def consolidate_frontend_edit_projection() -> None:
         error: null 
       });
 """
-    if load_project_set in text:
-        replacement = load_project_set + "      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);\n"
-        # Use the second occurrence (loadProject), not createProject.
-        first = text.find(load_project_set)
-        second = text.find(load_project_set, first + len(load_project_set))
-        if second != -1:
-            text = text[:second] + replacement + text[second + len(load_project_set):]
+    first = text.find(load_project_set)
+    second = text.find(load_project_set, first + len(load_project_set)) if first != -1 else -1
+    if second != -1:
+        refresh_line = "      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);\n"
+        insert_at = second + len(load_project_set)
+        while text.startswith(refresh_line, insert_at):
+            text = text[:insert_at] + text[insert_at + len(refresh_line):]
+        text = text[:insert_at] + refresh_line + text[insert_at:]
 
     path.write_text(text, encoding="utf-8")
 
