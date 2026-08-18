@@ -28,6 +28,34 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Register implemented frontend command contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('apps/desktop/src-tauri/src/lib.rs')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '            commands::project::save_patch_notes,\n',
+                  '''            commands::project::save_patch_notes,\n            // Layout pack commands (experimental until canonical edit migration)\n            commands::layout_pack::export_layout_pack,\n            commands::layout_pack::import_layout_pack,\n            commands::layout_pack::validate_layout_pack,\n            commands::layout_pack::get_available_layout_packs,\n            commands::layout_pack::delete_layout_pack,\n            commands::layout_pack::install_layout_pack,\n            commands::layout_pack::apply_layout_pack,\n            // Script/fighter parameter inspection commands\n            commands::scripts::get_all_scripts,\n            commands::scripts::get_scripts_for_fighter,\n            commands::scripts::get_fighter_header,\n            commands::scripts::validate_fighter_params,\n            commands::scripts::update_fighter_params,\n''',
+              ),
+              (
+                  '''            // Help System (currently disabled - TODO: implement in help_system.rs)\n            // get_help_articles,\n            // get_help_article,\n            // search_help,\n            // get_context_help,\n            // get_help_categories,\n            // submit_help_feedback,\n''',
+                  '''            // Help System\n            commands::help::get_help_articles,\n            commands::help::get_help_article,\n            commands::help::search_help,\n            commands::help::get_context_help,\n            commands::help::submit_help_feedback,\n''',
+              ),
+              (
+                  '            commands::history::clear_history,\n',
+                  '''            commands::history::clear_history,\n            commands::history::can_undo,\n            commands::history::can_redo,\n            commands::history::get_undo_stack,\n            commands::history::get_redo_stack,\n            commands::history::record_palette_edit,\n            commands::history::record_sprite_bin_edit,\n            commands::history::record_asset_import,\n''',
+              ),
+          ]
+          for old, new in replacements:
+              if new in text:
+                  continue
+              if old not in text:
+                  raise SystemExit(f'command registry marker changed: {old!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
       - name: Regenerate Rust lockfile
         run: cargo generate-lockfile
       - name: Apply machine-safe Clippy fixes
@@ -44,7 +72,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No cleanup changes to commit."
           else
-            git commit -m "Apply strict Rust lint and dependency cleanup"
+            git commit -m "Apply strict Rust lint and command registry cleanup"
             git pull --rebase origin agent/project-remediation-modernization
             git push origin HEAD:agent/project-remediation-modernization
           fi
