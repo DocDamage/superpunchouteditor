@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Verify literal frontend Tauri invokes are registered by the backend.
+"""Verify literal frontend Tauri invokes are registered or explicitly gated.
 
-The stable contract is intentionally mechanical: adding or renaming a literal invoke without adding
-its backend handler fails CI. When a missing registration is found, the diagnostic also reports any
-same-named Rust function so reconciliation is deterministic rather than guesswork.
+Stable calls must have a backend handler. A frontend call may remain unregistered only when it is
+listed in `experimental_frontend_commands.json` with a reviewed reason and the corresponding product
+surface is hidden from stable navigation. This keeps research code auditable without pretending it is
+part of the released command contract.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -15,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = ROOT / "apps" / "desktop" / "src"
 BACKEND = ROOT / "apps" / "desktop" / "src-tauri" / "src"
 TAURI_LIB = BACKEND / "lib.rs"
+EXPERIMENTAL_MANIFEST = ROOT / "scripts" / "ci" / "experimental_frontend_commands.json"
 
 INVOKE_RE = re.compile(r"\binvoke(?:<[^>]+>)?\s*\(\s*['\"]([^'\"]+)['\"]")
 HANDLER_RE = re.compile(r"tauri::generate_handler!\s*\[(.*?)\]\s*\)", re.S)
@@ -57,23 +60,58 @@ def backend_definitions() -> dict[str, list[str]]:
     return found
 
 
+def experimental_commands() -> dict[str, str]:
+    raw = json.loads(EXPERIMENTAL_MANIFEST.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in raw.items()):
+        raise SystemExit("experimental command manifest must be an object of command -> reason strings")
+    if any(not reason.strip() for reason in raw.values()):
+        raise SystemExit("every experimental command exception requires a non-empty reason")
+    return raw
+
+
 def main() -> int:
     invokes = frontend_invokes()
     registered = registered_commands()
     definitions = backend_definitions()
-    missing = sorted(set(invokes) - registered)
+    experimental = experimental_commands()
+
+    stale_exceptions = sorted(set(experimental) - set(invokes))
+    registered_exceptions = sorted(set(experimental) & registered)
+    missing = sorted(set(invokes) - registered - set(experimental))
 
     print(f"frontend literal invokes: {len(invokes)}")
     print(f"registered backend commands: {len(registered)}")
+    print(f"explicitly gated frontend commands: {len(experimental)}")
+
+    errors = False
     if missing:
-        print("\nERROR: frontend invokes missing from the Tauri handler:", file=sys.stderr)
+        errors = True
+        print("\nERROR: stable/unclassified frontend invokes missing from the Tauri handler:", file=sys.stderr)
         for name in missing:
             locations = ", ".join(invokes[name])
             candidates = ", ".join(definitions.get(name, [])) or "no same-named Rust function"
             print(f"  - {name}: frontend=[{locations}] backend=[{candidates}]", file=sys.stderr)
+
+    if stale_exceptions:
+        errors = True
+        print("\nERROR: stale experimental command exceptions (remove them):", file=sys.stderr)
+        for name in stale_exceptions:
+            print(f"  - {name}", file=sys.stderr)
+
+    if registered_exceptions:
+        errors = True
+        print("\nERROR: experimental exceptions are now registered; reclassify/remove the exception:", file=sys.stderr)
+        for name in registered_exceptions:
+            print(f"  - {name}", file=sys.stderr)
+
+    if errors:
         return 1
 
-    print("Command contract is synchronized.")
+    if experimental:
+        print("\nExplicitly gated commands:")
+        for name, reason in sorted(experimental.items()):
+            print(f"  - {name}: {reason}")
+    print("Stable command contract is synchronized.")
     return 0
 
 
