@@ -97,7 +97,12 @@ crates/
 data/
   manifests/           Boxer layout manifest JSON files (bundled at build time)
   boxer-layouts/       Community-contributed layout packs
+scripts/python/        Standalone ROM-research and build utilities
+ROMs/                  Standalone ROM-analysis utilities
 ```
+
+The desktop application does not use Python at runtime. The remaining Python
+files are optional, standard-library-only research/build utilities.
 
 ## Building from source: verification checklist
 

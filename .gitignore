@@ -49,5 +49,6 @@ temp/
 *.ips
 *.bps
 *.zip
+!docs/archive/*.zip
 *.tar.gz
 *.rar
