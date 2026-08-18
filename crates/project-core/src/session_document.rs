@@ -34,7 +34,7 @@ impl BaseRomIdentity {
         Self {
             sha1: base.sha1().to_string(),
             size: base.len(),
-            region: base.region().map(|region| region.as_str().to_string()),
+            region: base.region().map(|region| region.code().to_string()),
             display_filename,
         }
     }
