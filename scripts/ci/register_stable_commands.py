@@ -28,5 +28,11 @@ insert_after(
     "commands::project_thumbnail::capture_project_thumbnail,",
 )
 
+insert_after(
+    "            commands::emulator::get_emulator_presets,\n",
+    "            commands::emulator_current::emulator_load_current_rom,\n",
+    "commands::emulator_current::emulator_load_current_rom,",
+)
+
 LIB.write_text(text, encoding="utf-8")
 print("Stable command registrations reconciled.")
