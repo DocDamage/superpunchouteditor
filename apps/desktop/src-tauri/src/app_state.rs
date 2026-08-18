@@ -20,7 +20,6 @@ use plugin_core::{PluginApi, PluginManager};
 use project_core::{Project, ToolHooksConfig};
 use rom_core::{EditRequest, EditStateProjection, MaterializedRom, Rom, RomSession};
 
-/// Batch job entry — mirrors the `BatchJob` type expected by the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchJobInfo {
     pub id: String,
@@ -35,21 +34,13 @@ pub struct BatchJobInfo {
     pub completed_at: Option<String>,
 }
 
-/// Central application state shared across all Tauri commands.
 pub struct AppState {
-    /// Canonical immutable-base-plus-journal ROM session.
     pub rom_session: Mutex<Option<RomSession>>,
-
     /// Transitional read projection for command modules not yet migrated to `RomSession`.
-    /// Stable mutation commands must not write this field directly.
     pub rom: Mutex<Option<Rom>>,
-
     pub manifest: Mutex<Manifest>,
-
-    /// Transitional compatibility view for old frontend inspection APIs. This is no longer an
-    /// authoritative representation of supported edits.
+    /// Transitional compatibility projection; not an authoritative edit representation.
     pub pending_writes: Mutex<HashMap<String, Vec<u8>>>,
-
     pub current_project: Mutex<Option<Project>>,
     pub rom_path: Mutex<Option<String>>,
     pub edit_history: Mutex<EditHistory>,
@@ -58,12 +49,9 @@ pub struct AppState {
     pub external_tools: Mutex<ToolHooksConfig>,
     pub audio_state: Mutex<AudioState>,
     pub embedded_emulator: Mutex<EmbeddedEmulatorState>,
-
-    /// Transitional dirty projection. Stable code derives dirty state from the journal revision.
+    /// Transitional projection; stable code derives dirty state from the journal.
     pub modified: Mutex<bool>,
-
-    /// Experimental plugin manager. Discovery is intentionally not run at application startup;
-    /// plugins execute only after an explicit user action while the feature remains experimental.
+    /// Experimental plugin manager. Discovery is intentionally not run at startup.
     pub plugin_manager: Mutex<Arc<PluginManager>>,
     pub batch_jobs: Mutex<Vec<BatchJobInfo>>,
     pub batch_cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
@@ -121,8 +109,6 @@ impl AppState {
         self.rom.lock().as_ref().map(Rom::calculate_sha1)
     }
 
-    /// Install a newly validated ROM as the immutable session base and refresh the transitional
-    /// projection used by legacy read-only commands.
     pub fn install_rom_session(&self, rom: Rom, source_path: String) {
         let session = RomSession::from_rom(&rom, Some(source_path.clone()));
         *self.rom_session.lock() = Some(session);
@@ -133,8 +119,6 @@ impl AppState {
         *self.modified.lock() = false;
     }
 
-    /// Commit one canonical byte write. `before` bytes are captured by the backend from the current
-    /// materialized revision. The legacy ROM mirror is refreshed only after the transaction commits.
     pub fn commit_rom_write(
         &self,
         label: impl Into<String>,
@@ -143,28 +127,121 @@ impl AppState {
         asset_id: Option<String>,
         description: Option<String>,
     ) -> Result<EditStateProjection, String> {
+        self.commit_rom_requests(
+            label.into(),
+            vec![EditRequest::WriteBytes {
+                offset,
+                after,
+                asset_id,
+                description,
+            }],
+        )
+    }
+
+    /// Run an existing domain writer against a scratch copy of the materialized ROM, turn the
+    /// resulting byte delta into one atomic journal transaction, and return the writer's value.
+    /// This is the migration bridge for complex legacy writers: they retain their validation logic
+    /// without retaining authority over persistent ROM bytes.
+    pub fn commit_rom_transform<T, F>(
+        &self,
+        label: impl Into<String>,
+        transform: F,
+    ) -> Result<(T, EditStateProjection), String>
+    where
+        F: FnOnce(&mut Rom) -> Result<T, String>,
+    {
         let mut session_guard = self.rom_session.lock();
         let session = session_guard.as_mut().ok_or("No ROM loaded")?;
+        let current = session.materialize().map_err(|e| e.to_string())?;
+        let mut scratch = Rom::new(current.bytes.clone());
+        let result = transform(&mut scratch)?;
+
+        if scratch.data.len() < current.bytes.len() {
+            return Err(format!(
+                "ROM shrink is not supported by the canonical edit journal ({} -> {})",
+                current.bytes.len(),
+                scratch.data.len()
+            ));
+        }
+
+        let mut requests = Vec::new();
+        if scratch.data.len() > current.bytes.len() {
+            requests.push(EditRequest::ResizeRom {
+                after_len: scratch.data.len(),
+                fill_byte: 0,
+                description: Some("ROM expansion".to_string()),
+            });
+        }
+
+        let common_len = current.bytes.len().min(scratch.data.len());
+        let mut index = 0usize;
+        while index < common_len {
+            if current.bytes[index] == scratch.data[index] {
+                index += 1;
+                continue;
+            }
+            let start = index;
+            while index < common_len && current.bytes[index] != scratch.data[index] {
+                index += 1;
+            }
+            requests.push(EditRequest::WriteBytes {
+                offset: start,
+                after: scratch.data[start..index].to_vec(),
+                asset_id: None,
+                description: None,
+            });
+        }
+
+        if scratch.data.len() > common_len {
+            let appended = &scratch.data[common_len..];
+            if appended.iter().any(|byte| *byte != 0) {
+                requests.push(EditRequest::WriteBytes {
+                    offset: common_len,
+                    after: appended.to_vec(),
+                    asset_id: None,
+                    description: Some("Expanded ROM data".to_string()),
+                });
+            }
+        }
+
+        if requests.is_empty() {
+            return Err("Operation produced no persistent ROM changes".to_string());
+        }
+
         let projection = session
-            .commit(
-                label,
-                vec![EditRequest::WriteBytes {
-                    offset,
-                    after: after.clone(),
-                    asset_id,
-                    description,
-                }],
-            )
+            .commit(session.base(), label.into(), requests)
             .map_err(|e| e.to_string())?;
+        let projection = session.state_projection().map_err(|e| e.to_string())?;
         let materialized = session.materialize().map_err(|e| e.to_string())?;
         drop(session_guard);
 
-        *self.rom.lock() = Some(Rom::new(materialized.bytes));
-        *self.modified.lock() = projection.dirty;
-        self.pending_writes
-            .lock()
-            .insert(format!("0x{offset:X}"), after);
+        self.refresh_legacy_projection(materialized.bytes, projection.dirty);
+        Ok((result, projection))
+    }
+
+    fn commit_rom_requests(
+        &self,
+        label: String,
+        requests: Vec<EditRequest>,
+    ) -> Result<EditStateProjection, String> {
+        let mut session_guard = self.rom_session.lock();
+        let session = session_guard.as_mut().ok_or("No ROM loaded")?;
+        session
+            .journal_mut()
+            .commit(session.base(), label, requests)
+            .map_err(|e| e.to_string())?;
+        let projection = session.state_projection().map_err(|e| e.to_string())?;
+        let materialized = session.materialize().map_err(|e| e.to_string())?;
+        drop(session_guard);
+
+        self.refresh_legacy_projection(materialized.bytes, projection.dirty);
         Ok(projection)
+    }
+
+    fn refresh_legacy_projection(&self, bytes: Vec<u8>, dirty: bool) {
+        *self.rom.lock() = Some(Rom::new(bytes));
+        *self.modified.lock() = dirty;
+        self.pending_writes.lock().clear();
     }
 
     pub fn materialize_current_rom(&self) -> Result<MaterializedRom, String> {
@@ -188,9 +265,9 @@ impl AppState {
         let projection = session.undo().map_err(|e| e.to_string())?;
         if projection.is_some() {
             let bytes = session.materialize().map_err(|e| e.to_string())?.bytes;
-            *self.rom.lock() = Some(Rom::new(bytes));
-            self.pending_writes.lock().clear();
-            *self.modified.lock() = session.journal().is_dirty();
+            let dirty = session.journal().is_dirty();
+            drop(session_guard);
+            self.refresh_legacy_projection(bytes, dirty);
         }
         Ok(projection)
     }
@@ -201,9 +278,9 @@ impl AppState {
         let projection = session.redo().map_err(|e| e.to_string())?;
         if projection.is_some() {
             let bytes = session.materialize().map_err(|e| e.to_string())?.bytes;
-            *self.rom.lock() = Some(Rom::new(bytes));
-            self.pending_writes.lock().clear();
-            *self.modified.lock() = session.journal().is_dirty();
+            let dirty = session.journal().is_dirty();
+            drop(session_guard);
+            self.refresh_legacy_projection(bytes, dirty);
         }
         Ok(projection)
     }
@@ -238,5 +315,20 @@ mod tests {
             .unwrap();
         assert!(result.dirty);
         assert_eq!(state.materialize_current_rom().unwrap().bytes, vec![0, 9, 8, 3]);
+    }
+
+    #[test]
+    fn transform_commits_one_atomic_delta() {
+        let state = AppState::new(Manifest::empty());
+        state.install_rom_session(Rom::new(vec![0, 1, 2, 3]), "synthetic.sfc".into());
+        let (_, projection) = state
+            .commit_rom_transform("transform", |rom| {
+                rom.data[0] = 9;
+                rom.data[3] = 8;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(projection.active_transaction_count, 1);
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, vec![9, 1, 2, 8]);
     }
 }
