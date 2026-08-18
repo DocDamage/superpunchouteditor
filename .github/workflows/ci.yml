@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, agent/project-remediation-modernization]
   pull_request:
-    branches: [main]
+    branches: [main, codex/project-audit-cleanup-plan]
 
 jobs:
   rust:
@@ -18,9 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned Rust
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.97.1
           components: rustfmt, clippy
 
       - name: Cache cargo dependencies
@@ -30,7 +31,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install system dependencies (Ubuntu)
@@ -54,8 +55,6 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run tests (library crates)
-        # Exclude the Tauri app crate — it has no unit tests and requires a
-        # display server on Linux which is not available in CI.
         run: cargo test --workspace --exclude tauri-appsuper-punch-out-editor --verbose
 
   frontend:
@@ -72,7 +71,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
@@ -88,6 +87,21 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+  contracts:
+    name: Contracts and Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python scripts/ci/check_command_contract.py
+      - run: python scripts/ci/check_versions.py
+      - run: python scripts/ci/check_repository_hygiene.py
+
   smoke-manifest-bundle:
     name: Manifest bundle path smoke test
     runs-on: ubuntu-latest
@@ -97,25 +111,18 @@ jobs:
 
       - name: Verify manifest bundle path resolves
         run: |
-          # tauri.conf.json bundles "../../../data/manifests/*" relative to
-          # apps/desktop/src-tauri/ — three levels up lands at the repo root,
-          # so this path must resolve to data/manifests/ at the repo root.
           MANIFEST_DIR="data/manifests"
-
           echo "Checking $MANIFEST_DIR exists..."
           test -d "$MANIFEST_DIR" || { echo "ERROR: $MANIFEST_DIR not found"; exit 1; }
-
           COUNT=$(ls -1 "$MANIFEST_DIR"/*.json 2>/dev/null | wc -l)
           echo "Found $COUNT manifest file(s)."
           test "$COUNT" -gt 0 || { echo "ERROR: no .json files in $MANIFEST_DIR"; exit 1; }
-
           echo "Validating JSON..."
           for f in "$MANIFEST_DIR"/*.json; do
             python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
               || { echo "ERROR: invalid JSON in $f"; exit 1; }
             echo "  OK: $f"
           done
-
           echo "Manifest bundle smoke test PASSED."
 
   security-audit:
