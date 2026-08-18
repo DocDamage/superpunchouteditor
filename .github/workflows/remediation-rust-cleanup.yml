@@ -8,6 +8,10 @@ on:
     branches:
       - codex/project-audit-cleanup-plan
 
+concurrency:
+  group: remediation-rust-cleanup
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -29,55 +33,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - name: Apply deterministic remediation transforms
-        shell: python
-        run: |
-          from pathlib import Path
-
-          registry = Path('apps/desktop/src-tauri/src/lib.rs')
-          text = registry.read_text(encoding='utf-8')
-          replacements = [
-              (
-                  '            commands::project::save_patch_notes,\n',
-                  '''            commands::project::save_patch_notes,\n            // Layout pack commands (experimental until canonical edit migration)\n            commands::layout_pack::export_layout_pack,\n            commands::layout_pack::import_layout_pack,\n            commands::layout_pack::validate_layout_pack,\n            commands::layout_pack::get_available_layout_packs,\n            commands::layout_pack::delete_layout_pack,\n            commands::layout_pack::install_layout_pack,\n            commands::layout_pack::apply_layout_pack,\n            // Script/fighter parameter commands\n            commands::scripts::get_all_scripts,\n            commands::scripts::get_scripts_for_fighter,\n            commands::scripts::get_fighter_header,\n            commands::scripts::validate_fighter_params,\n            commands::scripts::update_fighter_params,\n''',
-              ),
-              (
-                  '''            // Help System (currently disabled - TODO: implement in help_system.rs)\n            // get_help_articles,\n            // get_help_article,\n            // search_help,\n            // get_context_help,\n            // get_help_categories,\n            // submit_help_feedback,\n''',
-                  '''            // Help System\n            commands::help::get_help_articles,\n            commands::help::get_help_article,\n            commands::help::search_help,\n            commands::help::get_context_help,\n            commands::help::submit_help_feedback,\n''',
-              ),
-              (
-                  '            commands::history::clear_history,\n',
-                  '''            commands::history::clear_history,\n            commands::history::can_undo,\n            commands::history::can_redo,\n            commands::history::get_undo_stack,\n            commands::history::get_redo_stack,\n            commands::history::record_palette_edit,\n            commands::history::record_sprite_bin_edit,\n            commands::history::record_asset_import,\n''',
-              ),
-          ]
-          for old, new in replacements:
-              if new in text:
-                  continue
-              if old not in text:
-                  raise SystemExit(f'command registry marker changed: {old!r}')
-              text = text.replace(old, new, 1)
-          registry.write_text(text, encoding='utf-8')
-
-          app_state = Path('apps/desktop/src-tauri/src/app_state.rs')
-          text = app_state.read_text(encoding='utf-8')
-          text = text.replace(
-              '''        let projection = session\n            .commit(session.base(), label.into(), requests)\n            .map_err(|e| e.to_string())?;\n        let projection = session.state_projection().map_err(|e| e.to_string())?;\n''',
-              '''        let projection = session\n            .commit(label.into(), requests)\n            .map_err(|e| e.to_string())?;\n''',
-          )
-          text = text.replace(
-              '''        session\n            .journal_mut()\n            .commit(session.base(), label, requests)\n            .map_err(|e| e.to_string())?;\n        let projection = session.state_projection().map_err(|e| e.to_string())?;\n''',
-              '''        let projection = session\n            .commit(label, requests)\n            .map_err(|e| e.to_string())?;\n''',
-          )
-          app_state.write_text(text, encoding='utf-8')
-
-          project_lib = Path('crates/project-core/src/lib.rs')
-          text = project_lib.read_text(encoding='utf-8')
-          module = 'pub mod session_document;\npub use session_document::*;\n\n'
-          if 'pub mod session_document;' not in text:
-              marker = 'pub mod tools;\npub use tools::*;\n\n'
-              if marker not in text:
-                  raise SystemExit('project-core module marker changed')
-              text = text.replace(marker, marker + module, 1)
-          project_lib.write_text(text, encoding='utf-8')
+        run: python scripts/ci/apply_remediation_transforms.py
       - name: Regenerate Rust lockfile
         run: cargo generate-lockfile
       - name: Apply machine-safe Clippy fixes
@@ -86,6 +42,11 @@ jobs:
         run: cargo fmt --all
       - name: Verify workspace compiles
         run: cargo check --workspace
+      - name: Verify frontend types
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npx tsc --noEmit
       - name: Commit cleanup
         run: |
           git config user.name "github-actions[bot]"
@@ -94,7 +55,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No cleanup changes to commit."
           else
-            git commit -m "Apply strict Rust lint and command registry cleanup"
+            git commit -m "Apply deterministic remediation transforms"
             git pull --rebase origin agent/project-remediation-modernization
             git push origin HEAD:agent/project-remediation-modernization
           fi
