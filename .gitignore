@@ -1,8 +1,9 @@
 # Rust
 target/
+**/target/
 target_codex/
-target2/
-Cargo.lock
+target[0-9]*/
+**/target[0-9]*/
 **/*.rs.bk
 *.pdb
 
@@ -28,10 +29,17 @@ Thumbs.db
 dist/
 build/
 
-# Node (if using any Node tools)
+# Node
 node_modules/
-package-lock.json
 yarn.lock
+
+# Python caches/environments
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
 
 # Test outputs
 test-output/
@@ -42,12 +50,15 @@ tmp/
 temp/
 *.tmp
 
-# Large files
+# User-owned ROMs, patches, save states, emulator binaries, and archives
 *.rom
 *.smc
 *.sfc
 *.ips
 *.bps
+*.srm
+*.state
+*.sav
 *.zip
 !docs/archive/*.zip
 *.tar.gz
