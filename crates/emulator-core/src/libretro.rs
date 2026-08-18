@@ -149,19 +149,10 @@ impl Default for RetroSystemTiming {
 
 /// Audio/Video system information
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RetroSystemAvInfo {
     pub geometry: RetroGameGeometry,
     pub timing: RetroSystemTiming,
-}
-
-impl Default for RetroSystemAvInfo {
-    fn default() -> Self {
-        Self {
-            geometry: RetroGameGeometry::default(),
-            timing: RetroSystemTiming::default(),
-        }
-    }
 }
 
 /// Game information structure

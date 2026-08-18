@@ -6,11 +6,12 @@
 use crate::{SNES_HEIGHT, SNES_MAX_HEIGHT, SNES_MAX_WIDTH, SNES_WIDTH};
 
 /// Supported pixel formats
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PixelFormat {
     /// 0RGB1555 - 16-bit (default for many libretro cores)
     Format0RGB1555,
     /// XRGB8888 - 32-bit with unused alpha
+    #[default]
     FormatXRGB8888,
     /// RGB565 - 16-bit
     FormatRGB565,
@@ -43,12 +44,6 @@ impl PixelFormat {
             PixelFormat::FormatXRGB8888 => 1,
             PixelFormat::FormatRGB565 => 2,
         }
-    }
-}
-
-impl Default for PixelFormat {
-    fn default() -> Self {
-        PixelFormat::FormatXRGB8888
     }
 }
 

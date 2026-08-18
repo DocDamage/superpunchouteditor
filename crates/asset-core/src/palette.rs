@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 /// let color = Color { r: 255, g: 0, b: 0 }; // Pure red
 /// let snes_format = color.to_snes();
 /// ```
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Default)]
 pub struct Color {
     /// Red component (0-255)
     pub r: u8,
@@ -160,12 +160,6 @@ impl Color {
         let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
         let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
         Some(Self { r, g, b })
-    }
-}
-
-impl Default for Color {
-    fn default() -> Self {
-        Self { r: 0, g: 0, b: 0 }
     }
 }
 

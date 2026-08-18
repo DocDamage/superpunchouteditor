@@ -258,7 +258,7 @@ impl<'a> BoxerManager<'a> {
                     for tx in 0..8 {
                         let px = 128 + entry.x as i32 + tx as i32;
                         let py = 128 + entry.y as i32 + ty as i32;
-                        if px >= 0 && px < 256 && py >= 0 && py < 256 {
+                        if (0..256).contains(&px) && (0..256).contains(&py) {
                             let color_idx = tile.pixels[ty * 8 + tx] as usize;
                             if color_idx != 0 {
                                 let c = palette.get(color_idx).cloned().unwrap_or(Color {

@@ -252,7 +252,7 @@ impl BrrEncoder {
     /// # Returns
     /// The size of the BRR data in bytes
     pub fn calculate_brr_size(&self, pcm_sample_count: usize) -> usize {
-        let block_count = (pcm_sample_count + SAMPLES_PER_BLOCK - 1) / SAMPLES_PER_BLOCK;
+        let block_count = pcm_sample_count.div_ceil(SAMPLES_PER_BLOCK);
         block_count * BRR_BLOCK_SIZE
     }
 }

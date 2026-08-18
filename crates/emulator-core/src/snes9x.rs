@@ -1263,7 +1263,7 @@ fn creator_input_bytes(buttons: u16) -> (u8, u8) {
 fn cycle_creator_name_char(current: u8, direction: i8) -> u8 {
     match direction.cmp(&0) {
         std::cmp::Ordering::Greater => {
-            if current < b' ' || current >= b'Z' {
+            if !(b' '..b'Z').contains(&current) {
                 b' '
             } else {
                 current + 1

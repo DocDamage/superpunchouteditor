@@ -351,7 +351,7 @@ pub fn tiles_to_image(
     width_tiles: usize,
     palette: &[Color],
 ) -> image::ImageBuffer<image::Rgba<u8>, Vec<u8>> {
-    let height_tiles = (tiles.len() + width_tiles - 1) / width_tiles;
+    let height_tiles = tiles.len().div_ceil(width_tiles);
     let mut img = image::ImageBuffer::new(
         (width_tiles * TILE_WIDTH) as u32,
         (height_tiles * TILE_HEIGHT) as u32,
@@ -478,8 +478,8 @@ fn match_color(pixel: &image::Rgba<u8>, palette: &[Color]) -> usize {
 /// assert_eq!(calculate_tile_count(8, 8), 1);   // 1 tile
 /// ```
 pub const fn calculate_tile_count(width: usize, height: usize) -> usize {
-    let tiles_w = (width + TILE_WIDTH - 1) / TILE_WIDTH;
-    let tiles_h = (height + TILE_HEIGHT - 1) / TILE_HEIGHT;
+    let tiles_w = width.div_ceil(TILE_WIDTH);
+    let tiles_h = height.div_ceil(TILE_HEIGHT);
     tiles_w * tiles_h
 }
 

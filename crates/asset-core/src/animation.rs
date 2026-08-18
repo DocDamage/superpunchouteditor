@@ -148,10 +148,12 @@ pub struct FrameFlags {
 /// Blend mode for frame interpolation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum BlendMode {
     /// No interpolation
     None,
     /// Linear interpolation
+    #[default]
     Linear,
     /// Ease in
     EaseIn,
@@ -159,12 +161,6 @@ pub enum BlendMode {
     EaseOut,
     /// Ease in-out
     EaseInOut,
-}
-
-impl Default for BlendMode {
-    fn default() -> Self {
-        BlendMode::Linear
-    }
 }
 
 /// Complete animation sequence
