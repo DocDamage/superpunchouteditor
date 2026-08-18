@@ -6,7 +6,6 @@
 // Allow ambiguous glob re-exports for the placeholder functions
 #![allow(ambiguous_glob_reexports)]
 
-// Re-export all command modules
 pub mod ai_behavior;
 pub mod animation;
 pub mod assets;
@@ -24,6 +23,7 @@ pub mod history;
 pub mod layout_pack;
 pub mod patches;
 pub mod plugins;
+pub mod preflight;
 pub mod project;
 pub mod project_thumbnail;
 pub mod region;
@@ -34,7 +34,6 @@ pub mod settings;
 pub mod text;
 pub mod tools;
 
-// Re-export commonly used types from submodules
 pub use ai_behavior::*;
 pub use animation::*;
 pub use assets::*;
@@ -52,6 +51,7 @@ pub use history::*;
 pub use layout_pack::*;
 pub use patches::*;
 pub use plugins::*;
+pub use preflight::*;
 pub use project::*;
 pub use project_thumbnail::*;
 pub use region::*;
