@@ -1,26 +1,19 @@
-//! BPS (Binary Patch System) patch generation
+//! BPS (Beat Patch System) generation and verification.
 //!
-//! BPS is a more efficient patch format than IPS, supporting:
-//! - Files > 16MB (not needed for SNES but good practice)
-//! - Delta encoding for better compression
-//! - Metadata (author, description)
-//! - CRC32 validation
+//! The writer intentionally emits only SourceRead and TargetRead actions. That is less compact than
+//! a copy-searching encoder, but it is deterministic, simple to audit, and fully compatible with the
+//! BPS format. Export code verifies every generated patch by applying it in memory.
 
-use std::io::{self, Write};
+use std::io::{self, ErrorKind, Write};
 
-/// BPS metadata for the patch header
 #[derive(Debug, Clone, Default)]
 pub struct BpsMetadata {
-    /// Patch name/title
     pub patch_name: Option<String>,
-    /// Patch author name
     pub author: Option<String>,
-    /// Patch description
     pub description: Option<String>,
 }
 
 impl BpsMetadata {
-    /// Create metadata with author and description
     pub fn new(author: Option<String>, description: Option<String>) -> Self {
         Self {
             patch_name: None,
@@ -29,7 +22,6 @@ impl BpsMetadata {
         }
     }
 
-    /// Create metadata with patch name, author and description
     pub fn with_name(
         patch_name: Option<String>,
         author: Option<String>,
@@ -43,52 +35,80 @@ impl BpsMetadata {
     }
 }
 
-/// BPS action types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u64)]
 enum BpsAction {
-    /// Read from source file (identical bytes)
-    SourceRead,
-    /// Read literal data from patch
-    TargetRead,
-    /// Copy from source file at offset
-    SourceCopy,
-    /// Copy from already-written target data
-    TargetCopy,
+    SourceRead = 0,
+    TargetRead = 1,
+    SourceCopy = 2,
+    TargetCopy = 3,
 }
 
-/// Encode a number using BPS variable-length encoding
-/// Each byte has 7 data bits, high bit indicates continuation
-fn encode_number(n: u64) -> Vec<u8> {
-    let mut result = Vec::new();
-    let mut n = n;
-
+/// BPS uses a biased variable-length integer, not ordinary LEB128.
+fn encode_number(mut value: u64) -> Vec<u8> {
+    let mut output = Vec::new();
     loop {
-        let mut byte = (n & 0x7F) as u8;
-        n >>= 7;
-        if n > 0 {
-            byte |= 0x80; // Set continuation bit
-        }
-        result.push(byte);
-        if n == 0 {
+        let byte = (value & 0x7f) as u8;
+        value >>= 7;
+        if value == 0 {
+            output.push(byte | 0x80);
             break;
         }
+        output.push(byte);
+        value -= 1;
     }
-
-    result
+    output
 }
 
-/// Calculate CRC32 using the standard polynomial (IEEE 802.3)
-/// Same algorithm as used in BPS specification
+fn decode_number(data: &[u8], cursor: &mut usize) -> io::Result<u64> {
+    let mut value = 0u64;
+    let mut shift = 1u64;
+    loop {
+        let byte = *data
+            .get(*cursor)
+            .ok_or_else(|| io::Error::new(ErrorKind::UnexpectedEof, "truncated BPS integer"))?;
+        *cursor += 1;
+        value = value
+            .checked_add(((byte & 0x7f) as u64).saturating_mul(shift))
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "BPS integer overflow"))?;
+        if byte & 0x80 != 0 {
+            return Ok(value);
+        }
+        shift = shift
+            .checked_shl(7)
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "BPS integer overflow"))?;
+        value = value
+            .checked_add(shift)
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "BPS integer overflow"))?;
+    }
+}
+
+fn encode_signed(value: i64) -> Vec<u8> {
+    let magnitude = value.unsigned_abs();
+    let encoded = (magnitude << 1) | u64::from(value < 0);
+    encode_number(encoded)
+}
+
+fn decode_signed(data: &[u8], cursor: &mut usize) -> io::Result<i64> {
+    let encoded = decode_number(data, cursor)?;
+    let magnitude = (encoded >> 1) as i64;
+    Ok(if encoded & 1 != 0 {
+        -magnitude
+    } else {
+        magnitude
+    })
+}
+
 fn crc32(data: &[u8]) -> u32 {
     const CRC_TABLE: [u32; 256] = {
         let mut table = [0u32; 256];
-        let mut i = 0;
+        let mut i = 0usize;
         while i < 256 {
             let mut crc = i as u32;
             let mut j = 0;
             while j < 8 {
                 crc = if crc & 1 != 0 {
-                    0xEDB88320 ^ (crc >> 1)
+                    0xedb8_8320 ^ (crc >> 1)
                 } else {
                     crc >> 1
                 };
@@ -100,402 +120,228 @@ fn crc32(data: &[u8]) -> u32 {
         table
     };
 
-    let mut crc: u32 = 0xFFFFFFFF;
+    let mut crc = 0xffff_ffffu32;
     for byte in data {
-        crc = CRC_TABLE[((crc ^ (*byte as u32)) & 0xFF) as usize] ^ (crc >> 8);
+        crc = CRC_TABLE[((crc ^ u32::from(*byte)) & 0xff) as usize] ^ (crc >> 8);
     }
     !crc
 }
 
-/// Create BPS metadata string (null-separated key-value pairs, double-null terminated)
-fn create_metadata_string(metadata: &BpsMetadata) -> Vec<u8> {
-    let mut result = Vec::new();
-
-    if let Some(author) = &metadata.author {
-        result.extend_from_slice(b"author\0");
-        result.extend_from_slice(author.as_bytes());
-        result.push(0);
+fn metadata_bytes(metadata: &BpsMetadata) -> Vec<u8> {
+    let mut fields = Vec::new();
+    if let Some(value) = &metadata.patch_name {
+        fields.push(format!("name={value}"));
     }
-
-    if let Some(description) = &metadata.description {
-        result.extend_from_slice(b"description\0");
-        result.extend_from_slice(description.as_bytes());
-        result.push(0);
+    if let Some(value) = &metadata.author {
+        fields.push(format!("author={value}"));
     }
-
-    // Double-null terminator
-    if !result.is_empty() {
-        result.push(0);
+    if let Some(value) = &metadata.description {
+        fields.push(format!("description={value}"));
     }
-
-    result
+    fields.join("\n").into_bytes()
 }
 
-/// Generate a BPS patch from original and modified data
-///
-/// # Arguments
-/// * `original` - The original ROM data
-/// * `modified` - The modified ROM data with changes applied
-/// * `metadata` - Optional metadata (author, description)
-///
-/// # Returns
-/// The BPS patch as a byte vector
+fn write_action(output: &mut Vec<u8>, action: BpsAction, length: usize) -> io::Result<()> {
+    if length == 0 {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "BPS action length must be non-zero",
+        ));
+    }
+    let encoded = ((length as u64 - 1) << 2) | action as u64;
+    output.write_all(&encode_number(encoded))
+}
+
+/// Generate a standards-compatible BPS patch.
 pub fn generate_bps(
     original: &[u8],
     modified: &[u8],
     metadata: &BpsMetadata,
 ) -> io::Result<Vec<u8>> {
     let mut output = Vec::new();
-
-    // Magic header
     output.write_all(b"BPS1")?;
-
-    // Source and target sizes (variable length encoded)
     output.write_all(&encode_number(original.len() as u64))?;
     output.write_all(&encode_number(modified.len() as u64))?;
 
-    // Metadata (variable length encoded size + content)
-    let metadata_bytes = create_metadata_string(metadata);
-    output.write_all(&encode_number(metadata_bytes.len() as u64))?;
-    output.write_all(&metadata_bytes)?;
+    let metadata = metadata_bytes(metadata);
+    output.write_all(&encode_number(metadata.len() as u64))?;
+    output.write_all(&metadata)?;
 
-    // Generate delta actions
-    let actions = generate_actions(original, modified);
+    let mut position = 0usize;
+    while position < modified.len() {
+        if position < original.len() && original[position] == modified[position] {
+            let start = position;
+            while position < modified.len()
+                && position < original.len()
+                && original[position] == modified[position]
+            {
+                position += 1;
+            }
+            write_action(&mut output, BpsAction::SourceRead, position - start)?;
+        } else {
+            let start = position;
+            while position < modified.len()
+                && (position >= original.len() || original[position] != modified[position])
+            {
+                position += 1;
+            }
+            write_action(&mut output, BpsAction::TargetRead, position - start)?;
+            output.write_all(&modified[start..position])?;
+        }
+    }
 
-    // Write actions
-    write_actions(&mut output, &actions, original, modified)?;
-
-    // Footer: source CRC, target CRC, patch CRC
     output.write_all(&crc32(original).to_le_bytes())?;
     output.write_all(&crc32(modified).to_le_bytes())?;
-
-    // Patch CRC is calculated over everything except the last 4 bytes (the patch CRC itself)
     let patch_crc = crc32(&output);
     output.write_all(&patch_crc.to_le_bytes())?;
-
     Ok(output)
 }
 
-/// BPS action with length and optional offset/data
-#[derive(Debug, Clone)]
-struct Action {
-    action_type: BpsAction,
-    length: u64,
-    offset: Option<u64>,   // For SourceCopy and TargetCopy
-    data: Option<Vec<u8>>, // For TargetRead
-}
-
-/// Generate the list of BPS actions to transform original into modified
-fn generate_actions(original: &[u8], modified: &[u8]) -> Vec<Action> {
-    let mut actions = Vec::new();
-    let mut output_pos: usize = 0;
-    let min_len = original.len().min(modified.len());
-
-    while output_pos < modified.len() {
-        // Try different action types and pick the best one
-        let source_read_len = calculate_source_read_len(original, modified, output_pos, min_len);
-        let (target_read_len, target_read_data) =
-            calculate_target_read(original, modified, output_pos, min_len);
-        let (source_copy_len, source_copy_offset) =
-            calculate_source_copy(original, modified, output_pos, min_len);
-        let (target_copy_len, target_copy_offset) = calculate_target_copy(modified, output_pos);
-
-        // Pick the longest action
-        let mut best_action = Action {
-            action_type: BpsAction::TargetRead,
-            length: target_read_len as u64,
-            offset: None,
-            data: Some(target_read_data),
-        };
-        let mut best_len = target_read_len;
-
-        if source_read_len > best_len {
-            best_action = Action {
-                action_type: BpsAction::SourceRead,
-                length: source_read_len as u64,
-                offset: None,
-                data: None,
-            };
-            best_len = source_read_len;
-        }
-
-        if source_copy_len > best_len {
-            best_action = Action {
-                action_type: BpsAction::SourceCopy,
-                length: source_copy_len as u64,
-                offset: Some(source_copy_offset as u64),
-                data: None,
-            };
-            best_len = source_copy_len;
-        }
-
-        if target_copy_len > best_len {
-            best_action = Action {
-                action_type: BpsAction::TargetCopy,
-                length: target_copy_len as u64,
-                offset: Some(target_copy_offset as u64),
-                data: None,
-            };
-            best_len = target_copy_len;
-        }
-
-        output_pos += best_len;
-        actions.push(best_action);
+/// Apply a BPS patch in memory and verify source, target, and patch CRCs.
+pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
+    if patch.len() < 4 + 12 || &patch[..4] != b"BPS1" {
+        return Err(io::Error::new(ErrorKind::InvalidData, "invalid BPS header"));
     }
 
-    // Optimize: merge consecutive SourceRead actions
-    optimize_actions(&mut actions);
-
-    actions
-}
-
-/// Calculate how many bytes can be SourceRead (identical in both files)
-fn calculate_source_read_len(
-    original: &[u8],
-    modified: &[u8],
-    pos: usize,
-    min_len: usize,
-) -> usize {
-    if pos >= min_len {
-        return 0;
+    let footer_start = patch
+        .len()
+        .checked_sub(12)
+        .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "truncated BPS footer"))?;
+    let source_crc = u32::from_le_bytes(
+        patch[footer_start..footer_start + 4]
+            .try_into()
+            .map_err(|_| io::Error::new(ErrorKind::InvalidData, "invalid source CRC"))?,
+    );
+    let target_crc = u32::from_le_bytes(
+        patch[footer_start + 4..footer_start + 8]
+            .try_into()
+            .map_err(|_| io::Error::new(ErrorKind::InvalidData, "invalid target CRC"))?,
+    );
+    let patch_crc = u32::from_le_bytes(
+        patch[footer_start + 8..footer_start + 12]
+            .try_into()
+            .map_err(|_| io::Error::new(ErrorKind::InvalidData, "invalid patch CRC"))?,
+    );
+    if source_crc != crc32(original) {
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "BPS source CRC does not match the supplied base image",
+        ));
+    }
+    if patch_crc != crc32(&patch[..patch.len() - 4]) {
+        return Err(io::Error::new(ErrorKind::InvalidData, "BPS patch CRC mismatch"));
     }
 
-    let mut len = 0;
-    while pos + len < min_len && original[pos + len] == modified[pos + len] {
-        len += 1;
-        // Prevent excessively long single actions - BPS can encode very large lengths
-        // but we chunk at a reasonable size for memory efficiency
-        if len >= 65536 {
-            break;
-        }
+    let mut cursor = 4usize;
+    let source_size = usize::try_from(decode_number(patch, &mut cursor)?)
+        .map_err(|_| io::Error::new(ErrorKind::InvalidData, "source size overflow"))?;
+    let target_size = usize::try_from(decode_number(patch, &mut cursor)?)
+        .map_err(|_| io::Error::new(ErrorKind::InvalidData, "target size overflow"))?;
+    let metadata_size = usize::try_from(decode_number(patch, &mut cursor)?)
+        .map_err(|_| io::Error::new(ErrorKind::InvalidData, "metadata size overflow"))?;
+    if source_size != original.len() {
+        return Err(io::Error::new(ErrorKind::InvalidData, "BPS source size mismatch"));
     }
-    len
-}
+    cursor = cursor
+        .checked_add(metadata_size)
+        .filter(|value| *value <= footer_start)
+        .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "invalid BPS metadata size"))?;
 
-/// Calculate TargetRead (literal data from modified file that's different from original)
-fn calculate_target_read(
-    original: &[u8],
-    modified: &[u8],
-    pos: usize,
-    min_len: usize,
-) -> (usize, Vec<u8>) {
-    let mut len = 0;
-    let mut data = Vec::new();
+    let mut target = Vec::with_capacity(target_size);
+    let mut source_relative = 0i64;
+    let mut target_relative = 0i64;
 
-    // Read until we find bytes that match original again
-    while pos + len < modified.len() {
-        if pos + len < min_len && original[pos + len] == modified[pos + len] {
-            // This byte matches, stop here
-            break;
+    while target.len() < target_size {
+        if cursor >= footer_start {
+            return Err(io::Error::new(ErrorKind::UnexpectedEof, "truncated BPS actions"));
         }
-        data.push(modified[pos + len]);
-        len += 1;
-        // Chunk large TargetRead actions
-        if len >= 65536 {
-            break;
-        }
-    }
-
-    (len, data)
-}
-
-/// Calculate SourceCopy (copy a chunk from source file at a different offset)
-fn calculate_source_copy(
-    original: &[u8],
-    modified: &[u8],
-    pos: usize,
-    min_len: usize,
-) -> (usize, usize) {
-    if pos >= min_len {
-        return (0, 0);
-    }
-
-    // Look for a matching chunk in the original file
-    // Simple approach: just check if there's a match at a different position
-    // For efficiency, we use a hash-based approach for larger files
-
-    let target_chunk = &modified[pos..modified.len().min(pos + 16)];
-    if target_chunk.is_empty() {
-        return (0, 0);
-    }
-
-    // Simple search for small files (SNES ROMs are ~2-4MB)
-    // For larger files, a rolling hash would be more efficient
-    let search_start = if pos > 32768 { pos - 32768 } else { 0 };
-    let search_end = original.len().min(pos + 32768);
-
-    let mut best_len = 0;
-    let mut best_offset = 0;
-
-    for offset in search_start..search_end {
-        if offset == pos || offset + target_chunk.len() > original.len() {
-            continue;
+        let command = decode_number(patch, &mut cursor)?;
+        let action = command & 3;
+        let length = usize::try_from((command >> 2) + 1)
+            .map_err(|_| io::Error::new(ErrorKind::InvalidData, "BPS action length overflow"))?;
+        if target.len().saturating_add(length) > target_size {
+            return Err(io::Error::new(ErrorKind::InvalidData, "BPS action exceeds target size"));
         }
 
-        // Quick check first byte
-        if original[offset] != target_chunk[0] {
-            continue;
-        }
-
-        // Check full match
-        let mut match_len = 0;
-        while offset + match_len < original.len()
-            && pos + match_len < modified.len()
-            && original[offset + match_len] == modified[pos + match_len]
-            && match_len < 65536
-        {
-            match_len += 1;
-        }
-
-        if match_len > best_len && match_len >= 4 {
-            best_len = match_len;
-            best_offset = offset;
-        }
-    }
-
-    (best_len, best_offset)
-}
-
-/// Calculate TargetCopy (copy from already-written target data)
-fn calculate_target_copy(modified: &[u8], pos: usize) -> (usize, usize) {
-    if pos == 0 {
-        return (0, 0);
-    }
-
-    // Look for a matching chunk in the already-written target data
-    let target_chunk = &modified[pos..modified.len().min(pos + 16)];
-    if target_chunk.is_empty() {
-        return (0, 0);
-    }
-
-    // Search backwards in the already-written portion
-    let search_end = pos;
-    let search_start = pos.saturating_sub(65536);
-
-    let mut best_len = 0;
-    let mut best_offset = 0;
-
-    for offset in search_start..search_end {
-        if offset + target_chunk.len() > modified.len() {
-            continue;
-        }
-
-        if modified[offset] != target_chunk[0] {
-            continue;
-        }
-
-        let mut match_len = 0;
-        while offset + match_len < pos
-            && pos + match_len < modified.len()
-            && modified[offset + match_len] == modified[pos + match_len]
-            && match_len < 65536
-        {
-            match_len += 1;
-        }
-
-        if match_len > best_len && match_len >= 4 {
-            best_len = match_len;
-            best_offset = offset;
-        }
-    }
-
-    (best_len, best_offset)
-}
-
-/// Optimize actions by merging consecutive SourceRead actions
-fn optimize_actions(actions: &mut Vec<Action>) {
-    if actions.len() < 2 {
-        return;
-    }
-
-    let mut i = 0;
-    while i + 1 < actions.len() {
-        if actions[i].action_type == BpsAction::SourceRead
-            && actions[i + 1].action_type == BpsAction::SourceRead
-        {
-            // Merge them
-            actions[i].length += actions[i + 1].length;
-            actions.remove(i + 1);
-        } else {
-            i += 1;
-        }
-    }
-}
-
-/// Write actions to the output buffer in BPS format
-fn write_actions(
-    output: &mut Vec<u8>,
-    actions: &[Action],
-    _original: &[u8],
-    _modified: &[u8],
-) -> io::Result<()> {
-    for action in actions {
-        match action.action_type {
-            BpsAction::SourceRead => {
-                // SourceRead: length encoded as (length - 1) * 4 + 0
-                let encoded = (action.length - 1) * 4 + 0;
-                output.write_all(&encode_number(encoded))?;
+        match action {
+            0 => {
+                let start = target.len();
+                let end = start.checked_add(length).ok_or_else(|| {
+                    io::Error::new(ErrorKind::InvalidData, "BPS source read overflow")
+                })?;
+                let bytes = original.get(start..end).ok_or_else(|| {
+                    io::Error::new(ErrorKind::InvalidData, "BPS source read out of range")
+                })?;
+                target.extend_from_slice(bytes);
             }
-            BpsAction::TargetRead => {
-                // TargetRead: length encoded as (length - 1) * 4 + 1, followed by data
-                let encoded = (action.length - 1) * 4 + 1;
-                output.write_all(&encode_number(encoded))?;
-                if let Some(data) = &action.data {
-                    output.write_all(data)?;
+            1 => {
+                let end = cursor.checked_add(length).ok_or_else(|| {
+                    io::Error::new(ErrorKind::InvalidData, "BPS target read overflow")
+                })?;
+                if end > footer_start {
+                    return Err(io::Error::new(ErrorKind::UnexpectedEof, "truncated target data"));
+                }
+                target.extend_from_slice(&patch[cursor..end]);
+                cursor = end;
+            }
+            2 => {
+                source_relative = source_relative
+                    .checked_add(decode_signed(patch, &mut cursor)?)
+                    .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "source copy overflow"))?;
+                if source_relative < 0 {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "negative source copy"));
+                }
+                let start = source_relative as usize;
+                let end = start.checked_add(length).ok_or_else(|| {
+                    io::Error::new(ErrorKind::InvalidData, "source copy range overflow")
+                })?;
+                let bytes = original.get(start..end).ok_or_else(|| {
+                    io::Error::new(ErrorKind::InvalidData, "source copy out of range")
+                })?;
+                target.extend_from_slice(bytes);
+                source_relative = end as i64;
+            }
+            3 => {
+                target_relative = target_relative
+                    .checked_add(decode_signed(patch, &mut cursor)?)
+                    .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "target copy overflow"))?;
+                if target_relative < 0 {
+                    return Err(io::Error::new(ErrorKind::InvalidData, "negative target copy"));
+                }
+                for _ in 0..length {
+                    let source_index = target_relative as usize;
+                    let byte = *target.get(source_index).ok_or_else(|| {
+                        io::Error::new(ErrorKind::InvalidData, "target copy out of range")
+                    })?;
+                    target.push(byte);
+                    target_relative += 1;
                 }
             }
-            BpsAction::SourceCopy => {
-                // SourceCopy: length encoded as (length - 1) * 4 + 2, followed by relative offset
-                let encoded = (action.length - 1) * 4 + 2;
-                output.write_all(&encode_number(encoded))?;
-                // Offset is encoded as a signed relative offset
-                let offset = action.offset.unwrap_or(0) as i64;
-                output.write_all(&encode_signed_number(offset))?;
-            }
-            BpsAction::TargetCopy => {
-                // TargetCopy: length encoded as (length - 1) * 4 + 3, followed by relative offset
-                let encoded = (action.length - 1) * 4 + 3;
-                output.write_all(&encode_number(encoded))?;
-                let offset = action.offset.unwrap_or(0) as i64;
-                output.write_all(&encode_signed_number(offset))?;
-            }
+            _ => unreachable!(),
         }
     }
 
-    Ok(())
+    if target_crc != crc32(&target) {
+        return Err(io::Error::new(ErrorKind::InvalidData, "BPS target CRC mismatch"));
+    }
+    Ok(target)
 }
 
-/// Encode a signed number using BPS variable-length encoding
-fn encode_signed_number(n: i64) -> Vec<u8> {
-    // BPS uses a specific encoding for signed numbers:
-    // The sign is stored in bit 0, and the absolute value is shifted right by 1
-    let (sign_bit, abs_value) = if n < 0 {
-        (1, (-n) as u64)
-    } else {
-        (0, n as u64)
-    };
-
-    let encoded = (abs_value << 1) | sign_bit as u64;
-    encode_number(encoded)
-}
-
-/// Generate a BPS patch and write it directly to a file
-///
-/// # Arguments
-/// * `original` - The original ROM data
-/// * `modified` - The modified ROM data with changes applied
-/// * `output_path` - Path to write the BPS patch file
-/// * `metadata` - Optional metadata (author, description)
 pub fn generate_bps_to_file(
     original: &[u8],
     modified: &[u8],
     output_path: &str,
     metadata: &BpsMetadata,
 ) -> io::Result<()> {
-    let patch_data = generate_bps(original, modified, metadata)?;
-    let mut file = std::fs::File::create(output_path)?;
-    file.write_all(&patch_data)?;
-    Ok(())
+    let patch = generate_bps(original, modified, metadata)?;
+    let verified = apply_bps(original, &patch)?;
+    if verified != modified {
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "generated BPS did not reproduce the target image",
+        ));
+    }
+    std::fs::write(output_path, patch)
 }
 
 #[cfg(test)]
@@ -503,72 +349,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_encode_number() {
-        // Small numbers fit in one byte
-        assert_eq!(encode_number(0), vec![0x00]);
-        assert_eq!(encode_number(127), vec![0x7F]);
-
-        // Larger numbers need continuation
-        assert_eq!(encode_number(128), vec![0x80, 0x01]);
-        assert_eq!(encode_number(255), vec![0xFF, 0x01]);
-        assert_eq!(encode_number(256), vec![0x80, 0x02]);
+    fn bps_number_round_trip() {
+        for value in [0, 1, 127, 128, 255, 256, 16_384, 1_000_000] {
+            let encoded = encode_number(value);
+            let mut cursor = 0;
+            assert_eq!(decode_number(&encoded, &mut cursor).unwrap(), value);
+            assert_eq!(cursor, encoded.len());
+        }
     }
 
     #[test]
-    fn test_crc32() {
-        // Test CRC32 calculation
-        let data = b"123456789";
-        let crc = crc32(data);
-        // Known CRC32 value for "123456789"
-        assert_eq!(crc, 0xCBF43926);
+    fn signed_number_round_trip() {
+        for value in [-10_000, -1, 0, 1, 10_000] {
+            let encoded = encode_signed(value);
+            let mut cursor = 0;
+            assert_eq!(decode_signed(&encoded, &mut cursor).unwrap(), value);
+        }
     }
 
     #[test]
-    fn test_encode_signed_number() {
-        // Test signed number encoding
-        assert_eq!(encode_signed_number(0), vec![0x00]);
-        assert_eq!(encode_signed_number(1), vec![0x02]); // 1 << 1 = 2
-        assert_eq!(encode_signed_number(-1), vec![0x03]); // (1 << 1) | 1 = 3
-        assert_eq!(encode_signed_number(2), vec![0x04]); // 2 << 1 = 4
-        assert_eq!(encode_signed_number(-2), vec![0x05]); // (2 << 1) | 1 = 5
+    fn crc32_known_vector() {
+        assert_eq!(crc32(b"123456789"), 0xcbf4_3926);
     }
 
     #[test]
-    fn test_create_metadata() {
-        let metadata = BpsMetadata::new(
-            Some("Test Author".to_string()),
-            Some("Test Description".to_string()),
-        );
-        let bytes = create_metadata_string(&metadata);
-        let expected = b"author\0Test Author\0description\0Test Description\0\0";
-        assert_eq!(bytes, expected.to_vec());
+    fn generated_patch_reproduces_same_size_target() {
+        let source = vec![0, 1, 2, 3, 4, 5];
+        let target = vec![0, 1, 9, 8, 4, 5];
+        let patch = generate_bps(&source, &target, &BpsMetadata::default()).unwrap();
+        assert_eq!(apply_bps(&source, &patch).unwrap(), target);
     }
 
     #[test]
-    fn test_generate_bps_simple() {
-        let original = vec![0x00, 0x01, 0x02, 0x03, 0x04];
-        let modified = vec![0x00, 0x01, 0xFF, 0x03, 0x04];
-        let metadata = BpsMetadata::default();
-
-        let patch = generate_bps(&original, &modified, &metadata).unwrap();
-
-        // Check magic
-        assert_eq!(&patch[0..4], b"BPS1");
-
-        // Should have valid structure (header + actions + footer)
-        // Minimum size: 4 (magic) + 1 (source size) + 1 (target size) + 1 (metadata size) +
-        //               12 (footer: 3 * 4 byte CRCs)
-        assert!(patch.len() >= 20);
+    fn generated_patch_reproduces_expanded_target() {
+        let source = vec![0, 1, 2];
+        let target = vec![0, 1, 2, 3, 4, 5];
+        let patch = generate_bps(&source, &target, &BpsMetadata::default()).unwrap();
+        assert_eq!(apply_bps(&source, &patch).unwrap(), target);
     }
 
     #[test]
-    fn test_generate_bps_with_metadata() {
-        let original = vec![0x00; 100];
-        let modified = vec![0xFF; 100];
-        let metadata = BpsMetadata::new(Some("Author".to_string()), None);
-
-        let patch = generate_bps(&original, &modified, &metadata).unwrap();
-        assert!(!patch.is_empty());
-        assert_eq!(&patch[0..4], b"BPS1");
+    fn wrong_source_is_rejected() {
+        let source = vec![0, 1, 2];
+        let target = vec![0, 9, 2];
+        let patch = generate_bps(&source, &target, &BpsMetadata::default()).unwrap();
+        assert!(apply_bps(&[9, 9, 9], &patch).is_err());
     }
 }
