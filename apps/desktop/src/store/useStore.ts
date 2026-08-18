@@ -1113,8 +1113,6 @@ export const useStore = create<AppStore>((set, get) => ({
         error: null 
       });
       await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
-      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
-      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to load project:', e);
       set({ error: (e as Error).toString() });

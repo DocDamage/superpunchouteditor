@@ -78,11 +78,8 @@ pub async fn test_in_emulator(
 
     let _child = if let Some(slot) = quick_load_slot {
         // Locate save states using the original ROM identity while launching the materialized image.
-        let state_path = EmulatorLauncher::get_save_state_path(
-            settings.emulator_type,
-            &source_rom,
-            Some(slot),
-        );
+        let state_path =
+            EmulatorLauncher::get_save_state_path(settings.emulator_type, &source_rom, Some(slot));
         EmulatorLauncher::launch_with_state(
             &temp_rom_path,
             &emulator_path,
