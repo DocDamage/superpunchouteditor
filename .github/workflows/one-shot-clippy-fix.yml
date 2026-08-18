@@ -41,3 +41,5 @@ jobs:
           git add -A
           git commit -m "Fix machine-applicable Clippy warnings"
           git push origin HEAD:agent/project-remediation-modernization
+
+# Triggered once for final mechanical lint cleanup; remove this workflow after it commits.
