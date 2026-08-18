@@ -62,8 +62,8 @@ export const FEATURE_MATURITY: Record<ProductFeatureKey, FeatureMaturityRecord> 
     releaseDecision: "Frame reconstruction/mutation remains research dependent.",
   },
   compare: {
-    status: "stable",
-    releaseDecision: "Comparison must use immutable base versus the materialized current revision.",
+    status: "experimental",
+    releaseDecision: "Binary/report comparison uses the canonical revision; visual renderer remains experimental.",
   },
   project: {
     status: "stable",
