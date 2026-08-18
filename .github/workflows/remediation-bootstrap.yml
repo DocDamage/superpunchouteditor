@@ -57,9 +57,20 @@ jobs:
                   imported.get(&sound_id).cloned()
               }'''
           count = text.count(old)
-          if count != 3:
-              raise SystemExit(f'expected 3 audio lock patterns, found {count}')
-          audio.write_text(text.replace(old, new), encoding='utf-8')
+          if count not in (0, 3):
+              raise SystemExit(f'expected 0 or 3 audio lock patterns, found {count}')
+          if count:
+              audio.write_text(text.replace(old, new), encoding='utf-8')
+
+          rom_lib = Path('crates/rom-core/src/lib.rs')
+          text = rom_lib.read_text(encoding='utf-8')
+          marker = 'pub mod comparison;\npub use comparison::*;\n'
+          addition = 'pub mod edit;\npub use edit::*;\n\n'
+          if 'pub mod edit;' not in text:
+              if marker not in text:
+                  raise SystemExit('rom-core module marker changed unexpectedly')
+              text = text.replace(marker, marker + '\n' + addition, 1)
+              rom_lib.write_text(text, encoding='utf-8')
 
       - name: Remove tracked generated build artifacts
         run: git rm -r --ignore-unmatch target2 target3
@@ -70,6 +81,18 @@ jobs:
       - name: Generate frontend lockfile
         working-directory: apps/desktop
         run: npm install --package-lock-only --ignore-scripts
+
+      - name: Normalize Rust whitespace
+        shell: python
+        run: |
+          from pathlib import Path
+          for path in Path('.').rglob('*.rs'):
+              if any(part.startswith('target') for part in path.parts):
+                  continue
+              text = path.read_text(encoding='utf-8')
+              normalized = '\n'.join(line.rstrip() for line in text.splitlines()) + '\n'
+              if normalized != text:
+                  path.write_text(normalized, encoding='utf-8')
 
       - name: Format Rust workspace
         run: cargo fmt --all
