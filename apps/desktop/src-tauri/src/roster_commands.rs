@@ -454,7 +454,6 @@ pub fn get_boxers_by_unlock_order(state: State<AppState>) -> Result<Vec<BoxerRos
 /// Update a boxer's name
 ///
 /// Writes to ROM if loaded, otherwise just validates
-#[tauri::command]
 pub fn update_boxer_name(
     state: State<AppState>,
     fighter_id: u8,
@@ -511,7 +510,6 @@ pub fn validate_creator_session(
     validate_creator_session_internal(&state, &session)
 }
 
-#[tauri::command]
 pub fn commit_creator_session(
     state: State<AppState>,
     session: CreatorSessionState,
@@ -576,7 +574,6 @@ pub fn get_text_encoding_info(_state: State<AppState>) -> TextEncodingInfo {
 // ============================================================================
 
 /// Update a boxer's circuit assignment
-#[tauri::command]
 pub fn update_boxer_circuit(
     state: State<AppState>,
     fighter_id: u8,
@@ -644,7 +641,6 @@ pub fn get_circuit_types(_state: State<AppState>) -> Vec<serde_json::Value> {
 // ============================================================================
 
 /// Update a boxer's unlock order
-#[tauri::command]
 pub fn update_unlock_order(
     state: State<AppState>,
     fighter_id: u8,
@@ -676,7 +672,6 @@ pub fn update_unlock_order(
 }
 
 /// Set champion flag for a boxer
-#[tauri::command]
 pub fn set_champion_status(
     state: State<AppState>,
     fighter_id: u8,
@@ -727,7 +722,6 @@ pub fn get_boxer_intro(
 /// Update a specific intro field for a boxer
 ///
 /// Fields: 0=name, 1=origin, 2=record, 3=rank, 4=quote
-#[tauri::command]
 pub fn update_boxer_intro_field(
     state: State<AppState>,
     fighter_id: u8,
@@ -784,7 +778,6 @@ pub fn get_intro_text(state: State<AppState>, text_id: u8) -> Result<IntroTextRe
 }
 
 /// Update intro text (legacy - use update_boxer_intro_field instead)
-#[tauri::command]
 pub fn update_intro_text(
     state: State<AppState>,
     text_id: u8,
@@ -936,7 +929,6 @@ pub fn validate_roster_changes(state: State<AppState>) -> Result<ValidationRepor
 }
 
 /// Reset roster to defaults
-#[tauri::command]
 pub fn reset_roster_to_defaults(_state: State<AppState>) -> Result<RosterDataResponse, String> {
     let roster = RosterData::new();
     Ok(roster.into())

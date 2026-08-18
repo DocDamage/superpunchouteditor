@@ -80,7 +80,7 @@ pub fn add_external_tool(state: State<'_, AppState>, tool: ExternalTool) -> Resu
     // Save to disk
     drop(config);
     let config = state.external_tools.lock();
-    save_external_tools_config(&*config)?;
+    save_external_tools_config(&config)?;
 
     Ok(())
 }
@@ -97,7 +97,7 @@ pub fn remove_external_tool(state: State<'_, AppState>, tool_id: String) -> Resu
     // Save to disk
     drop(config);
     let config = state.external_tools.lock();
-    save_external_tools_config(&*config)?;
+    save_external_tools_config(&config)?;
 
     Ok(())
 }
@@ -118,7 +118,7 @@ pub fn update_external_tool(state: State<'_, AppState>, tool: ExternalTool) -> R
     // Save to disk
     drop(config);
     let config = state.external_tools.lock();
-    save_external_tools_config(&*config)?;
+    save_external_tools_config(&config)?;
 
     Ok(())
 }
@@ -209,7 +209,7 @@ pub fn set_default_tool(
     // Save to disk
     drop(config);
     let config = state.external_tools.lock();
-    save_external_tools_config(&*config)?;
+    save_external_tools_config(&config)?;
 
     Ok(())
 }

@@ -29,7 +29,7 @@ pub fn get_free_space_regions(
     // Build list of allocated regions from manifest
     let mut allocated: Vec<(usize, usize)> = Vec::new();
 
-    for (_fighter_name, boxer) in &manifest.fighters {
+    for boxer in manifest.fighters.values() {
         let all_assets: Vec<_> = boxer
             .palette_files
             .iter()
@@ -67,7 +67,7 @@ pub fn get_rom_space_info(state: State<AppState>) -> Result<RomSpaceInfo, String
     let mut allocated: Vec<(usize, usize)> = Vec::new();
     let mut allocated_bytes = 0usize;
 
-    for (_fighter_name, boxer) in &manifest.fighters {
+    for boxer in manifest.fighters.values() {
         let all_assets: Vec<_> = boxer
             .palette_files
             .iter()
@@ -123,7 +123,7 @@ pub fn validate_relocation_command(
     let manifest = state.manifest.lock();
 
     let mut allocated: Vec<(usize, usize)> = Vec::new();
-    for (_fighter_name, boxer) in &manifest.fighters {
+    for boxer in manifest.fighters.values() {
         let all_assets: Vec<_> = boxer
             .palette_files
             .iter()
@@ -300,7 +300,7 @@ pub fn preview_relocation(
     let manifest = state.manifest.lock();
 
     let mut allocated: Vec<(usize, usize)> = Vec::new();
-    for (_fighter_name, boxer) in &manifest.fighters {
+    for boxer in manifest.fighters.values() {
         let all_assets: Vec<_> = boxer
             .palette_files
             .iter()

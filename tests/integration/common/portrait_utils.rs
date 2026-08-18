@@ -3,6 +3,8 @@
 //! Provides helpers for creating test images, converting to 4bpp tiles,
 //! and verifying round-trip encoding/decoding.
 
+#![allow(dead_code)]
+
 use image::{ImageBuffer, Rgba, RgbaImage};
 
 /// Standard test palette (16 colors for 4bpp)

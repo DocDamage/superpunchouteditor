@@ -41,7 +41,7 @@ fn legacy_file_from_session(
         file.source_region = session
             .base()
             .region()
-            .map(|region| region.as_str().to_string());
+            .map(|region| region.code().to_string());
     }
 
     for transaction in session.journal().active_transactions() {

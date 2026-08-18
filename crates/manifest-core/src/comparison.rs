@@ -135,6 +135,8 @@ pub enum StatField {
 }
 
 impl StatField {
+    // Kept as an Option-returning compatibility API; this intentionally differs from std::str::FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "attack" => Some(Self::Attack),

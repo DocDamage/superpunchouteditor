@@ -68,9 +68,7 @@ pub fn get_output_preflight(
     Ok(OutputPreflight {
         source_sha1: materialized.base_sha1,
         current_sha1: materialized.current_sha1,
-        region: materialized
-            .region
-            .map(|region| region.as_str().to_string()),
+        region: materialized.region.map(|region| region.code().to_string()),
         revision: materialized.revision,
         transaction_count: materialized.transaction_count,
         changed_byte_count: materialized.changed_byte_count,

@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn test_compare_tiles() {
         // 2 tiles (32 bytes each)
-        let mut original = vec![0u8; 64];
+        let original = vec![0u8; 64];
         let mut modified = vec![0u8; 64];
 
         // Change byte in second tile

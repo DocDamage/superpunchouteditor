@@ -103,7 +103,7 @@ unsafe extern "C" fn audio_sample_batch_callback(
 ) -> libc::size_t {
     let audio = { CALLBACK_TARGETS.lock().audio.clone() };
     if let Some(audio) = audio {
-        return audio.submit_batch(data, frames);
+        return unsafe { audio.submit_batch(data, frames) };
     }
     0
 }

@@ -218,13 +218,13 @@ impl ControllerInput {
 #[tauri::command]
 pub fn init_emulator(state: State<'_, AppState>, core_path: Option<String>) -> Result<(), String> {
     let requested_core_path =
-        core_path.unwrap_or_else(|| EmbeddedEmulatorState::get_default_core_path());
+        core_path.unwrap_or_else(EmbeddedEmulatorState::get_default_core_path);
     let mut resolved_core_path = requested_core_path.clone();
 
     // Check if core file exists
     if !std::path::Path::new(&requested_core_path).exists() {
         // Try to find in common locations
-        let common_paths = vec![
+        let common_paths = [
             "./cores/snes9x_libretro.dll",
             "./cores/snes9x_libretro.so",
             "./cores/snes9x_libretro.dylib",

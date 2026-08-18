@@ -7,6 +7,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+type RomReader = Box<dyn Fn(usize, usize) -> PluginResult<Vec<u8>> + Send + Sync>;
+type RomWriter = Box<dyn Fn(usize, &[u8]) -> PluginResult<()> + Send + Sync>;
+type AssetGetter = Box<dyn Fn(&str) -> PluginResult<AssetInfo> + Send + Sync>;
+type PluginLogger = Box<dyn Fn(log::Level, &str) + Send + Sync>;
+type PluginNotifier = Box<dyn Fn(&str, NotificationType) + Send + Sync>;
+
 /// API exposed to plugins
 ///
 /// This provides a controlled interface for plugins to access and modify
@@ -14,15 +20,15 @@ use std::sync::Arc;
 pub struct PluginApi {
     context: Arc<RwLock<PluginContext>>,
     /// Callback to read ROM bytes
-    rom_reader: Box<dyn Fn(usize, usize) -> PluginResult<Vec<u8>> + Send + Sync>,
+    rom_reader: RomReader,
     /// Callback to write ROM bytes
-    rom_writer: Box<dyn Fn(usize, &[u8]) -> PluginResult<()> + Send + Sync>,
+    rom_writer: RomWriter,
     /// Callback to get asset info
-    asset_getter: Box<dyn Fn(&str) -> PluginResult<AssetInfo> + Send + Sync>,
+    asset_getter: AssetGetter,
     /// Callback to log messages
-    logger: Box<dyn Fn(log::Level, &str) + Send + Sync>,
+    logger: PluginLogger,
     /// Callback to show notifications
-    notifier: Box<dyn Fn(&str, NotificationType) + Send + Sync>,
+    notifier: PluginNotifier,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

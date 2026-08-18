@@ -169,7 +169,7 @@ pub async fn check_for_updates(
             // Compare versions using semver
             let current = semver::Version::parse(CURRENT_VERSION)
                 .map_err(|e| format!("Failed to parse current version: {}", e))?;
-            let latest = semver::Version::parse(&version.trim_start_matches('v'))
+            let latest = semver::Version::parse(version.trim_start_matches('v'))
                 .map_err(|e| format!("Failed to parse latest version: {}", e))?;
 
             if latest <= current {

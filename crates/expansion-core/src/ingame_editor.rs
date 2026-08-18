@@ -1199,7 +1199,7 @@ fn align_up(value: usize, alignment: usize) -> usize {
     if alignment <= 1 {
         value
     } else {
-        value.div_ceil(alignment) * alignment
+        (value / alignment + usize::from(value % alignment != 0)) * alignment
     }
 }
 

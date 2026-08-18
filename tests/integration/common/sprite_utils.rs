@@ -2,6 +2,8 @@
 //!
 //! Provides helper functions for creating test tiles and sprite patterns.
 
+#![allow(dead_code)]
+
 use asset_core::Tile;
 
 /// Creates a tile with an alternating checkerboard pattern

@@ -144,7 +144,6 @@ mod tests {
 
     #[test]
     fn test_wav_roundtrip() {
-        use std::io::Write;
         use tempfile::NamedTempFile;
 
         // Create test PCM data
@@ -153,7 +152,7 @@ mod tests {
             .collect();
 
         // Write to temp WAV file
-        let mut temp = NamedTempFile::new().unwrap();
+        let temp = NamedTempFile::new().unwrap();
         write_wav_file(temp.path(), &original_pcm, 32040).unwrap();
 
         // Read it back

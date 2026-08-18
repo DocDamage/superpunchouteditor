@@ -185,7 +185,11 @@ impl AudioBuffer {
     }
 
     /// Submit a batch of samples (modern libretro callback)
-    pub fn submit_batch(&self, data: *const i16, frames: usize) -> usize {
+    ///
+    /// # Safety
+    /// `data` must point to at least `frames * 2` initialized `i16` samples and remain
+    /// valid for the duration of this call. This contract is provided by libretro.
+    pub unsafe fn submit_batch(&self, data: *const i16, frames: usize) -> usize {
         if !self.config.read().enabled || data.is_null() || frames == 0 {
             return 0;
         }

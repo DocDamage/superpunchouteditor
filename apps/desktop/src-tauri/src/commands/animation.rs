@@ -8,8 +8,7 @@ use tauri::State;
 
 use crate::app_state::AppState;
 use rom_core::animation::{
-    Animation, AnimationCategory, AnimationFrame, AnimationLoader, FighterAnimations, FrameEffect,
-    Hitbox, HitboxType, Hurtbox, ANIM_TYPE_IDLE,
+    Animation, AnimationFrame, AnimationLoader, FighterAnimations, Hitbox, HitboxType, Hurtbox,
 };
 
 // ============================================================================
