@@ -34,6 +34,7 @@ jobs:
           python scripts/ci/apply_remediation_transforms.py
           python scripts/ci/register_stable_commands.py
           python scripts/ci/migrate_asset_commands.py
+          python scripts/ci/migrate_comparison_commands.py
       - name: Regenerate Rust lockfile
         run: cargo generate-lockfile
       - name: Apply machine-safe Clippy fixes
