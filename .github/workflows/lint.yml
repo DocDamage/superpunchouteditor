@@ -2,12 +2,15 @@ name: Lint
 
 on:
   push:
-    branches: [main, develop, agent/project-remediation-modernization]
+    branches: [master, develop, agent/project-remediation-modernization]
   pull_request:
 
 concurrency:
   group: lint-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   rust:
