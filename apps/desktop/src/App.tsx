@@ -70,7 +70,7 @@ type TabKey =
 
 const MODAL_STYLE_TABS = new Set<TabKey>(["plugins", "packs", "test", "settings"]);
 
-const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
+const ALL_TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: "editor", label: "Editor" },
   { key: "roster", label: "Character Create" },
   { key: "viewer", label: "Viewer" },
@@ -88,7 +88,9 @@ const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: "text", label: "Text" },
   { key: "test", label: "Test" },
   { key: "settings", label: "Settings" },
-]
+];
+
+const TAB_ITEMS: Array<{ key: TabKey; label: string }> = ALL_TAB_ITEMS
   .filter(({ key }) => isFeatureVisible(key))
   .map(({ key, label }) => ({ key, label: featureLabel(label, key) }));
 
