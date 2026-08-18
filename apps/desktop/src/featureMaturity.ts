@@ -99,7 +99,7 @@ export const FEATURE_MATURITY: Record<ProductFeatureKey, FeatureMaturityRecord> 
   },
   test: {
     status: "stable",
-    releaseDecision: "Embedded emulator consumes the exact materialized current image.",
+    releaseDecision: "All test launches consume the exact materialized current image. Embedded emulation requires a compatible user-supplied Snes9x libretro core; external emulator testing is supported through Settings.",
   },
   settings: {
     status: "stable",
