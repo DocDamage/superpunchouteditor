@@ -38,68 +38,95 @@ jobs:
             librsvg2-dev \
             libasound2-dev \
             patchelf
-      - name: Remove obsolete direct-write roster path
+      - name: Apply targeted strict-lint cleanups
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          roster_path = Path("apps/desktop/src-tauri/src/roster_commands.rs")
-          text = roster_path.read_text(encoding="utf-8")
-          obsolete = [
-              "commit_creator_session_internal",
-              "update_boxer_name",
-              "commit_creator_session",
-              "update_boxer_circuit",
-              "update_unlock_order",
-              "set_champion_status",
-              "update_boxer_intro_field",
-              "update_intro_text",
-              "reset_roster_to_defaults",
-          ]
+          def replace_exact(path: str, old: str, new: str, *, count: int | None = 1) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              occurrences = text.count(old)
+              if occurrences == 0:
+                  return
+              if count is not None and occurrences < count:
+                  raise RuntimeError(f"Expected at least {count} occurrence(s) in {path}, found {occurrences}")
+              text = text.replace(old, new) if count is None else text.replace(old, new, count)
+              file.write_text(text, encoding="utf-8")
 
-          def remove_function(source: str, name: str) -> str:
-              positions = []
-              for prefix in (f"pub(crate) fn {name}(", f"pub fn {name}("):
-                  pos = source.find(prefix)
-                  if pos >= 0:
-                      positions.append(pos)
-              if not positions:
-                  return source
-              pos = min(positions)
-              start = source.rfind("\n", 0, pos) + 1
-              brace = source.find("{", pos)
-              if brace < 0:
-                  raise RuntimeError(f"Could not find function body for {name}")
-              depth = 0
-              end = None
-              for index in range(brace, len(source)):
-                  char = source[index]
-                  if char == "{":
-                      depth += 1
-                  elif char == "}":
-                      depth -= 1
-                      if depth == 0:
-                          end = index + 1
-                          break
-              if end is None:
-                  raise RuntimeError(f"Unbalanced function body for {name}")
-              while end < len(source) and source[end] == "\n":
-                  end += 1
-              return source[:start] + source[end:]
+          replace_exact(
+              "crates/debugger-core/src/cpu/disassembler.rs",
+              '''    } else if is_immediate_for_index(def.mnemonic) {
+                  def.addressing_mode
+                      .operand_size(is_8bit_accumulator, is_8bit_index)
+              } else if is_immediate_for_accumulator(def.mnemonic) {
+                  def.addressing_mode
+                      .operand_size(is_8bit_accumulator, is_8bit_index)
+              } else {''',
+              '''    } else if is_immediate_for_index(def.mnemonic)
+                  || is_immediate_for_accumulator(def.mnemonic)
+              {
+                  def.addressing_mode
+                      .operand_size(is_8bit_accumulator, is_8bit_index)
+              } else {''',
+          )
 
-          for function_name in obsolete:
-              text = remove_function(text, function_name)
+          replace_exact(
+              "crates/debugger-core/src/memory/mod.rs",
+              "        addresses.sort_by(|a, b| b.1.cmp(&a.1));",
+              "        addresses.sort_by_key(|entry| std::cmp::Reverse(entry.1));",
+              count=None,
+          )
 
-          roster_path.write_text(text, encoding="utf-8")
+          replace_exact(
+              "crates/asset-core/src/frame.rs",
+              '''    if s.starts_with("0x") {
+                  usize::from_str_radix(&s[2..], 16).map_err(|e| e.to_string())
+              } else {''',
+              '''    if let Some(hex) = s.strip_prefix("0x") {
+                  usize::from_str_radix(hex, 16).map_err(|e| e.to_string())
+              } else {''',
+          )
 
-          boxer_path = Path("apps/desktop/src-tauri/src/commands/boxer.rs")
-          boxer = boxer_path.read_text(encoding="utf-8")
-          old = "set_pending_write(state, allocation.offset, bytes.clone());"
-          new = "set_pending_write(state, allocation.offset, bytes.clone())?;"
-          if old in boxer:
-              boxer = boxer.replace(old, new, 1)
-          boxer_path.write_text(boxer, encoding="utf-8")
+          replace_exact(
+              "crates/debugger-core/src/spc700/mod.rs",
+              '''        for i in 0..9 {
+                  block[i] = self.state.read_ram(addr.wrapping_add(i as u16));
+              }''',
+              '''        for (i, byte) in block.iter_mut().enumerate() {
+                  *byte = self.state.read_ram(addr.wrapping_add(i as u16));
+              }''',
+          )
+
+          replace_exact(
+              "crates/asset-core/src/spc/mod.rs",
+              '''        for i in len..max_len {
+                  buffer[i] = 0;
+              }''',
+              "        buffer[len..max_len].fill(0);",
+          )
+
+          replace_exact(
+              "crates/relocation-core/src/bank_manager.rs",
+              "        free_regions.sort_by(|a, b| b.size.cmp(&a.size));",
+              "        free_regions.sort_by_key(|region| std::cmp::Reverse(region.size));",
+          )
+          replace_exact(
+              "crates/relocation-core/src/bank_manager.rs",
+              "        gaps.sort_by(|a, b| b.size.cmp(&a.size));",
+              "        gaps.sort_by_key(|gap| std::cmp::Reverse(gap.size));",
+          )
+
+          replace_exact(
+              "crates/relocation-core/src/free_space.rs",
+              '''        let average_block_size = if region_count > 0 {
+                  total_free / region_count
+              } else {
+                  0
+              };''',
+              "        let average_block_size = total_free.checked_div(region_count).unwrap_or(0);",
+          )
           PY
       - name: Apply machine-applicable fixes
         run: |
@@ -109,13 +136,13 @@ jobs:
         shell: bash
         run: |
           if git diff --quiet; then
-            echo "No machine-applicable fixes produced."
+            echo "No source changes produced."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Remove legacy roster writes and fix Rust lint warnings"
+          git commit -m "Fix remaining strict Rust lint warnings"
           git push origin HEAD:agent/project-remediation-modernization
 
   rust:
