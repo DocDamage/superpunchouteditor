@@ -209,9 +209,8 @@ impl AppState {
         }
 
         let projection = session
-            .commit(session.base(), label.into(), requests)
+            .commit(label.into(), requests)
             .map_err(|e| e.to_string())?;
-        let projection = session.state_projection().map_err(|e| e.to_string())?;
         let materialized = session.materialize().map_err(|e| e.to_string())?;
         drop(session_guard);
 
@@ -226,11 +225,7 @@ impl AppState {
     ) -> Result<EditStateProjection, String> {
         let mut session_guard = self.rom_session.lock();
         let session = session_guard.as_mut().ok_or("No ROM loaded")?;
-        session
-            .journal_mut()
-            .commit(session.base(), label, requests)
-            .map_err(|e| e.to_string())?;
-        let projection = session.state_projection().map_err(|e| e.to_string())?;
+        let projection = session.commit(label, requests).map_err(|e| e.to_string())?;
         let materialized = session.materialize().map_err(|e| e.to_string())?;
         drop(session_guard);
 
