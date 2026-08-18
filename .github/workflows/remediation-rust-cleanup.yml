@@ -1,12 +1,12 @@
 name: Remediation Rust Cleanup
 
 on:
-  pull_request:
+  push:
     branches:
-      - codex/project-audit-cleanup-plan
+      - agent/project-remediation-modernization
 
 concurrency:
-  group: remediation-rust-cleanup-${{ github.event.pull_request.number }}
+  group: remediation-rust-cleanup-agent-project-remediation-modernization
   cancel-in-progress: true
 
 permissions:
