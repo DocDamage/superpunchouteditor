@@ -47,6 +47,7 @@ crossbeam-channel = { workspace = true }
 spin_sleep = { workspace = true }
 parking_lot = { workspace = true }
 log = { workspace = true }
+tempfile = { workspace = true }
 
 # Optional audio output support
 cpal = { workspace = true, optional = true }
