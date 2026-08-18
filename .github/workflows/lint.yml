@@ -13,63 +13,6 @@ permissions:
   contents: read
 
 jobs:
-  autofix:
-    name: Final two Rust lint fixes
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/project-remediation-modernization
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.97.1
-          components: rustfmt
-      - name: Apply exact remaining iterator rewrites
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          cases = [
-              (
-                  Path("crates/debugger-core/src/spc700/mod.rs"),
-                  r"(?m)^(?P<indent>[ \t]*)for i in 0\.\.9 \{\s*\n(?P=indent)[ \t]+block\[i\] = self\.state\.read_ram\(addr\.wrapping_add\(i as u16\)\);\s*\n(?P=indent)\}",
-                  lambda m: (
-                      f"{m.group('indent')}for (i, byte) in block.iter_mut().enumerate() {{\n"
-                      f"{m.group('indent')}    *byte = self.state.read_ram(addr.wrapping_add(i as u16));\n"
-                      f"{m.group('indent')}}}"
-                  ),
-              ),
-              (
-                  Path("crates/asset-core/src/spc/mod.rs"),
-                  r"(?m)^(?P<indent>[ \t]*)for i in len\.\.max_len \{\s*\n(?P=indent)[ \t]+buffer\[i\] = 0;\s*\n(?P=indent)\}",
-                  lambda m: f"{m.group('indent')}buffer[len..max_len].fill(0);",
-              ),
-          ]
-
-          for path, pattern, replacement in cases:
-              text = path.read_text(encoding="utf-8")
-              updated, count = re.subn(pattern, replacement, text, count=1)
-              if count != 1:
-                  raise SystemExit(f"Expected exactly one remaining lint pattern in {path}, found {count}")
-              path.write_text(updated, encoding="utf-8")
-          PY
-          cargo fmt --all
-      - name: Commit fixes
-        shell: bash
-        run: |
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/debugger-core/src/spc700/mod.rs crates/asset-core/src/spc/mod.rs
-          git commit -m "Fix final iterator lint warnings"
-          git push origin HEAD:agent/project-remediation-modernization
-
   rust:
     name: Rust Lint
     runs-on: ubuntu-latest
