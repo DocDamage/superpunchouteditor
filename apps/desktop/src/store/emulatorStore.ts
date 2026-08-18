@@ -1,16 +1,13 @@
 /**
  * Emulator Store
- * 
- * Manages emulator settings and embedded emulator state.
+ *
+ * Settings are persisted as user preferences. Runtime ROM state is always projected from the
+ * backend and the embedded emulator loads the canonical materialized editor revision in memory.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
-
-// ============================================================================
-// Types
-// ============================================================================
 
 export type EmulatorType = 'snes9x' | 'bsnes' | 'mesen-s' | 'other';
 
@@ -24,34 +21,32 @@ export interface EmulatorSettings {
   saveStateDir: string | null;
 }
 
+interface EmulatorLoadReceipt {
+  revision: number;
+  current_sha1: string;
+  byte_length: number;
+}
+
 export interface EmulatorState {
-  // Settings
   settings: EmulatorSettings;
-  
-  // Embedded emulator state
   isRunning: boolean;
   isPaused: boolean;
   currentSlot: number;
   speed: number;
   hasRom: boolean;
-  
-  // Loading state
+  loadedRevision: number | null;
+  loadedSha1: string | null;
   isLoading: boolean;
   error: string | null;
 }
 
 export interface EmulatorActions {
-  // Settings
   loadSettings: () => Promise<void>;
   saveSettings: (settings: EmulatorSettings) => Promise<void>;
   updateSettings: (partial: Partial<EmulatorSettings>) => Promise<void>;
-  
-  // External emulator
   launchExternal: () => Promise<void>;
-  
-  // Embedded emulator
   initEmbedded: () => Promise<void>;
-  loadRomInEmulator: (romPath: string) => Promise<void>;
+  loadRomInEmulator: (romPath?: string) => Promise<void>;
   startEmulation: () => Promise<void>;
   stopEmulation: () => Promise<void>;
   pauseEmulation: () => Promise<void>;
@@ -62,17 +57,11 @@ export interface EmulatorActions {
   loadState: (slot?: number) => Promise<void>;
   resetEmulator: () => Promise<void>;
   shutdownEmulator: () => Promise<void>;
-  
-  // Error handling
   setError: (error: string | null) => void;
   clearError: () => void;
 }
 
 export type EmulatorStore = EmulatorState & EmulatorActions;
-
-// ============================================================================
-// Constants
-// ============================================================================
 
 const DEFAULT_SETTINGS: EmulatorSettings = {
   emulatorPath: '',
@@ -84,24 +73,20 @@ const DEFAULT_SETTINGS: EmulatorSettings = {
   saveStateDir: null,
 };
 
-// ============================================================================
-// Store Implementation
-// ============================================================================
-
 export const useEmulatorStore = create<EmulatorStore>()(
   persist(
     (set, get) => ({
-      // Initial state
       settings: { ...DEFAULT_SETTINGS },
       isRunning: false,
       isPaused: false,
       currentSlot: 0,
       speed: 1.0,
       hasRom: false,
+      loadedRevision: null,
+      loadedSha1: null,
       isLoading: false,
       error: null,
-      
-      // Actions
+
       loadSettings: async () => {
         try {
           const settings = await invoke<EmulatorSettings>('get_emulator_settings');
@@ -110,7 +95,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
           console.error('Failed to load emulator settings:', e);
         }
       },
-      
+
       saveSettings: async (settings: EmulatorSettings) => {
         try {
           await invoke('set_emulator_settings', { settings });
@@ -120,47 +105,44 @@ export const useEmulatorStore = create<EmulatorStore>()(
           throw e;
         }
       },
-      
+
       updateSettings: async (partial: Partial<EmulatorSettings>) => {
-        const updated = { ...get().settings, ...partial };
-        await get().saveSettings(updated);
+        await get().saveSettings({ ...get().settings, ...partial });
       },
-      
+
       launchExternal: async () => {
-        const { settings } = get();
-        if (!settings.emulatorPath) {
-          throw new Error('No emulator configured');
-        }
-        // Launch via Tauri command
-        try {
-          await invoke('launch_external_emulator');
-        } catch (e) {
-          console.error('Failed to launch emulator:', e);
-          throw e;
-        }
+        throw new Error(
+          'Legacy external-emulator launch is experimental. Use the embedded emulator so the exact current revision is tested.',
+        );
       },
-      
+
       initEmbedded: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           await invoke('init_emulator');
           set({ isLoading: false });
         } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
           console.error('Failed to init embedded emulator:', e);
-          set({ error: (e as Error).message, isLoading: false });
-        }
-      },
-      
-      loadRomInEmulator: async (romPath: string) => {
-        try {
-          await invoke('emulator_load_rom', { romPath });
-          set({ hasRom: true });
-        } catch (e) {
-          console.error('Failed to load ROM in emulator:', e);
+          set({ error: message, isLoading: false });
           throw e;
         }
       },
-      
+
+      loadRomInEmulator: async (_romPath?: string) => {
+        try {
+          const receipt = await invoke<EmulatorLoadReceipt>('emulator_load_current_rom');
+          set({
+            hasRom: true,
+            loadedRevision: receipt.revision,
+            loadedSha1: receipt.current_sha1,
+          });
+        } catch (e) {
+          console.error('Failed to load current ROM revision in emulator:', e);
+          throw e;
+        }
+      },
+
       startEmulation: async () => {
         try {
           await invoke('emulator_start');
@@ -170,7 +152,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
           throw e;
         }
       },
-      
+
       stopEmulation: async () => {
         try {
           await invoke('emulator_stop');
@@ -179,7 +161,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
           console.error('Failed to stop emulation:', e);
         }
       },
-      
+
       pauseEmulation: async () => {
         try {
           await invoke('emulator_set_paused', { paused: true });
@@ -188,7 +170,7 @@ export const useEmulatorStore = create<EmulatorStore>()(
           console.error('Failed to pause emulation:', e);
         }
       },
-      
+
       resumeEmulation: async () => {
         try {
           await invoke('emulator_set_paused', { paused: false });
@@ -197,79 +179,62 @@ export const useEmulatorStore = create<EmulatorStore>()(
           console.error('Failed to resume emulation:', e);
         }
       },
-      
+
       togglePause: async () => {
-        const { isPaused } = get();
-        if (isPaused) {
+        if (get().isPaused) {
           await get().resumeEmulation();
         } else {
           await get().pauseEmulation();
         }
       },
-      
+
       setSpeed: async (speed: number) => {
-        try {
-          await invoke('emulator_set_speed', { speed });
-          set({ speed });
-        } catch (e) {
-          console.error('Failed to set speed:', e);
+        if (!Number.isFinite(speed) || speed <= 0 || speed > 8) {
+          throw new Error('Emulator speed must be greater than 0 and no more than 8x');
         }
+        await invoke('emulator_set_speed', { speed });
+        set({ speed });
       },
-      
+
       saveState: async (slot?: number) => {
         const targetSlot = slot ?? get().currentSlot;
-        try {
-          await invoke('emulator_save_state', { slot: targetSlot });
-        } catch (e) {
-          console.error('Failed to save state:', e);
-          throw e;
-        }
+        await invoke('emulator_save_state', { slot: targetSlot });
       },
-      
+
       loadState: async (slot?: number) => {
         const targetSlot = slot ?? get().currentSlot;
-        try {
-          await invoke('emulator_load_state', { slot: targetSlot });
-          set({ currentSlot: targetSlot });
-        } catch (e) {
-          console.error('Failed to load state:', e);
-          throw e;
-        }
+        await invoke('emulator_load_state', { slot: targetSlot });
+        set({ currentSlot: targetSlot });
       },
-      
+
       resetEmulator: async () => {
-        try {
-          await invoke('emulator_reset');
-          set({ isPaused: false });
-        } catch (e) {
-          console.error('Failed to reset emulator:', e);
-        }
+        await invoke('emulator_reset');
+        set({ isPaused: false });
       },
-      
+
       shutdownEmulator: async () => {
         try {
           await invoke('emulator_shutdown');
-          set({ isRunning: false, isPaused: false, hasRom: false });
-        } catch (e) {
-          console.error('Failed to shutdown emulator:', e);
+        } finally {
+          set({
+            isRunning: false,
+            isPaused: false,
+            hasRom: false,
+            loadedRevision: null,
+            loadedSha1: null,
+          });
         }
       },
-      
+
       setError: (error: string | null) => set({ error }),
       clearError: () => set({ error: null }),
     }),
     {
       name: 'spo-emulator-storage',
-      partialize: (state) => ({
-        settings: state.settings,
-      }),
-    }
-  )
+      partialize: (state) => ({ settings: state.settings }),
+    },
+  ),
 );
-
-// ============================================================================
-// Selectors
-// ============================================================================
 
 export const selectEmulatorSettings = (state: EmulatorStore) => state.settings;
 export const selectIsEmulatorRunning = (state: EmulatorStore) => state.isRunning;
