@@ -1,13 +1,10 @@
 name: Remediation Rust Cleanup
 
 on:
-  push:
+  pull_request:
+    types: [reopened]
     branches:
-      - agent/project-remediation-modernization
-
-concurrency:
-  group: remediation-rust-cleanup-agent-project-remediation-modernization
-  cancel-in-progress: true
+      - codex/project-audit-cleanup-plan
 
 permissions:
   contents: write
