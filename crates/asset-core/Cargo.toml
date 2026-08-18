@@ -16,3 +16,6 @@ image = { workspace = true }
 chrono = { workspace = true }
 rom-core = { workspace = true }
 manifest-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
