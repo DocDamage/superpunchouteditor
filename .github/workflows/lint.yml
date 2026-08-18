@@ -38,6 +38,69 @@ jobs:
             librsvg2-dev \
             libasound2-dev \
             patchelf
+      - name: Remove obsolete direct-write roster path
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          roster_path = Path("apps/desktop/src-tauri/src/roster_commands.rs")
+          text = roster_path.read_text(encoding="utf-8")
+          obsolete = [
+              "commit_creator_session_internal",
+              "update_boxer_name",
+              "commit_creator_session",
+              "update_boxer_circuit",
+              "update_unlock_order",
+              "set_champion_status",
+              "update_boxer_intro_field",
+              "update_intro_text",
+              "reset_roster_to_defaults",
+          ]
+
+          def remove_function(source: str, name: str) -> str:
+              positions = []
+              for prefix in (f"pub(crate) fn {name}(", f"pub fn {name}("):
+                  pos = source.find(prefix)
+                  if pos >= 0:
+                      positions.append(pos)
+              if not positions:
+                  return source
+              pos = min(positions)
+              start = source.rfind("\n", 0, pos) + 1
+              brace = source.find("{", pos)
+              if brace < 0:
+                  raise RuntimeError(f"Could not find function body for {name}")
+              depth = 0
+              end = None
+              for index in range(brace, len(source)):
+                  char = source[index]
+                  if char == "{":
+                      depth += 1
+                  elif char == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = index + 1
+                          break
+              if end is None:
+                  raise RuntimeError(f"Unbalanced function body for {name}")
+              while end < len(source) and source[end] == "\n":
+                  end += 1
+              return source[:start] + source[end:]
+
+          for function_name in obsolete:
+              text = remove_function(text, function_name)
+
+          roster_path.write_text(text, encoding="utf-8")
+
+          boxer_path = Path("apps/desktop/src-tauri/src/commands/boxer.rs")
+          boxer = boxer_path.read_text(encoding="utf-8")
+          old = "set_pending_write(state, allocation.offset, bytes.clone());"
+          new = "set_pending_write(state, allocation.offset, bytes.clone())?;"
+          if old in boxer:
+              boxer = boxer.replace(old, new, 1)
+          boxer_path.write_text(boxer, encoding="utf-8")
+          PY
       - name: Apply machine-applicable fixes
         run: |
           cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged -- -D warnings || true
@@ -52,7 +115,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Fix machine-applicable Rust lint warnings"
+          git commit -m "Remove legacy roster writes and fix Rust lint warnings"
           git push origin HEAD:agent/project-remediation-modernization
 
   rust:
