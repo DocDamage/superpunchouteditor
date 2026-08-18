@@ -234,7 +234,7 @@ impl BankMap {
             }
         }
 
-        free_regions.sort_by(|a, b| b.size.cmp(&a.size));
+        free_regions.sort_by_key(|region| std::cmp::Reverse(region.size));
         free_regions
     }
 
@@ -379,7 +379,7 @@ impl BankMap {
         let mut suggestions = Vec::new();
 
         // Sort gaps by size (descending)
-        gaps.sort_by(|a, b| b.size.cmp(&a.size));
+        gaps.sort_by_key(|gap| std::cmp::Reverse(gap.size));
 
         // Try to fit movable regions into larger gaps
         for gap in &gaps {

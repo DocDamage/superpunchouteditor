@@ -290,10 +290,7 @@ fn decode_instruction_at(
     let operand_size = if def.mnemonic == "REP" || def.mnemonic == "SEP" {
         // REP/SEP always take 1 byte immediate
         1
-    } else if is_immediate_for_index(def.mnemonic) {
-        def.addressing_mode
-            .operand_size(is_8bit_accumulator, is_8bit_index)
-    } else if is_immediate_for_accumulator(def.mnemonic) {
+    } else if is_immediate_for_index(def.mnemonic) || is_immediate_for_accumulator(def.mnemonic) {
         def.addressing_mode
             .operand_size(is_8bit_accumulator, is_8bit_index)
     } else {

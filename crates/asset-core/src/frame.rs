@@ -596,8 +596,8 @@ impl<'a> FrameManager<'a> {
 }
 
 fn parse_pc_offset(s: &str) -> Result<usize, String> {
-    if s.starts_with("0x") {
-        usize::from_str_radix(&s[2..], 16).map_err(|e| e.to_string())
+    if let Some(hex) = s.strip_prefix("0x") {
+        usize::from_str_radix(hex, 16).map_err(|e| e.to_string())
     } else {
         s.parse::<usize>().map_err(|e| e.to_string())
     }
