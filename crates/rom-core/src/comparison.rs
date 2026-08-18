@@ -379,14 +379,16 @@ impl RomComparison {
     pub fn filter_by_type(&self, filter: DifferenceFilter) -> Vec<&Difference> {
         self.differences
             .iter()
-            .filter(|d| match (filter, d) {
-                (DifferenceFilter::Palette, Difference::Palette { .. }) => true,
-                (DifferenceFilter::Sprite, Difference::Sprite { .. }) => true,
-                (DifferenceFilter::Header, Difference::Header { .. }) => true,
-                (DifferenceFilter::Animation, Difference::Animation { .. }) => true,
-                (DifferenceFilter::Binary, Difference::Binary { .. }) => true,
-                (DifferenceFilter::All, _) => true,
-                _ => false,
+            .filter(|d| {
+                matches!(
+                    (filter, d),
+                    (DifferenceFilter::Palette, Difference::Palette { .. })
+                        | (DifferenceFilter::Sprite, Difference::Sprite { .. })
+                        | (DifferenceFilter::Header, Difference::Header { .. })
+                        | (DifferenceFilter::Animation, Difference::Animation { .. })
+                        | (DifferenceFilter::Binary, Difference::Binary { .. })
+                        | (DifferenceFilter::All, _)
+                )
             })
             .collect()
     }
