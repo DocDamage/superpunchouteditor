@@ -95,7 +95,7 @@ impl BrrDecoder {
                 sample = apply_filter(sample, filter, old, older);
 
                 // Clamp to 15-bit signed range (-16384 to 16383)
-                sample = sample.max(-16384).min(16383);
+                sample = sample.clamp(-16384, 16383);
 
                 // Store and update history
                 older = old;
@@ -162,7 +162,7 @@ impl BrrDecoder {
                 };
 
                 sample = apply_filter(sample, filter, old, older);
-                sample = sample.max(-16384).min(16383);
+                sample = sample.clamp(-16384, 16383);
                 older = old;
                 old = sample;
 
