@@ -165,11 +165,7 @@ impl FreeSpaceStats {
         let total_free: usize = regions.iter().map(|r| r.size).sum();
         let largest_block = regions.iter().map(|r| r.size).max().unwrap_or(0);
         let region_count = regions.len();
-        let average_block_size = if region_count > 0 {
-            total_free / region_count
-        } else {
-            0
-        };
+        let average_block_size = total_free.checked_div(region_count).unwrap_or(0);
 
         // Fragmentation score: 1 - (largest_block / total_free)
         // If all free space is in one block, fragmentation is 0
