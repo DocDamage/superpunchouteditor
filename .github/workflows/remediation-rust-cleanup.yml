@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/project-remediation-modernization
+  pull_request:
+    branches:
+      - codex/project-audit-cleanup-plan
 
 permissions:
   contents: write
