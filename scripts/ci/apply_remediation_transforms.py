@@ -209,6 +209,28 @@ def consolidate_frontend_navigation() -> None:
             raise SystemExit("App.tsx TAB_ITEMS marker changed")
         text = text.replace(old_tabs_end, new_tabs_end, 1)
 
+    # Keep the source list contextually typed before filter/map. Typing only the chained result lets
+    # TypeScript widen each literal `key` to string, which breaks both TabKey and ProductFeatureKey.
+    chained_tabs_start = "const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [\n"
+    typed_tabs_start = "const ALL_TAB_ITEMS: Array<{ key: TabKey; label: string }> = [\n"
+    chained_tabs_end = '''  { key: "settings", label: "Settings" },
+]
+  .filter(({ key }) => isFeatureVisible(key))
+  .map(({ key, label }) => ({ key, label: featureLabel(label, key) }));
+'''
+    typed_tabs_end = '''  { key: "settings", label: "Settings" },
+];
+
+const TAB_ITEMS: Array<{ key: TabKey; label: string }> = ALL_TAB_ITEMS
+  .filter(({ key }) => isFeatureVisible(key))
+  .map(({ key, label }) => ({ key, label: featureLabel(label, key) }));
+'''
+    if "const ALL_TAB_ITEMS:" not in text:
+        if chained_tabs_start not in text or chained_tabs_end not in text:
+            raise SystemExit("App.tsx typed TAB_ITEMS marker changed")
+        text = text.replace(chained_tabs_start, typed_tabs_start, 1)
+        text = text.replace(chained_tabs_end, typed_tabs_end, 1)
+
     text = text.replace("    clearHistory,\n", "", 1)
     text = text.replace(
         """  useEffect(() => {
