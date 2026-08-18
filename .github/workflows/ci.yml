@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, codex/project-audit-cleanup-plan]
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
     name: Rust (${{ matrix.os }})
