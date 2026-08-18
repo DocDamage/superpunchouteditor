@@ -386,7 +386,7 @@ impl ScriptRunner {
     /// Run a Lua script file
     pub fn run_file<P: AsRef<Path>>(&self, path: P) -> PluginResult<ScriptResult> {
         let path_ref = path.as_ref();
-        let script = std::fs::read_to_string(path_ref).map_err(|e| PluginError::Io(e))?;
+        let script = std::fs::read_to_string(path_ref).map_err(PluginError::Io)?;
 
         self.run_string(&script, Some(path_ref.to_string_lossy().as_ref()))
     }

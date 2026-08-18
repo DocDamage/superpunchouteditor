@@ -412,6 +412,7 @@ impl<'a> AnimationLoader<'a> {
 }
 
 /// Helper function to get animation category from type ID
+#[cfg(test)]
 fn animation_category_from_type(type_id: u8) -> AnimationCategory {
     match type_id {
         ANIM_TYPE_IDLE => AnimationCategory::Idle,

@@ -161,7 +161,7 @@ impl LuaWorker {
 
     fn load_script(&mut self, path: &Path) -> PluginResult<()> {
         // Read the script
-        let script = std::fs::read_to_string(path).map_err(|e| PluginError::Io(e))?;
+        let script = std::fs::read_to_string(path).map_err(PluginError::Io)?;
 
         // Load and execute the script
         self.lua
@@ -607,13 +607,14 @@ impl LuaWorker {
         let mut commands = Vec::new();
 
         if let Ok(commands_table) = self.lua.globals().get::<_, mlua::Table>("COMMANDS") {
-            for pair in commands_table.pairs::<mlua::String, mlua::Function>() {
-                if let Ok((name, _)) = pair {
-                    commands.push(PluginCommand::new(
-                        name.to_string_lossy(),
-                        format!("Lua command: {}", name.to_string_lossy()),
-                    ));
-                }
+            for (name, _) in commands_table
+                .pairs::<mlua::String, mlua::Function>()
+                .flatten()
+            {
+                commands.push(PluginCommand::new(
+                    name.to_string_lossy(),
+                    format!("Lua command: {}", name.to_string_lossy()),
+                ));
             }
         }
 
@@ -690,6 +691,12 @@ fn lua_to_json(value: &mlua::Value) -> Result<serde_json::Value, mlua::Error> {
 /// Script runner for one-off Lua scripts
 pub struct ScriptRunner;
 
+impl Default for ScriptRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScriptRunner {
     pub fn new() -> Self {
         Self
@@ -701,7 +708,7 @@ impl ScriptRunner {
         path: P,
         api: Arc<PluginApi>,
     ) -> PluginResult<ScriptResult> {
-        let script = std::fs::read_to_string(path).map_err(|e| PluginError::Io(e))?;
+        let script = std::fs::read_to_string(path).map_err(PluginError::Io)?;
 
         self.run_string(&script, api)
     }

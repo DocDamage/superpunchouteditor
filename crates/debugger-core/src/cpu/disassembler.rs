@@ -187,19 +187,13 @@ impl AddressingMode {
                 // For branches, calculate target within the current 64KB bank
                 // Use the lower 16 bits of PC and ignore the LoROM mapping
                 let current_addr = (pc & 0x7FFF) | 0x8000;
-                let target = (current_addr as u32)
-                    .wrapping_add(2)
-                    .wrapping_add(offset as u32)
-                    & 0xFFFF;
+                let target = current_addr.wrapping_add(2).wrapping_add(offset as u32) & 0xFFFF;
                 format!("${:04X}", target)
             }
             AddressingMode::RelativeLong => {
                 let offset = i16::from_le_bytes([bytes[0], bytes[1]]);
                 let current_addr = (pc & 0x7FFF) | 0x8000;
-                let target = (current_addr as u32)
-                    .wrapping_add(offset as u32)
-                    .wrapping_add(3)
-                    & 0xFFFF;
+                let target = current_addr.wrapping_add(offset as u32).wrapping_add(3) & 0xFFFF;
                 format!("${:04X}", target)
             }
             AddressingMode::AbsoluteIndirect => {

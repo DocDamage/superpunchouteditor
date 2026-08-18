@@ -688,7 +688,7 @@ impl AiParser {
     fn generate_example_patterns(fighter_id: usize) -> Vec<AttackPattern> {
         use MoveType::*;
 
-        let patterns = match fighter_id {
+        match fighter_id {
             0 => vec![
                 // Gabby Jay - Simple patterns
                 AttackPattern {
@@ -772,9 +772,7 @@ impl AiParser {
                     ..Default::default()
                 },
             ],
-        };
-
-        patterns
+        }
     }
 
     /// Generate example defense behaviors

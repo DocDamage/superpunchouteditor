@@ -464,7 +464,7 @@ fn test_multiple_portrait_import() {
         let tile_data = encode_4bpp_sheet(&tiles);
 
         rom.write_bytes(*offset, &tile_data)
-            .expect(&format!("Should write portrait at offset 0x{:X}", offset));
+            .unwrap_or_else(|_| panic!("Should write portrait at offset 0x{:X}", offset));
     }
 
     // Save and reload
@@ -479,7 +479,7 @@ fn test_multiple_portrait_import() {
         let expected_size = calculate_4bpp_size(*width, *height);
         let read_data = loaded_rom
             .read_bytes(*offset, expected_size)
-            .expect(&format!("Should read portrait at offset 0x{:X}", offset));
+            .unwrap_or_else(|_| panic!("Should read portrait at offset 0x{:X}", offset));
 
         // Decode and verify dimensions
         let tiles = decode_4bpp_sheet(read_data);

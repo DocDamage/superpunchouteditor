@@ -282,7 +282,7 @@ impl DetailedAssetReport {
                             shared_between: shared_names,
                             change_type: category.to_string(),
                             warning_level,
-                            description: format!("This asset is shared between multiple boxers"),
+                            description: "This asset is shared between multiple boxers".to_string(),
                         });
                     }
                 }

@@ -191,8 +191,8 @@ fn rgba_to_palette_index(pixel: &Rgba<u8>, palette: &[(u8, u8, u8)]) -> u8 {
 
 /// Calculate expected tile count for a given image size
 pub fn calculate_tile_count(width: u32, height: u32) -> usize {
-    assert!(width % 8 == 0, "Width must be multiple of 8");
-    assert!(height % 8 == 0, "Height must be multiple of 8");
+    assert!(width.is_multiple_of(8), "Width must be multiple of 8");
+    assert!(height.is_multiple_of(8), "Height must be multiple of 8");
     ((width / 8) * (height / 8)) as usize
 }
 

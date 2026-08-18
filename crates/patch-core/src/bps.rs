@@ -40,8 +40,6 @@ impl BpsMetadata {
 enum BpsAction {
     SourceRead = 0,
     TargetRead = 1,
-    SourceCopy = 2,
-    TargetCopy = 3,
 }
 
 /// BPS uses a biased variable-length integer, not ordinary LEB128.
@@ -83,6 +81,7 @@ fn decode_number(data: &[u8], cursor: &mut usize) -> io::Result<u64> {
     }
 }
 
+#[cfg(test)]
 fn encode_signed(value: i64) -> Vec<u8> {
     let magnitude = value.unsigned_abs();
     let encoded = (magnitude << 1) | u64::from(value < 0);

@@ -428,7 +428,11 @@ impl ExecutionTracer {
         self.total_instructions += 1;
 
         // Check sample rate
-        if self.filter.sample_rate > 0 && (self.total_instructions % self.filter.sample_rate) != 0 {
+        if self.filter.sample_rate > 0
+            && !self
+                .total_instructions
+                .is_multiple_of(self.filter.sample_rate)
+        {
             return;
         }
 

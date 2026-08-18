@@ -149,6 +149,12 @@ pub struct DebuggerState {
     pub step_count: u64,
 }
 
+impl Default for DebuggerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DebuggerState {
     pub fn new() -> Self {
         Self {

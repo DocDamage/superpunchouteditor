@@ -218,7 +218,7 @@ impl CpuDebugger {
 
     fn execute_instruction(&mut self, instruction: &DisassembledInstruction) {
         // Simplified execution - real implementation would properly execute 65816
-        self.registers.pc = (self.registers.pc + instruction.size as u16) & 0xFFFF;
+        self.registers.pc += instruction.size as u16;
 
         // Update program bank on long jumps
         if instruction.mnemonic == "JML" || instruction.mnemonic == "JSL" {

@@ -301,9 +301,10 @@ pub struct DuplicateBankRequest {
 }
 
 /// Strategy for placing the duplicated bank
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum DuplicationStrategy {
     /// Find free space within existing ROM bounds
+    #[default]
     FindFreeSpace,
 
     /// Expand ROM to 2.5MB or 4MB if needed
@@ -311,12 +312,6 @@ pub enum DuplicationStrategy {
 
     /// Specific location (advanced)
     SpecificLocation(usize),
-}
-
-impl Default for DuplicationStrategy {
-    fn default() -> Self {
-        DuplicationStrategy::FindFreeSpace
-    }
 }
 
 /// Helper to compute a simple hash for bank data

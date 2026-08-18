@@ -237,10 +237,7 @@ impl MemoryWatcher {
         self.history.push(access);
 
         // Update address statistics
-        let stats = self
-            .address_stats
-            .entry(address)
-            .or_insert_with(AddressStats::default);
+        let stats = self.address_stats.entry(address).or_default();
         stats.record_access(access_type, value, timestamp);
 
         // Check watchpoints

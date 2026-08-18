@@ -16,7 +16,7 @@ impl FreeSpaceRegion {
 
     /// Check if this region can accommodate data with alignment requirements
     pub fn can_fit_aligned(&self, size: usize, alignment: usize) -> Option<usize> {
-        let aligned_start = ((self.start_pc + alignment - 1) / alignment) * alignment;
+        let aligned_start = self.start_pc.div_ceil(alignment) * alignment;
         let available = self.end_pc.saturating_sub(aligned_start) + 1;
         if available >= size {
             Some(aligned_start)
