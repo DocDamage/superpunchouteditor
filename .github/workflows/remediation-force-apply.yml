@@ -36,6 +36,7 @@ jobs:
           python scripts/ci/migrate_comparison_commands.py
           python scripts/ci/gate_animation_mutations.py
           python scripts/ci/fix_journal_dirty_state.py
+          python scripts/ci/fix_remaining_ci_blockers.py
           cargo generate-lockfile
           cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged || true
           cargo fmt --all
