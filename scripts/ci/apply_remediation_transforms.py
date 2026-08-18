@@ -131,6 +131,10 @@ def fix_project_integrity() -> None:
         "last_saved_revision: session.journal().revision(),",
     )
     text = text.replace(
+        "region: base.region().map(|region| region.as_str().to_string()),",
+        "region: base.region().map(|region| region.code().to_string()),",
+    )
+    text = text.replace(
         """fn document_integrity(document: &ProjectDocumentV2) -> Result<String, ProjectError> {
     let canonical = serde_json::to_vec(document)?;
     Ok(sha1_hex(&canonical))
@@ -146,6 +150,39 @@ def fix_project_integrity() -> None:
 """,
     )
     path.write_text(text, encoding="utf-8")
+
+
+def fix_clippy_blockers() -> None:
+    loader = ROOT / "crates/rom-core/src/animation/loader.rs"
+    text = loader.read_text(encoding="utf-8")
+    marker = "fn animation_category_from_type(type_id: u8) -> AnimationCategory {"
+    guarded = "#[cfg(test)]\nfn animation_category_from_type(type_id: u8) -> AnimationCategory {"
+    if marker in text and guarded not in text:
+        text = text.replace(marker, guarded, 1)
+    loader.write_text(text, encoding="utf-8")
+
+    bps = ROOT / "crates/patch-core/src/bps.rs"
+    text = bps.read_text(encoding="utf-8")
+    text = text.replace(
+        """enum BpsAction {
+    SourceRead = 0,
+    TargetRead = 1,
+    SourceCopy = 2,
+    TargetCopy = 3,
+}
+""",
+        """enum BpsAction {
+    SourceRead = 0,
+    TargetRead = 1,
+}
+""",
+        1,
+    )
+    signed_marker = "fn encode_signed(value: i64) -> Vec<u8> {"
+    signed_guarded = "#[cfg(test)]\nfn encode_signed(value: i64) -> Vec<u8> {"
+    if signed_marker in text and signed_guarded not in text:
+        text = text.replace(signed_marker, signed_guarded, 1)
+    bps.write_text(text, encoding="utf-8")
 
 
 def consolidate_frontend_navigation() -> None:
@@ -325,6 +362,7 @@ def main() -> None:
     fix_app_state()
     register_project_v2()
     fix_project_integrity()
+    fix_clippy_blockers()
     consolidate_frontend_navigation()
     consolidate_frontend_edit_projection()
     print("Deterministic remediation transforms applied.")
