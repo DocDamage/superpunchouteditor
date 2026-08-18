@@ -9,8 +9,16 @@ members = [
     "crates/relocation-core",
     "crates/rom-core",
     "crates/script-core",
+    "crates/debugger-core",
+    "crates/expansion-core",
+    "crates/testing-core",
     "apps/desktop/src-tauri",
-    "tests", "crates/debugger-core", "crates/expansion-core", "crates/testing-core",
+    "tests",
+]
+exclude = [
+    "crates/assembly-core",
+    "crates/console-dev-core",
+    "crates/profiler-core",
 ]
 resolver = "2"
 
