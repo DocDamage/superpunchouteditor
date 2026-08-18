@@ -1,0 +1,60 @@
+name: Remediation Force Apply
+
+on:
+  pull_request:
+    branches:
+      - codex/project-audit-cleanup-plan
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/project-remediation-modernization
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Apply deterministic source migrations
+        run: |
+          python scripts/ci/apply_remediation_transforms.py
+          python scripts/ci/register_stable_commands.py
+          python scripts/ci/migrate_asset_commands.py
+          python scripts/ci/migrate_comparison_commands.py
+          python scripts/ci/gate_animation_mutations.py
+          python scripts/ci/fix_journal_dirty_state.py
+          cargo generate-lockfile
+          cargo clippy --fix --workspace --all-targets --allow-dirty --allow-staged || true
+          cargo fmt --all
+      - name: Commit migrations before verification
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No source migrations remain to commit."
+          else
+            git commit -m "Apply deterministic remediation transforms"
+            git pull --rebase origin agent/project-remediation-modernization
+            git push origin HEAD:agent/project-remediation-modernization
+          fi
+      - name: Verify transformed Rust workspace
+        run: cargo check --workspace
+      - name: Verify transformed frontend
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npx tsc --noEmit
