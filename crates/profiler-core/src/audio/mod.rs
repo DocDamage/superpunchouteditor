@@ -448,7 +448,7 @@ impl AudioProfiler {
         }
 
         let loads: Vec<f64> = self.load_samples.iter().map(|s| s.load_percent).collect();
-        
+
         let avg_load = loads.iter().sum::<f64>() / loads.len() as f64;
         let peak_load = loads.iter().cloned().fold(0.0, f64::max);
         let min_load = loads.iter().cloned().fold(100.0, f64::min);
@@ -522,7 +522,7 @@ impl AudioProfiler {
                 channels,
             })
             .collect();
-        
+
         hot_samples.sort_by(|a, b| b.access_count.cmp(&a.access_count));
         hot_samples.truncate(10);
 
@@ -556,11 +556,11 @@ impl AudioProfiler {
                 if last_sample > 0 {
                     *combination_counts.entry(current_mask).or_insert(0) += event.timestamp - last_sample;
                 }
-                
+
                 let active_channels: Vec<u8> = (0..8)
                     .filter(|&c| current_mask & (1 << c) != 0)
                     .collect();
-                
+
                 if active_channels.len() > 0 {
                     usage_snapshots.push(ChannelUsageSnapshot {
                         timestamp: last_sample,
@@ -568,7 +568,7 @@ impl AudioProfiler {
                         combined_volume: 0, // Would need to track
                     });
                 }
-                
+
                 last_sample = event.timestamp;
             }
 

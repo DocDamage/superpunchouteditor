@@ -1,8 +1,8 @@
 use crate::Rom;
 
 use super::constants::{
-    BOXER_COUNT, BOXER_INTRO_TABLE, BOXER_NAME_POINTERS, BOXER_NAME_TABLE, CIRCUIT_TABLE, INTRO_DATA_SIZE,
-    UNLOCK_ORDER_TABLE,
+    BOXER_COUNT, BOXER_INTRO_TABLE, BOXER_NAME_POINTERS, BOXER_NAME_TABLE, CIRCUIT_TABLE,
+    INTRO_DATA_SIZE, UNLOCK_ORDER_TABLE,
 };
 
 const EDITOR_HEADER_MAGIC: [u8; 8] = *b"SPOEDITR";
@@ -145,7 +145,8 @@ mod tests {
         header[24..28].copy_from_slice(&(circuit as u32).to_le_bytes());
         header[28..32].copy_from_slice(&(unlock as u32).to_le_bytes());
         header[32..36].copy_from_slice(&(intro as u32).to_le_bytes());
-        rom.write_bytes(header_pc, &header).expect("write expansion header");
+        rom.write_bytes(header_pc, &header)
+            .expect("write expansion header");
 
         let layout = detect_roster_layout(&rom);
         assert!(layout.expanded);

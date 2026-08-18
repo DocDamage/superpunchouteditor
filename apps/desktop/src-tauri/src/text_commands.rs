@@ -11,15 +11,13 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use rom_core::{
-    SpoTextEncoder, TextEncoder,
+    roster::{BoxerIntro, CornermanText, RosterLoader, RosterWriter, VictoryQuote},
     text::{
-        MenuCategory, MenuText, TextCondition, TextDatabase,
-        TextPreviewRenderer, TextValidationSummary, VictoryCondition,
-        MAX_CORNERMAN_TEXT_LENGTH, MAX_MENU_TEXT_LENGTH, MAX_VICTORY_QUOTE_LENGTH,
+        MenuCategory, MenuText, TextCondition, TextDatabase, TextPreviewRenderer,
+        TextValidationSummary, VictoryCondition, MAX_CORNERMAN_TEXT_LENGTH, MAX_MENU_TEXT_LENGTH,
+        MAX_VICTORY_QUOTE_LENGTH,
     },
-    roster::{
-        BoxerIntro, CornermanText, RosterLoader, RosterWriter, VictoryQuote,
-    },
+    SpoTextEncoder, TextEncoder,
 };
 
 use crate::AppState;
@@ -150,7 +148,12 @@ impl From<VictoryQuote> for VictoryQuoteDto {
             id: quote.id,
             boxer_key: quote.boxer_key,
             text: quote.text,
-            condition: (if quote.is_loss_quote { "Loss" } else { "Victory" }).to_string(),
+            condition: (if quote.is_loss_quote {
+                "Loss"
+            } else {
+                "Victory"
+            })
+            .to_string(),
             condition_value: if quote.is_loss_quote { 1 } else { 0 },
             is_loss_quote: quote.is_loss_quote,
             byte_length,
@@ -482,23 +485,28 @@ pub fn update_boxer_intro(
 
         // Write only the fields that were provided
         if let Some(ref name) = request.name_text {
-            writer.write_boxer_intro_field(fighter_id, 0, name)
+            writer
+                .write_boxer_intro_field(fighter_id, 0, name)
                 .map_err(|e| e.to_string())?;
         }
         if let Some(ref origin) = request.origin_text {
-            writer.write_boxer_intro_field(fighter_id, 1, origin)
+            writer
+                .write_boxer_intro_field(fighter_id, 1, origin)
                 .map_err(|e| e.to_string())?;
         }
         if let Some(ref record) = request.record_text {
-            writer.write_boxer_intro_field(fighter_id, 2, record)
+            writer
+                .write_boxer_intro_field(fighter_id, 2, record)
                 .map_err(|e| e.to_string())?;
         }
         if let Some(ref rank) = request.rank_text {
-            writer.write_boxer_intro_field(fighter_id, 3, rank)
+            writer
+                .write_boxer_intro_field(fighter_id, 3, rank)
                 .map_err(|e| e.to_string())?;
         }
         if let Some(ref intro_quote) = request.intro_quote {
-            writer.write_boxer_intro_field(fighter_id, 4, intro_quote)
+            writer
+                .write_boxer_intro_field(fighter_id, 4, intro_quote)
                 .map_err(|e| e.to_string())?;
         }
 
@@ -510,7 +518,9 @@ pub fn update_boxer_intro(
 
         let rom_guard = state.rom.lock();
         let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let intro = loader.load_boxer_intro(fighter_id).map_err(|e| e.to_string())?;
+        let intro = loader
+            .load_boxer_intro(fighter_id)
+            .map_err(|e| e.to_string())?;
         let validation = validate_intro(&intro, &encoder);
 
         Ok(BoxerIntroResponse {
@@ -569,7 +579,12 @@ pub fn update_victory_quote(
             let q = quotes
                 .into_iter()
                 .find(|q| q.id == request.id)
-                .ok_or_else(|| format!("Victory quote {} not found for boxer '{}'", request.id, request.boxer_key))?;
+                .ok_or_else(|| {
+                    format!(
+                        "Victory quote {} not found for boxer '{}'",
+                        request.id, request.boxer_key
+                    )
+                })?;
             let ro = q.rom_offset.ok_or("Victory quote has no ROM offset")?;
             let orig_len = encoder.encode(&q.text).len();
             (ro, orig_len, q.is_loss_quote, q.boxer_key, q.max_length)
@@ -936,12 +951,7 @@ pub fn reset_text_to_defaults(
             let mut writer = RosterWriter::new(rom);
             for ct in &orig_texts {
                 writer
-                    .write_cornerman_text(
-                        fighter_id,
-                        ct.id,
-                        &ct.text,
-                        Some(ct.condition.to_byte()),
-                    )
+                    .write_cornerman_text(fighter_id, ct.id, &ct.text, Some(ct.condition.to_byte()))
                     .map_err(|e| e.to_string())?;
             }
             drop(rom_guard);

@@ -180,7 +180,10 @@ pub fn get_current_project(state: State<AppState>) -> Option<ProjectFile> {
 /// Get the path of the currently open project
 #[tauri::command]
 pub fn get_current_project_path(state: State<AppState>) -> Option<String> {
-    state.current_project.lock().as_ref()
+    state
+        .current_project
+        .lock()
+        .as_ref()
         .map(|proj| proj.path.to_string_lossy().to_string())
 }
 

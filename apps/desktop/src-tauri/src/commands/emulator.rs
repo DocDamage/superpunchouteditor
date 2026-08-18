@@ -24,17 +24,10 @@ pub async fn test_in_emulator(
     let _ = round;
 
     // 1. Check if ROM is loaded
-    let rom_path = state
-        .rom_path
-        .lock()
-        .clone()
-        .ok_or("No ROM loaded")?;
+    let rom_path = state.rom_path.lock().clone().ok_or("No ROM loaded")?;
 
     // 2. Get emulator settings
-    let settings = state
-        .emulator_settings
-        .lock()
-        .clone();
+    let settings = state.emulator_settings.lock().clone();
 
     if settings.emulator_path.is_empty() {
         return Err(

@@ -215,7 +215,11 @@ pub fn analyze_hal8_pass(input: &[u8]) -> AssetResult<CompressionPassInfo> {
                 written += len;
             }
             _ => {
-                return Err(format!("Unsupported HAL8 command {} at byte {}", cmd, pos - 1));
+                return Err(format!(
+                    "Unsupported HAL8 command {} at byte {}",
+                    cmd,
+                    pos - 1
+                ));
             }
         }
 
@@ -369,17 +373,18 @@ pub fn encode_tiles_for_asset(tiles: &[Tile], compressed: bool) -> Vec<u8> {
     }
 }
 
-pub fn current_tile_diff(
-    original_tiles: &[Tile],
-    current_tiles: &[Tile],
-) -> Vec<bool> {
+pub fn current_tile_diff(original_tiles: &[Tile], current_tiles: &[Tile]) -> Vec<bool> {
     let tile_count = original_tiles.len().max(current_tiles.len());
     (0..tile_count)
         .map(|idx| original_tiles.get(idx) != current_tiles.get(idx))
         .collect()
 }
 
-pub fn render_tile_strip(tiles: &[Tile], palette: &[Color], width_tiles: usize) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+pub fn render_tile_strip(
+    tiles: &[Tile],
+    palette: &[Color],
+    width_tiles: usize,
+) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     tiles_to_image(tiles, width_tiles.max(1), palette)
 }
 
@@ -441,7 +446,11 @@ pub fn get_runtime_theme_assets(
         .first()
         .ok_or_else(|| format!("Boxer '{}' has no palette assets", boxer.name))?;
     let palette_pc = parse_offset(&palette_asset.start_pc)?;
-    let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_asset.size)?);
+    let palette = first_subpalette(&read_palette_colors(
+        state.inner(),
+        palette_pc,
+        palette_asset.size,
+    )?);
 
     let icon_png = boxer
         .icon_files

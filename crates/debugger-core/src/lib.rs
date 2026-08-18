@@ -30,12 +30,10 @@ pub mod tracer;
 pub mod types;
 
 pub use cpu::{CpuDebugger, StepResult};
-pub use memory::{MemoryHeatmap, MemoryWatcher, AccessType};
-pub use spc700::{Spc700Debugger, DspRegisterState, AudioChannelState};
+pub use memory::{AccessType, MemoryHeatmap, MemoryWatcher};
+pub use spc700::{AudioChannelState, DspRegisterState, Spc700Debugger};
 pub use tracer::{ExecutionTracer, TraceEntry, TraceFilter};
 pub use types::*;
-
-
 
 /// Main debugger facade that coordinates all debugging subsystems
 pub struct SnesDebugger {
@@ -82,11 +80,11 @@ impl SnesDebugger {
     /// Step one instruction
     pub fn step(&mut self) -> StepResult {
         let result = self.cpu.step();
-        
+
         if let Some(ref _spc700) = self.spc700 {
             // Sync SPC700 state if needed
         }
-        
+
         result
     }
 
@@ -184,16 +182,16 @@ pub struct RunResult {
 pub enum DebuggerError {
     #[error("Invalid address: {0:06X}")]
     InvalidAddress(u32),
-    
+
     #[error("Breakpoint not found: {0:?}")]
     BreakpointNotFound(BreakpointId),
-    
+
     #[error("Emulator not running")]
     EmulatorNotRunning,
-    
+
     #[error("Invalid register: {0}")]
     InvalidRegister(String),
-    
+
     #[error("Memory access violation: {0:06X}")]
     MemoryViolation(u32),
 }

@@ -2,17 +2,17 @@
 //!
 //! Commands for sprite-bin export/import, diffing, and boxer sheet rendering.
 
-use image::{ImageBuffer, Rgba};
-use tauri::State;
 use asset_core::fighter::BoxerManager;
+use image::{ImageBuffer, Rgba};
 use manifest_core::{AssetFile, BoxerRecord};
+use tauri::State;
 
 use crate::app_state::AppState;
 use crate::utils::parse_offset;
 
 use super::{
-    current_tile_diff, decode_asset_tiles, find_asset_by_offset,
-    find_boxer_by_key, first_subpalette, png_bytes as encode_png_bytes, read_current_asset_bytes,
+    current_tile_diff, decode_asset_tiles, find_asset_by_offset, find_boxer_by_key,
+    first_subpalette, png_bytes as encode_png_bytes, read_current_asset_bytes,
     read_original_rom_bytes, read_palette_colors, render_tile_strip, save_png, set_pending_write,
     AssetResult, DEFAULT_TILE_STRIP_WIDTH,
 };
@@ -79,7 +79,11 @@ pub fn export_sprite_bin_to_png(
 
     let bytes = read_current_asset_bytes(state.inner(), asset_pc_offset, size)?;
     let tiles = decode_asset_tiles(&bytes, asset.category.contains("Compressed"))?;
-    let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_size)?);
+    let palette = first_subpalette(&read_palette_colors(
+        state.inner(),
+        palette_pc,
+        palette_size,
+    )?);
     let img = render_tile_strip(&tiles, &palette, width_tiles);
     save_png(&img, &output_path)?;
     Ok(tiles.len())
@@ -101,7 +105,11 @@ pub fn import_sprite_bin_from_png(
         .ok_or_else(|| format!("Asset at {} not found in manifest", pc_offset))?;
     drop(manifest);
 
-    let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_size)?);
+    let palette = first_subpalette(&read_palette_colors(
+        state.inner(),
+        palette_pc,
+        palette_size,
+    )?);
     let img = image::open(&png_path)
         .map_err(|e| format!("Failed to open PNG '{}': {}", png_path, e))?
         .to_rgba8();
@@ -196,7 +204,11 @@ pub fn render_sprite_sheet(
         .first()
         .ok_or_else(|| format!("Boxer '{}' has no palette assets", boxer.name))?;
     let palette_pc = parse_offset(&palette_asset.start_pc)?;
-    let palette = first_subpalette(&read_palette_colors(state.inner(), palette_pc, palette_asset.size)?);
+    let palette = first_subpalette(&read_palette_colors(
+        state.inner(),
+        palette_pc,
+        palette_asset.size,
+    )?);
 
     let mut bin_images = Vec::new();
     for bin in &boxer.unique_sprite_bins {
@@ -204,7 +216,11 @@ pub fn render_sprite_sheet(
         let bytes = read_current_asset_bytes(state.inner(), bin_pc, bin.size)?;
         let tiles = decode_asset_tiles(&bytes, bin.category.contains("Compressed"))?;
         if !tiles.is_empty() {
-            bin_images.push(render_tile_strip(&tiles, &palette, DEFAULT_TILE_STRIP_WIDTH));
+            bin_images.push(render_tile_strip(
+                &tiles,
+                &palette,
+                DEFAULT_TILE_STRIP_WIDTH,
+            ));
         }
     }
 
@@ -214,13 +230,20 @@ pub fn render_sprite_sheet(
             let bytes = read_current_asset_bytes(state.inner(), bin_pc, bin.size)?;
             let tiles = decode_asset_tiles(&bytes, bin.category.contains("Compressed"))?;
             if !tiles.is_empty() {
-                bin_images.push(render_tile_strip(&tiles, &palette, DEFAULT_TILE_STRIP_WIDTH));
+                bin_images.push(render_tile_strip(
+                    &tiles,
+                    &palette,
+                    DEFAULT_TILE_STRIP_WIDTH,
+                ));
             }
         }
     }
 
     if bin_images.is_empty() {
-        return Err(format!("Boxer '{}' has no sprite bins to render", boxer.name));
+        return Err(format!(
+            "Boxer '{}' has no sprite bins to render",
+            boxer.name
+        ));
     }
 
     combined_sheet_png(&bin_images)

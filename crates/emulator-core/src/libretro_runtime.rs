@@ -2,13 +2,13 @@ use crate::audio::{AudioBuffer, AudioConfig};
 use crate::input::InputManager;
 use crate::libretro::{
     self, AudioSampleBatchCallback, AudioSampleCallback, EnvironmentCallback, InputPollCallback,
-    InputStateCallback, RetroApiVersionFn, RetroDeinitFn, RetroGameInfo,
-    RetroGetMemoryDataFn, RetroGetMemorySizeFn, RetroGetSystemAvInfoFn, RetroGetSystemInfoFn,
-    RetroInitFn, RetroLoadGameFn, RetroResetFn, RetroRunFn, RetroSerializeFn,
-    RetroSerializeSizeFn, RetroSetAudioSampleBatchFn, RetroSetAudioSampleFn,
-    RetroSetControllerPortDeviceFn, RetroSetEnvironmentFn, RetroSetInputPollFn,
-    RetroSetInputStateFn, RetroSetVideoRefreshFn, RetroSystemAvInfo, RetroSystemInfo,
-    RetroUnloadGameFn, RetroUnserializeFn, VideoRefreshCallback,
+    InputStateCallback, RetroApiVersionFn, RetroDeinitFn, RetroGameInfo, RetroGetMemoryDataFn,
+    RetroGetMemorySizeFn, RetroGetSystemAvInfoFn, RetroGetSystemInfoFn, RetroInitFn,
+    RetroLoadGameFn, RetroResetFn, RetroRunFn, RetroSerializeFn, RetroSerializeSizeFn,
+    RetroSetAudioSampleBatchFn, RetroSetAudioSampleFn, RetroSetControllerPortDeviceFn,
+    RetroSetEnvironmentFn, RetroSetInputPollFn, RetroSetInputStateFn, RetroSetVideoRefreshFn,
+    RetroSystemAvInfo, RetroSystemInfo, RetroUnloadGameFn, RetroUnserializeFn,
+    VideoRefreshCallback,
 };
 use crate::video::{PixelFormat, VideoBuffer};
 use crate::{EmulatorError, Result};
@@ -42,10 +42,7 @@ pub fn clear_callback_targets() {
     *CALLBACK_TARGETS.lock() = CallbackTargets::default();
 }
 
-unsafe extern "C" fn environment_callback(
-    cmd: libc::c_uint,
-    data: *mut libc::c_void,
-) -> u8 {
+unsafe extern "C" fn environment_callback(cmd: libc::c_uint, data: *mut libc::c_void) -> u8 {
     match cmd {
         libretro::RETRO_ENVIRONMENT_SET_PIXEL_FORMAT => {
             if data.is_null() {
@@ -202,8 +199,7 @@ impl LibretroCore {
         let retro_serialize_size: RetroSerializeSizeFn =
             load_symbol(&library, b"retro_serialize_size\0")?;
         let retro_serialize: RetroSerializeFn = load_symbol(&library, b"retro_serialize\0")?;
-        let retro_unserialize: RetroUnserializeFn =
-            load_symbol(&library, b"retro_unserialize\0")?;
+        let retro_unserialize: RetroUnserializeFn = load_symbol(&library, b"retro_unserialize\0")?;
         let retro_load_game: RetroLoadGameFn = load_symbol(&library, b"retro_load_game\0")?;
         let retro_unload_game: RetroUnloadGameFn = load_symbol(&library, b"retro_unload_game\0")?;
         let retro_get_memory_data: RetroGetMemoryDataFn =
@@ -215,9 +211,7 @@ impl LibretroCore {
             retro_set_environment(environment_callback as EnvironmentCallback);
             retro_set_video_refresh(video_refresh_callback as VideoRefreshCallback);
             retro_set_audio_sample(audio_sample_callback as AudioSampleCallback);
-            retro_set_audio_sample_batch(
-                audio_sample_batch_callback as AudioSampleBatchCallback,
-            );
+            retro_set_audio_sample_batch(audio_sample_batch_callback as AudioSampleBatchCallback);
             retro_set_input_poll(input_poll_callback as InputPollCallback);
             retro_set_input_state(input_state_callback as InputStateCallback);
             retro_init();
@@ -321,10 +315,7 @@ impl LibretroCore {
 
     pub fn load_state(&self, state_data: &[u8]) -> Result<()> {
         let ok = unsafe {
-            (self.retro_unserialize)(
-                state_data.as_ptr() as *const libc::c_void,
-                state_data.len(),
-            )
+            (self.retro_unserialize)(state_data.as_ptr() as *const libc::c_void, state_data.len())
         };
         if ok == 0 {
             return Err(EmulatorError::StateError(
@@ -359,12 +350,7 @@ impl LibretroCore {
         Some(slice[offset..end].to_vec())
     }
 
-    pub fn write_memory(
-        &self,
-        memory_id: libc::c_uint,
-        offset: usize,
-        bytes: &[u8],
-    ) -> bool {
+    pub fn write_memory(&self, memory_id: libc::c_uint, offset: usize, bytes: &[u8]) -> bool {
         let end = match offset.checked_add(bytes.len()) {
             Some(end) => end,
             None => return false,
@@ -392,7 +378,8 @@ impl LibretroCore {
     }
 
     pub fn set_audio_config(audio_buffer: &Arc<AudioBuffer>, av_info: &RetroSystemAvInfo) {
-        audio_buffer.set_config(AudioConfig::default().with_sample_rate(av_info.timing.sample_rate));
+        audio_buffer
+            .set_config(AudioConfig::default().with_sample_rate(av_info.timing.sample_rate));
     }
 }
 

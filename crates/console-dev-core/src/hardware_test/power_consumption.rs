@@ -1,7 +1,7 @@
 //! Power Consumption Test
 //!
 //! Placeholder module for power consumption tracking.
-//! 
+//!
 //! Note: Measuring power consumption requires specialized hardware (multimeter,
 //! oscilloscope with current probe, or dedicated power monitor).
 //! This module provides the framework but actual implementation requires
@@ -247,7 +247,7 @@ impl HardwareTest for PowerConsumption {
     fn run_hardware(&mut self) -> Result<TestResult> {
         log::info!("Running power consumption test on hardware...");
         log::warn!("This is a placeholder - actual power measurement requires external hardware");
-        
+
         let start_time = Instant::now();
         let mut samples = Vec::new();
 
@@ -335,7 +335,7 @@ impl HardwareTest for PowerConsumption {
 
     fn compare(&self, hardware_result: &TestResult, emulator_result: &TestResult) -> Result<()> {
         log::warn!("Power consumption comparison is not meaningful without actual hardware measurement");
-        
+
         // Always return Ok for placeholder - actual comparison doesn't make sense
         // when one value is measured and the other is estimated
         Ok(())

@@ -56,7 +56,8 @@ pub fn export_bps_patch(state: State<AppState>, output_path: String) -> Result<u
         author: None,
         description: None,
     };
-    let patch_data = patch_core::generate_bps(&rom.data, &edited, &metadata).map_err(|e| e.to_string())?;
+    let patch_data =
+        patch_core::generate_bps(&rom.data, &edited, &metadata).map_err(|e| e.to_string())?;
     std::fs::write(&output_path, patch_data).map_err(|e| e.to_string())?;
 
     Ok(patch_count)

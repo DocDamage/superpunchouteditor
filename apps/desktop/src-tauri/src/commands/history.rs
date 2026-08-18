@@ -55,9 +55,24 @@ pub fn clear_history(state: State<AppState>) -> Result<(), String> {
 /// * `revert = false` → write back `new_bytes` (redo)
 fn apply_action(rom: &mut Rom, action: &EditAction, revert: bool) -> Result<(), String> {
     match action {
-        EditAction::PaletteEdit { pc_offset, old_bytes, new_bytes, .. }
-        | EditAction::SpriteBinEdit { pc_offset, old_bytes, new_bytes, .. }
-        | EditAction::AssetImport { pc_offset, old_bytes, new_bytes, .. } => {
+        EditAction::PaletteEdit {
+            pc_offset,
+            old_bytes,
+            new_bytes,
+            ..
+        }
+        | EditAction::SpriteBinEdit {
+            pc_offset,
+            old_bytes,
+            new_bytes,
+            ..
+        }
+        | EditAction::AssetImport {
+            pc_offset,
+            old_bytes,
+            new_bytes,
+            ..
+        } => {
             let bytes = if revert { old_bytes } else { new_bytes };
             let offset = parse_hex_offset(pc_offset)?;
             rom.write_bytes(offset, bytes).map_err(|e| e.to_string())
@@ -68,6 +83,5 @@ fn apply_action(rom: &mut Rom, action: &EditAction, revert: bool) -> Result<(), 
 /// Parse a hex offset string such as `"0x1A2B3C"` or `"1A2B3C"` to `usize`.
 fn parse_hex_offset(s: &str) -> Result<usize, String> {
     let clean = s.trim_start_matches("0x").trim_start_matches("0X");
-    usize::from_str_radix(clean, 16)
-        .map_err(|e| format!("Invalid ROM offset '{}': {}", s, e))
+    usize::from_str_radix(clean, 16).map_err(|e| format!("Invalid ROM offset '{}': {}", s, e))
 }

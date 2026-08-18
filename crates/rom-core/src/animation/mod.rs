@@ -16,7 +16,7 @@
 //! ## Pose Table Structure
 //! Each pose entry is 5 bytes:
 //! - Byte 0: tileset1_id
-//! - Byte 1: tileset2_id  
+//! - Byte 1: tileset2_id
 //! - Byte 2: palette_id
 //! - Bytes 3-4: data_addr (pointer to sprite/metasprite data)
 //!
@@ -27,14 +27,14 @@
 //! - Effect triggers
 
 mod constants;
-mod types;
 mod loader;
+mod types;
 mod writer;
 
 // Re-export all public types from submodules
 pub use constants::*;
-pub use types::*;
 pub use loader::AnimationLoader;
+pub use types::*;
 pub use writer::AnimationWriter;
 
 // ============================================================================

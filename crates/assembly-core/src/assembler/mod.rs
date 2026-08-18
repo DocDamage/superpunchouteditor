@@ -229,13 +229,13 @@ impl Assembler {
     /// Define a label
     pub fn define_label(&mut self, name: impl Into<String>, address: u32) -> Result<()> {
         let name = name.into();
-        
+
         if self.labels.contains_key(&name) {
             return Err(AssemblyError::DuplicateLabel(name));
         }
 
         let is_local = name.starts_with('.') || name.starts_with('@');
-        
+
         self.labels.insert(
             name.clone(),
             LabelInfo {
@@ -259,7 +259,7 @@ impl Assembler {
 
         for (_line_num, line) in source.lines().enumerate() {
             let line = line.trim();
-            
+
             // Skip empty lines
             if line.is_empty() {
                 statements.push(Statement::Empty);
@@ -322,7 +322,7 @@ impl Assembler {
     /// Parse an instruction
     fn parse_instruction(&self, line: &str) -> Result<InstructionLine> {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        
+
         if parts.is_empty() {
             return Err(AssemblyError::InvalidSyntax("Empty instruction".to_string()));
         }
@@ -379,7 +379,7 @@ impl Assembler {
         // Indirect (addr)
         if base.starts_with('(') && base.ends_with(')') {
             let inner = &base[1..base.len() - 1];
-            
+
             // Check for (addr,X) - indexed indirect
             if inner.contains(",X") || inner.contains(",x") {
                 let addr = inner.split(",X").next().unwrap_or("").trim();
@@ -388,7 +388,7 @@ impl Assembler {
                     IndexRegister::X,
                 ));
             }
-            
+
             let operand = Operand::Indirect(inner.to_string());
             return match index {
                 Some(IndexRegister::Y) => Ok(Operand::Indexed(Box::new(operand), IndexRegister::Y)),
@@ -423,7 +423,7 @@ impl Assembler {
     /// Parse a directive
     fn parse_directive(&self, line: &str) -> Result<Directive> {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        
+
         if parts.is_empty() {
             return Err(AssemblyError::InvalidSyntax("Empty directive".to_string()));
         }
@@ -934,7 +934,7 @@ fn parse_number(s: &str) -> Result<u32> {
 /// Parse a string literal
 fn parse_string(s: &str) -> Result<String> {
     let s = s.trim();
-    
+
     if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
         Ok(s[1..s.len() - 1].to_string())
     } else {

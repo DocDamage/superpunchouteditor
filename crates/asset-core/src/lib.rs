@@ -28,8 +28,8 @@ pub mod palette;
 pub mod spc;
 
 pub use animation::{
-    AnimationFrame, AnimationPlayer, AnimationSequence, BlendMode, CombatHitbox, HitboxEditor,
-    HitboxType, Hurtbox, EditMode, FrameMetadata, FrameFlags, FrameTrigger, InterpolatedFrame,
+    AnimationFrame, AnimationPlayer, AnimationSequence, BlendMode, CombatHitbox, EditMode,
+    FrameFlags, FrameMetadata, FrameTrigger, HitboxEditor, HitboxType, Hurtbox, InterpolatedFrame,
 };
 #[allow(ambiguous_glob_reexports)]
 pub use audio::*;

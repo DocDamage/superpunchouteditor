@@ -87,7 +87,13 @@ impl TraceEntry {
     }
 
     /// Add a memory access record
-    pub fn add_memory_access(&mut self, addr: u32, access_type: MemoryAccessType, value: u16, is_16bit: bool) {
+    pub fn add_memory_access(
+        &mut self,
+        addr: u32,
+        access_type: MemoryAccessType,
+        value: u16,
+        is_16bit: bool,
+    ) {
         self.metadata.memory_accesses.push(MemoryAccessRecord {
             address: addr,
             access_type,
@@ -108,7 +114,10 @@ impl TraceEntry {
 
     /// Get the instruction as a formatted string
     pub fn formatted_instruction(&self) -> String {
-        format!("{}  {}", self.instruction.mnemonic, self.instruction.operands)
+        format!(
+            "{}  {}",
+            self.instruction.mnemonic, self.instruction.operands
+        )
     }
 
     /// Get a summary line for display
@@ -244,13 +253,32 @@ impl InstructionTypeFilter {
         }
 
         // Check loads/stores
-        let is_load = mnemonic.starts_with("LD") || mnemonic == "PLA" || mnemonic == "PLX" || mnemonic == "PLY";
+        let is_load = mnemonic.starts_with("LD")
+            || mnemonic == "PLA"
+            || mnemonic == "PLX"
+            || mnemonic == "PLY";
         let is_store = mnemonic.starts_with("ST") || mnemonic.starts_with("PH");
         let is_arithmetic = matches!(
             mnemonic,
-            "ADC" | "SBC" | "INC" | "DEC" | "INX" | "DEX" | "INY" | "DEY"
-                | "AND" | "ORA" | "EOR" | "ASL" | "LSR" | "ROL" | "ROR"
-                | "CMP" | "CPX" | "CPY" | "BIT"
+            "ADC"
+                | "SBC"
+                | "INC"
+                | "DEC"
+                | "INX"
+                | "DEX"
+                | "INY"
+                | "DEY"
+                | "AND"
+                | "ORA"
+                | "EOR"
+                | "ASL"
+                | "LSR"
+                | "ROL"
+                | "ROR"
+                | "CMP"
+                | "CPX"
+                | "CPY"
+                | "BIT"
         );
 
         if is_load && !self.loads {
@@ -428,7 +456,9 @@ impl ExecutionTracer {
         self.position = (self.position + 1) % self.capacity;
 
         // Check max entries
-        if self.filter.max_entries > 0 && self.matched_instructions >= self.filter.max_entries as u64 {
+        if self.filter.max_entries > 0
+            && self.matched_instructions >= self.filter.max_entries as u64
+        {
             self.active = false;
         }
     }
@@ -439,16 +469,14 @@ impl ExecutionTracer {
         let addr = entry.address.to_pc();
 
         if !self.filter.address_ranges.is_empty() {
-            let in_range = self.filter.address_ranges.iter()
-                .any(|r| r.contains(&addr));
+            let in_range = self.filter.address_ranges.iter().any(|r| r.contains(&addr));
             if !in_range {
                 return false;
             }
         }
 
         // Check excluded ranges
-        let excluded = self.filter.exclude_ranges.iter()
-            .any(|r| r.contains(&addr));
+        let excluded = self.filter.exclude_ranges.iter().any(|r| r.contains(&addr));
         if excluded {
             return false;
         }
@@ -621,7 +649,7 @@ mod tests {
         let mut regs = RegisterState::default();
         regs.a = 0x1234;
         regs.x = 0x5678;
-        
+
         TraceEntry::new(
             SnesAddress::from_pc(addr),
             create_test_instruction(mnemonic),
@@ -633,7 +661,7 @@ mod tests {
     #[test]
     fn test_trace_entry_creation() {
         let entry = create_test_entry("LDA", 0x008000);
-        
+
         assert_eq!(entry.instruction.mnemonic, "LDA");
         assert_eq!(entry.registers.a, 0x1234);
         assert_eq!(entry.address.to_pc(), 0x008000);
@@ -642,16 +670,16 @@ mod tests {
     #[test]
     fn test_circular_buffer() {
         let mut tracer = ExecutionTracer::with_capacity(3);
-        
+
         tracer.start(TraceFilter::default());
-        
+
         tracer.trace(create_test_entry("LDA", 0x008000));
         tracer.trace(create_test_entry("STA", 0x008001));
         tracer.trace(create_test_entry("INX", 0x008002));
         tracer.trace(create_test_entry("INY", 0x008003)); // Should wrap around
-        
+
         let entries = tracer.get_entries();
-        
+
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].instruction.mnemonic, "STA"); // Oldest
         assert_eq!(entries[2].instruction.mnemonic, "INY"); // Newest
@@ -662,13 +690,13 @@ mod tests {
         let mut tracer = ExecutionTracer::new();
         let mut filter = TraceFilter::default();
         filter.address_ranges.push(0x008000..=0x0080FF);
-        
+
         tracer.start(filter);
-        
+
         tracer.trace(create_test_entry("LDA", 0x007FFF)); // Outside range
         tracer.trace(create_test_entry("STA", 0x008000)); // In range
         tracer.trace(create_test_entry("INX", 0x008100)); // Outside range
-        
+
         let entries = tracer.get_entries();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].instruction.mnemonic, "STA");
@@ -679,14 +707,14 @@ mod tests {
         let mut tracer = ExecutionTracer::new();
         let mut filter = TraceFilter::default();
         filter.instruction_types = InstructionTypeFilter::control_flow_only();
-        
+
         tracer.start(filter);
-        
+
         tracer.trace(create_test_entry("LDA", 0x008000));
         tracer.trace(create_test_entry("JSR", 0x008001));
         tracer.trace(create_test_entry("STA", 0x008002));
         tracer.trace(create_test_entry("RTS", 0x008003));
-        
+
         let entries = tracer.get_entries();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].instruction.mnemonic, "JSR");
@@ -698,13 +726,13 @@ mod tests {
         let mut tracer = ExecutionTracer::new();
         let mut filter = TraceFilter::default();
         filter.sample_rate = 2; // Every 2nd instruction
-        
+
         tracer.start(filter);
-        
+
         for i in 0..10 {
             tracer.trace(create_test_entry("LDA", 0x008000 + i));
         }
-        
+
         let entries = tracer.get_entries();
         assert_eq!(entries.len(), 5); // 0, 2, 4, 6, 8
     }
@@ -729,14 +757,14 @@ mod tests {
     fn test_search() {
         let mut tracer = ExecutionTracer::new();
         tracer.start(TraceFilter::default());
-        
+
         tracer.trace(create_test_entry("LDA", 0x008000));
         tracer.trace(create_test_entry("STA", 0x008001));
         tracer.trace(create_test_entry("LDA", 0x008002));
-        
+
         let lda_entries = tracer.find_by_mnemonic("LDA");
         assert_eq!(lda_entries.len(), 2);
-        
+
         let addr_entries = tracer.find_by_address(SnesAddress::from_pc(0x008001));
         assert_eq!(addr_entries.len(), 1);
     }
@@ -744,19 +772,19 @@ mod tests {
     #[test]
     fn test_trace_stats() {
         let mut tracer = ExecutionTracer::new();
-        
+
         let mut filter = TraceFilter::default();
         filter.instruction_types = InstructionTypeFilter::memory_only();
-        
+
         tracer.start(filter);
-        
+
         tracer.trace(create_test_entry("LDA", 0x008000)); // Load - matches
         tracer.trace(create_test_entry("STA", 0x008001)); // Store - matches
         tracer.trace(create_test_entry("INX", 0x008002)); // Arithmetic - no match
         tracer.trace(create_test_entry("JMP", 0x008003)); // Branch - no match
-        
+
         let stats = tracer.stats();
-        
+
         assert_eq!(stats.total_instructions, 4);
         assert_eq!(stats.matched_instructions, 2);
         assert_eq!(stats.filter_rate(), 0.5);

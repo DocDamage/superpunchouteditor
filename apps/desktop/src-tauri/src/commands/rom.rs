@@ -36,12 +36,9 @@ pub fn open_rom(app: AppHandle, state: State<AppState>, path: String) -> Result<
     validate_rom_path(&path)?;
 
     let rom = Rom::load(&path).map_err(|e| e.to_string())?;
-    let region = rom.detect_region().ok_or_else(|| {
-        format!(
-            "Unknown ROM region. SHA1: {}",
-            rom.calculate_sha1()
-        )
-    })?;
+    let region = rom
+        .detect_region()
+        .ok_or_else(|| format!("Unknown ROM region. SHA1: {}", rom.calculate_sha1()))?;
 
     // Resolve the Tauri resource directory for manifest loading.
     // This is populated in packaged builds and may be absent in some dev setups.

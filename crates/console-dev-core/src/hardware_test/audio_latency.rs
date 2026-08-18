@@ -234,7 +234,7 @@ impl HardwareTest for AudioLatency {
 
     fn run_hardware(&mut self) -> Result<TestResult> {
         log::info!("Running audio latency test on hardware...");
-        
+
         let start_time = Instant::now();
         let mut measurements = Vec::new();
 
@@ -246,10 +246,10 @@ impl HardwareTest for AudioLatency {
         // 1. Upload test ROM or SPC to flash cart
         // 2. Connect audio capture device
         // 3. Trigger audio and measure latency
-        
+
         // Placeholder: simulate measurements
         let buffer_latency = self.calculate_buffer_latency();
-        
+
         for _ in 0..self.config.sample_count {
             let measurement = AudioLatencyMeasurement {
                 total_latency: Duration::from_millis(20 + fastrand::u64(0..10)),
@@ -296,7 +296,7 @@ impl HardwareTest for AudioLatency {
 
         // Simulate measurements
         let buffer_latency = self.calculate_buffer_latency();
-        
+
         for _ in 0..self.config.sample_count {
             let measurement = AudioLatencyMeasurement {
                 total_latency: Duration::from_millis(15 + fastrand::u64(0..5)),

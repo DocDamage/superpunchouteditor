@@ -193,7 +193,7 @@ impl CodePatcher {
         } else {
             // Execute original instruction(s) first, then return
             trampoline_code.extend_from_slice(&original_bytes);
-            
+
             // Calculate return address (original + overwritten bytes)
             let return_addr = original_address + original_bytes.len() as u32;
             trampoline_code.push(0x5C); // JML
@@ -240,7 +240,7 @@ impl CodePatcher {
     ) -> Result<Trampoline> {
         // JSL to hook code, then continue original flow
         let continue_addr = hook_address + 4; // Size of JSL instruction
-        
+
         self.create_trampoline(hook_address, hook_code, Some(continue_addr), rom)
     }
 
@@ -331,7 +331,7 @@ impl CodePatcher {
     /// Apply a single jump table modification
     fn apply_jump_table_mod(&self, rom: &mut Rom, mod_info: &JumpTableMod) -> Result<()> {
         let entry_addr = mod_info.table_address + (mod_info.entry_index as u32 * mod_info.entry_size as u32);
-        
+
         let bytes = if mod_info.entry_size == 2 {
             vec![
                 (mod_info.new_target & 0xFF) as u8,
@@ -374,18 +374,18 @@ impl CodePatcher {
     /// Calculate ROM checksum
     fn calculate_checksum(&self, rom: &Rom) -> u16 {
         let mut sum: u32 = 0;
-        
+
         // Sum all bytes except checksum bytes themselves
         for i in 0..rom.len() {
             let addr = i as u32;
             // Skip checksum bytes
-            if addr == self.checksum_info.complement_addr 
+            if addr == self.checksum_info.complement_addr
                 || addr == self.checksum_info.complement_addr + 1
                 || addr == self.checksum_info.checksum_addr
                 || addr == self.checksum_info.checksum_addr + 1 {
                 continue;
             }
-            
+
             if let Ok(byte) = rom.read_byte(addr) {
                 sum = sum.wrapping_add(byte as u32);
             }
@@ -655,7 +655,7 @@ mod tests {
             .rts()
             .description("NOP and return")
             .build();
-        
+
         assert_eq!(patch.address, 0x8000);
         assert_eq!(patch.new_bytes, vec![0xEA, 0x60]);
     }
@@ -665,7 +665,7 @@ mod tests {
         let patch = PatchBuilder::new(0x8000)
             .jmp(0x9000)
             .build();
-        
+
         assert_eq!(patch.new_bytes, vec![0x4C, 0x00, 0x90]);
     }
 
@@ -674,7 +674,7 @@ mod tests {
         let patch = PatchBuilder::new(0x8000)
             .jml(0x123456)
             .build();
-        
+
         assert_eq!(patch.new_bytes, vec![0x5C, 0x56, 0x34, 0x12]);
     }
 
@@ -682,7 +682,7 @@ mod tests {
     fn test_code_patcher_add_free_space() {
         let mut patcher = CodePatcher::new();
         patcher.add_free_space(0x10000, 0x11000);
-        
+
         assert_eq!(patcher.free_space().len(), 1);
         assert_eq!(patcher.free_space()[0].start, 0x10000);
         assert_eq!(patcher.free_space()[0].end, 0x11000);
@@ -692,7 +692,7 @@ mod tests {
     fn test_insert_patch() {
         let mut patcher = CodePatcher::new();
         patcher.insert_patch(0x8000, &[0xEA, 0x60], "Test").unwrap();
-        
+
         assert_eq!(patcher.patches().len(), 1);
         assert_eq!(patcher.patches()[0].address, 0x8000);
     }
@@ -701,7 +701,7 @@ mod tests {
     fn test_modify_jump_table() {
         let mut patcher = CodePatcher::new();
         patcher.modify_jump_table(0x9000, 0, 0x8000, 2).unwrap();
-        
+
         assert_eq!(patcher.jump_table_mods().len(), 1);
         assert_eq!(patcher.jump_table_mods()[0].entry_index, 0);
         assert_eq!(patcher.jump_table_mods()[0].new_target, 0x8000);
@@ -719,7 +719,7 @@ mod tests {
         let patcher = CodePatcher::new();
         let data = vec![0u8; 0x8000];
         let rom = Rom::from_bytes(&data).unwrap();
-        
+
         let checksum = patcher.calculate_checksum(&rom);
         assert_eq!(checksum, 0); // All zeros
     }
@@ -728,7 +728,7 @@ mod tests {
     fn test_generate_report() {
         let mut patcher = CodePatcher::new();
         patcher.insert_patch(0x8000, &[0xEA], "NOP patch").unwrap();
-        
+
         let report = patcher.generate_report();
         assert!(report.contains("CODE PATCH REPORT"));
         assert!(report.contains("NOP patch"));

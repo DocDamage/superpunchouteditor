@@ -39,7 +39,7 @@ impl std::fmt::Display for ScriptCategory {
     }
 }
 
-/// Risk level for editing a particular script entry  
+/// Risk level for editing a particular script entry
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RiskLevel {
     Low,

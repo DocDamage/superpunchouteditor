@@ -3,8 +3,6 @@
 use crate::brr::{BrrDecoder, BrrEncodeOptions, BrrEncoder, BRR_BLOCK_SIZE, SAMPLES_PER_BLOCK};
 use serde::{Deserialize, Serialize};
 
-
-
 /// A BRR (Bit Rate Reduction) audio sample.
 ///
 /// BRR is the native compressed format used by the SPC700.

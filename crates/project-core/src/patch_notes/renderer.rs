@@ -30,27 +30,47 @@ impl PatchNotes {
         output.push_str(&format!(
             "This mod modifies **{}** boxer{} with:\n",
             self.summary.total_boxers_modified,
-            if self.summary.total_boxers_modified == 1 { "" } else { "s" }
+            if self.summary.total_boxers_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} palette change{}\n",
             self.summary.total_palettes_changed,
-            if self.summary.total_palettes_changed == 1 { "" } else { "s" }
+            if self.summary.total_palettes_changed == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} sprite edit{}\n",
             self.summary.total_sprites_edited,
-            if self.summary.total_sprites_edited == 1 { "" } else { "s" }
+            if self.summary.total_sprites_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} animation adjustment{}\n",
             self.summary.total_animations_modified,
-            if self.summary.total_animations_modified == 1 { "" } else { "s" }
+            if self.summary.total_animations_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} stat modification{}\n\n",
             self.summary.total_headers_edited,
-            if self.summary.total_headers_edited == 1 { "" } else { "s" }
+            if self.summary.total_headers_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
 
         // Changes by Boxer
@@ -73,7 +93,10 @@ impl PatchNotes {
             output.push_str("## System Changes\n\n");
 
             for change in &self.system_changes {
-                output.push_str(&format!("- **{}**: {}\n", change.category, change.description));
+                output.push_str(&format!(
+                    "- **{}**: {}\n",
+                    change.category, change.description
+                ));
             }
 
             output.push('\n');
@@ -81,7 +104,9 @@ impl PatchNotes {
 
         // Installation
         output.push_str("## Installation\n\n");
-        output.push_str("Apply the included `.ips` or `.bps` patch to a clean Super Punch-Out!! (USA) ROM.\n\n");
+        output.push_str(
+            "Apply the included `.ips` or `.bps` patch to a clean Super Punch-Out!! (USA) ROM.\n\n",
+        );
         output.push_str(&format!("SHA1 of target ROM: `{}`\n", self.base_rom_sha1));
 
         output
@@ -90,7 +115,11 @@ impl PatchNotes {
     /// Format a single change as markdown
     fn format_change_markdown(&self, change: &Change) -> String {
         match change {
-            Change::Palette { name, colors_changed, description } => {
+            Change::Palette {
+                name,
+                colors_changed,
+                description,
+            } => {
                 format!(
                     "**Palette** (`{}`): {} ({} color{} changed)",
                     name,
@@ -99,7 +128,11 @@ impl PatchNotes {
                     if *colors_changed == 1 { "" } else { "s" }
                 )
             }
-            Change::Sprite { bin_name, tiles_modified, description } => {
+            Change::Sprite {
+                bin_name,
+                tiles_modified,
+                description,
+            } => {
                 format!(
                     "**Sprite** (`{}`): {} ({} tile{} modified)",
                     bin_name,
@@ -108,11 +141,23 @@ impl PatchNotes {
                     if *tiles_modified == 1 { "" } else { "s" }
                 )
             }
-            Change::Stats { field, before, after, significant } => {
+            Change::Stats {
+                field,
+                before,
+                after,
+                significant,
+            } => {
                 let sig_marker = if *significant { " ⚠️" } else { "" };
-                format!("**Stats** (`{}`): {} → {}{}", field, before, after, sig_marker)
+                format!(
+                    "**Stats** (`{}`): {} → {}{}",
+                    field, before, after, sig_marker
+                )
             }
-            Change::Animation { name, frames_changed, description } => {
+            Change::Animation {
+                name,
+                frames_changed,
+                description,
+            } => {
                 format!(
                     "**Animation** (`{}`): {} ({} frame{} changed)",
                     name,
@@ -142,8 +187,14 @@ impl PatchNotes {
         // Header
         output.push_str(&format!("<h1>{}</h1>\n", self.title));
         output.push_str("<div class=\"meta\">\n");
-        output.push_str(&format!("<p><strong>Author:</strong> {}</p>\n", self.author));
-        output.push_str(&format!("<p><strong>Version:</strong> {}</p>\n", self.version));
+        output.push_str(&format!(
+            "<p><strong>Author:</strong> {}</p>\n",
+            self.author
+        ));
+        output.push_str(&format!(
+            "<p><strong>Version:</strong> {}</p>\n",
+            self.version
+        ));
         output.push_str(&format!("<p><strong>Date:</strong> {}</p>\n", self.date));
         output.push_str("</div>\n");
 
@@ -152,29 +203,49 @@ impl PatchNotes {
         output.push_str(&format!(
             "<p>This mod modifies <strong>{}</strong> boxer{}.</p>\n",
             self.summary.total_boxers_modified,
-            if self.summary.total_boxers_modified == 1 { "" } else { "s" }
+            if self.summary.total_boxers_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
 
         output.push_str("<ul>\n");
         output.push_str(&format!(
             "<li>{} palette change{}</li>\n",
             self.summary.total_palettes_changed,
-            if self.summary.total_palettes_changed == 1 { "" } else { "s" }
+            if self.summary.total_palettes_changed == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "<li>{} sprite edit{}</li>\n",
             self.summary.total_sprites_edited,
-            if self.summary.total_sprites_edited == 1 { "" } else { "s" }
+            if self.summary.total_sprites_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "<li>{} animation adjustment{}</li>\n",
             self.summary.total_animations_modified,
-            if self.summary.total_animations_modified == 1 { "" } else { "s" }
+            if self.summary.total_animations_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "<li>{} stat modification{}</li>\n",
             self.summary.total_headers_edited,
-            if self.summary.total_headers_edited == 1 { "" } else { "s" }
+            if self.summary.total_headers_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str("</ul>\n");
 
@@ -232,7 +303,11 @@ strong { color: #2c3e50; }
     /// Format a single change as HTML
     fn format_change_html(&self, change: &Change) -> String {
         match change {
-            Change::Palette { name, colors_changed, description } => {
+            Change::Palette {
+                name,
+                colors_changed,
+                description,
+            } => {
                 format!(
                     "<strong>Palette</strong> (<code>{}</code>): {} ({} color{} changed)",
                     name,
@@ -241,7 +316,11 @@ strong { color: #2c3e50; }
                     if *colors_changed == 1 { "" } else { "s" }
                 )
             }
-            Change::Sprite { bin_name, tiles_modified, description } => {
+            Change::Sprite {
+                bin_name,
+                tiles_modified,
+                description,
+            } => {
                 format!(
                     "<strong>Sprite</strong> (<code>{}</code>): {} ({} tile{} modified)",
                     bin_name,
@@ -250,11 +329,23 @@ strong { color: #2c3e50; }
                     if *tiles_modified == 1 { "" } else { "s" }
                 )
             }
-            Change::Stats { field, before, after, significant } => {
+            Change::Stats {
+                field,
+                before,
+                after,
+                significant,
+            } => {
                 let sig_marker = if *significant { " ⚠️" } else { "" };
-                format!("<strong>Stats</strong> (<code>{}</code>): {} → {}{}", field, before, after, sig_marker)
+                format!(
+                    "<strong>Stats</strong> (<code>{}</code>): {} → {}{}",
+                    field, before, after, sig_marker
+                )
             }
-            Change::Animation { name, frames_changed, description } => {
+            Change::Animation {
+                name,
+                frames_changed,
+                description,
+            } => {
                 format!(
                     "<strong>Animation</strong> (<code>{}</code>): {} ({} frame{} changed)",
                     name,
@@ -287,27 +378,47 @@ strong { color: #2c3e50; }
         output.push_str(&format!(
             "This mod modifies {} boxer{} with:\n",
             self.summary.total_boxers_modified,
-            if self.summary.total_boxers_modified == 1 { "" } else { "s" }
+            if self.summary.total_boxers_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} palette change{}\n",
             self.summary.total_palettes_changed,
-            if self.summary.total_palettes_changed == 1 { "" } else { "s" }
+            if self.summary.total_palettes_changed == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} sprite edit{}\n",
             self.summary.total_sprites_edited,
-            if self.summary.total_sprites_edited == 1 { "" } else { "s" }
+            if self.summary.total_sprites_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} animation adjustment{}\n",
             self.summary.total_animations_modified,
-            if self.summary.total_animations_modified == 1 { "" } else { "s" }
+            if self.summary.total_animations_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "- {} stat modification{}\n\n",
             self.summary.total_headers_edited,
-            if self.summary.total_headers_edited == 1 { "" } else { "s" }
+            if self.summary.total_headers_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
 
         // Changes by Boxer
@@ -331,7 +442,9 @@ strong { color: #2c3e50; }
         // Installation
         output.push_str("INSTALLATION\n");
         output.push_str("------------\n");
-        output.push_str("Apply the included .ips or .bps patch to a clean Super Punch-Out!! (USA) ROM.\n\n");
+        output.push_str(
+            "Apply the included .ips or .bps patch to a clean Super Punch-Out!! (USA) ROM.\n\n",
+        );
         output.push_str(&format!("SHA1 of target ROM: {}\n", self.base_rom_sha1));
 
         output
@@ -340,7 +453,11 @@ strong { color: #2c3e50; }
     /// Format a single change as plain text
     fn format_change_text(&self, change: &Change) -> String {
         match change {
-            Change::Palette { name, colors_changed, description } => {
+            Change::Palette {
+                name,
+                colors_changed,
+                description,
+            } => {
                 format!(
                     "Palette [{}]: {} ({} color{} changed)",
                     name,
@@ -349,7 +466,11 @@ strong { color: #2c3e50; }
                     if *colors_changed == 1 { "" } else { "s" }
                 )
             }
-            Change::Sprite { bin_name, tiles_modified, description } => {
+            Change::Sprite {
+                bin_name,
+                tiles_modified,
+                description,
+            } => {
                 format!(
                     "Sprite [{}]: {} ({} tile{} modified)",
                     bin_name,
@@ -358,11 +479,20 @@ strong { color: #2c3e50; }
                     if *tiles_modified == 1 { "" } else { "s" }
                 )
             }
-            Change::Stats { field, before, after, significant } => {
+            Change::Stats {
+                field,
+                before,
+                after,
+                significant,
+            } => {
                 let sig_marker = if *significant { " [!]" } else { "" };
                 format!("Stats [{}]: {} -> {}{}", field, before, after, sig_marker)
             }
-            Change::Animation { name, frames_changed, description } => {
+            Change::Animation {
+                name,
+                frames_changed,
+                description,
+            } => {
                 format!(
                     "Animation [{}]: {} ({} frame{} changed)",
                     name,
@@ -397,27 +527,47 @@ strong { color: #2c3e50; }
         output.push_str(&format!(
             "This mod modifies [b]{}[/b] boxer{} with:\n",
             self.summary.total_boxers_modified,
-            if self.summary.total_boxers_modified == 1 { "" } else { "s" }
+            if self.summary.total_boxers_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "[list]\n[*] {} palette change{}\n",
             self.summary.total_palettes_changed,
-            if self.summary.total_palettes_changed == 1 { "" } else { "s" }
+            if self.summary.total_palettes_changed == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "[*] {} sprite edit{}\n",
             self.summary.total_sprites_edited,
-            if self.summary.total_sprites_edited == 1 { "" } else { "s" }
+            if self.summary.total_sprites_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "[*] {} animation adjustment{}\n",
             self.summary.total_animations_modified,
-            if self.summary.total_animations_modified == 1 { "" } else { "s" }
+            if self.summary.total_animations_modified == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
         output.push_str(&format!(
             "[*] {} stat modification{}\n[/list]\n\n",
             self.summary.total_headers_edited,
-            if self.summary.total_headers_edited == 1 { "" } else { "s" }
+            if self.summary.total_headers_edited == 1 {
+                ""
+            } else {
+                "s"
+            }
         ));
 
         // Changes by Boxer
@@ -450,7 +600,11 @@ strong { color: #2c3e50; }
     /// Format a single change as BBCode
     fn format_change_bbcode(&self, change: &Change) -> String {
         match change {
-            Change::Palette { name, colors_changed, description } => {
+            Change::Palette {
+                name,
+                colors_changed,
+                description,
+            } => {
                 format!(
                     "[b]Palette[/b] ([code]{}[/code]): {} ({} color{} changed)",
                     name,
@@ -459,7 +613,11 @@ strong { color: #2c3e50; }
                     if *colors_changed == 1 { "" } else { "s" }
                 )
             }
-            Change::Sprite { bin_name, tiles_modified, description } => {
+            Change::Sprite {
+                bin_name,
+                tiles_modified,
+                description,
+            } => {
                 format!(
                     "[b]Sprite[/b] ([code]{}[/code]): {} ({} tile{} modified)",
                     bin_name,
@@ -468,11 +626,23 @@ strong { color: #2c3e50; }
                     if *tiles_modified == 1 { "" } else { "s" }
                 )
             }
-            Change::Stats { field, before, after, significant } => {
+            Change::Stats {
+                field,
+                before,
+                after,
+                significant,
+            } => {
                 let sig_marker = if *significant { " [!]" } else { "" };
-                format!("[b]Stats[/b] ([code]{}[/code]): {} -> {}{}", field, before, after, sig_marker)
+                format!(
+                    "[b]Stats[/b] ([code]{}[/code]): {} -> {}{}",
+                    field, before, after, sig_marker
+                )
             }
-            Change::Animation { name, frames_changed, description } => {
+            Change::Animation {
+                name,
+                frames_changed,
+                description,
+            } => {
                 format!(
                     "[b]Animation[/b] ([code]{}[/code]): {} ({} frame{} changed)",
                     name,

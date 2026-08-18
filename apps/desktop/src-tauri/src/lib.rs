@@ -38,7 +38,8 @@ pub use utils::*;
 pub use audio_commands::AudioState;
 pub use emulator::{EmulatorLauncher, EmulatorSettings, EmulatorType};
 pub use emulator_embedded::{
-    ControllerInput, CreatorRuntimeState, CreatorSessionState, EmbeddedEmulatorState, EmulatorFrameData, EmulatorStatus,
+    ControllerInput, CreatorRuntimeState, CreatorSessionState, EmbeddedEmulatorState,
+    EmulatorFrameData, EmulatorStatus,
 };
 pub use help_system::{HelpArticle, HelpArticleSummary, HelpCategory, HelpSystem, SearchResult};
 pub use settings_commands::{
@@ -222,15 +223,15 @@ pub fn run() {
             roster_commands::get_roster_offsets,
             roster_commands::scan_for_text_tables,
             // Text Commands
-            roster_commands::get_cornerman_texts,  // From roster_commands
+            roster_commands::get_cornerman_texts, // From roster_commands
             text_commands::get_cornerman_text,
             text_commands::update_cornerman_text,
             text_commands::add_cornerman_text,
             text_commands::delete_cornerman_text,
             text_commands::get_text_conditions,
-            roster_commands::get_boxer_intro,  // From roster_commands
+            roster_commands::get_boxer_intro, // From roster_commands
             text_commands::update_boxer_intro,
-            roster_commands::get_victory_quotes,  // From roster_commands
+            roster_commands::get_victory_quotes, // From roster_commands
             text_commands::update_victory_quote,
             text_commands::get_victory_conditions,
             text_commands::get_menu_texts,

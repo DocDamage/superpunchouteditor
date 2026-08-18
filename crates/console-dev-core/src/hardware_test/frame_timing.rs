@@ -189,7 +189,7 @@ impl HardwareTest for FrameTiming {
 
     fn run_hardware(&mut self) -> Result<TestResult> {
         log::info!("Running frame timing test on hardware...");
-        
+
         let start_time = Instant::now();
         let mut frame_times = Vec::with_capacity(self.config.frame_count as usize);
         let mut last_vblank = Instant::now();
@@ -198,10 +198,10 @@ impl HardwareTest for FrameTiming {
         // 1. Connect to the SNES via flash cart
         // 2. Upload a timing test ROM
         // 3. Measure actual frame timing
-        
+
         // Placeholder: simulate frame timing measurement
         let target_frame_time = Duration::from_secs_f64(1.0 / self.config.target_fps);
-        
+
         for _ in 0..self.config.frame_count {
             // Simulate frame timing with small variations
             let variation = fastrand::f64() * 0.0001;
@@ -213,7 +213,7 @@ impl HardwareTest for FrameTiming {
         let duration = start_time.elapsed();
         let analysis = self.analyze_frames(&frame_times);
 
-        log::info!("Hardware frame timing: {:.4} FPS (target: {:.4})", 
+        log::info!("Hardware frame timing: {:.4} FPS (target: {:.4})",
             analysis.fps, self.config.target_fps);
 
         let result = TestResult::new(self.name())
@@ -240,11 +240,11 @@ impl HardwareTest for FrameTiming {
         // Run the emulator for the specified number of frames
         for _ in 0..self.config.frame_count {
             let frame_start = Instant::now();
-            
+
             // Step the emulator one frame
             emulator.step_frame()
                 .map_err(|e| HardwareTestError::EmulatorError(e.to_string()))?;
-            
+
             frame_times.push(frame_start.elapsed());
         }
 

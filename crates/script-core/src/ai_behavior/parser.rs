@@ -70,7 +70,10 @@ impl AiParser {
     ///
     /// # Returns
     /// AI behavior structure or error
-    pub fn parse_from_rom(rom: &[u8], fighter_id: usize) -> Result<super::AiBehavior, AiParseError> {
+    pub fn parse_from_rom(
+        rom: &[u8],
+        fighter_id: usize,
+    ) -> Result<super::AiBehavior, AiParseError> {
         Self::validate_fighter_id(fighter_id)?;
 
         if rom.len() < AI_TABLE_BASE + 0x1000 {

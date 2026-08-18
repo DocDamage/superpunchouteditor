@@ -483,7 +483,7 @@ pub struct TextEncoder {
     /// Character mappings (byte -> char)
     #[serde(skip)]
     char_map: std::collections::HashMap<char, u8>,
-    /// Reverse mappings (byte -> char)  
+    /// Reverse mappings (byte -> char)
     #[serde(skip)]
     reverse_map: std::collections::HashMap<u8, char>,
 }
@@ -644,7 +644,7 @@ impl TextEncoder {
         chars.sort();
         chars
     }
-    
+
     /// Get the list of all supported characters (static method for convenience)
     pub fn all_supported_chars() -> Vec<char> {
         Self::new().supported_chars()

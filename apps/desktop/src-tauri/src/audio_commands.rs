@@ -146,9 +146,8 @@ fn write_preview_wav(brr_data: &[u8], sound_id: u8) -> Result<String, String> {
 
     let temp_path = std::env::temp_dir().join(format!("spo_preview_{}.wav", sound_id));
 
-    write_wav_file(&temp_path, &pcm, 32000).map_err(|e| {
-        format!("Failed to write preview WAV: {}", e)
-    })?;
+    write_wav_file(&temp_path, &pcm, 32000)
+        .map_err(|e| format!("Failed to write preview WAV: {}", e))?;
 
     temp_path
         .to_str()
@@ -204,7 +203,8 @@ pub fn preview_sound(state: State<AppState>, sound_id: u8) -> Result<String, Str
 
     let brr = {
         let audio = state.audio_state.lock();
-        audio.imported_samples.lock().get(&sound_id).cloned()
+        let imported = audio.imported_samples.lock();
+        imported.get(&sound_id).cloned()
     }
     .ok_or_else(|| {
         format!(
@@ -264,7 +264,8 @@ pub fn export_sound_as_wav(
 
     let brr = {
         let audio = state.audio_state.lock();
-        audio.imported_samples.lock().get(&sound_id).cloned()
+        let imported = audio.imported_samples.lock();
+        imported.get(&sound_id).cloned()
     }
     .ok_or_else(|| {
         format!(
@@ -275,7 +276,10 @@ pub fn export_sound_as_wav(
         )
     })?;
 
-    let target_rate = options.as_ref().and_then(|o| o.sample_rate).unwrap_or(32000);
+    let target_rate = options
+        .as_ref()
+        .and_then(|o| o.sample_rate)
+        .unwrap_or(32000);
     export_brr_to_wav(&brr, &output_path, target_rate).map_err(|e| e.to_string())
 }
 
@@ -293,7 +297,8 @@ pub fn export_sound_as_brr(
 
     let brr = {
         let audio = state.audio_state.lock();
-        audio.imported_samples.lock().get(&sound_id).cloned()
+        let imported = audio.imported_samples.lock();
+        imported.get(&sound_id).cloned()
     }
     .ok_or_else(|| {
         format!(
@@ -457,8 +462,7 @@ pub fn import_sound_from_wav(
     };
 
     // Read WAV → PCM, resample if needed, encode to BRR
-    let brr_data =
-        import_wav_to_brr(&wav_path, encode_options).map_err(|e| e.to_string())?;
+    let brr_data = import_wav_to_brr(&wav_path, encode_options).map_err(|e| e.to_string())?;
 
     let brr_size = brr_data.len();
     let sample_id = options.sample_id;
@@ -472,8 +476,7 @@ pub fn import_sound_from_wav(
     // Compute approximate duration from BRR size
     // Each BRR block is 9 bytes → 16 samples at the target rate
     let brr_blocks = brr_size / 9;
-    let duration_ms = (brr_blocks as u64 * 16 * 1000)
-        / options.target_sample_rate.max(1) as u64;
+    let duration_ms = (brr_blocks as u64 * 16 * 1000) / options.target_sample_rate.max(1) as u64;
 
     Ok(serde_json::json!({
         "sample_id": sample_id,

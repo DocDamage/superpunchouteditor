@@ -28,28 +28,28 @@ pub const PLUGIN_API_VERSION: u32 = 1;
 pub enum PluginError {
     #[error("Plugin not found: {0}")]
     NotFound(String),
-    
+
     #[error("Plugin already loaded: {0}")]
     AlreadyLoaded(String),
-    
+
     #[error("Plugin version mismatch: expected {expected}, got {actual}")]
     VersionMismatch { expected: u32, actual: u32 },
-    
+
     #[error("Plugin API error: {0}")]
     ApiError(String),
-    
+
     #[error("Lua error: {0}")]
     LuaError(String),
-    
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-    
+
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
-    
+
     #[error("Plugin crashed: {0}")]
     PluginCrashed(String),
 }
@@ -158,7 +158,7 @@ impl PluginContext {
             selected_boxer: None,
         }
     }
-    
+
     pub fn with_rom(mut self, rom: Arc<RwLock<Vec<u8>>>) -> Self {
         self.rom_data = Some(rom);
         self
@@ -169,19 +169,23 @@ impl PluginContext {
 pub trait EditorPlugin: Send + Sync {
     /// Get plugin information
     fn info(&self) -> &PluginInfo;
-    
+
     /// Initialize the plugin
     fn initialize(&mut self, ctx: &PluginContext) -> PluginResult<()>;
-    
+
     /// Shutdown the plugin
     fn shutdown(&mut self) -> PluginResult<()>;
-    
+
     /// Handle an editor event
     fn on_event(&mut self, event: &EditorEvent, ctx: &PluginContext) -> PluginResult<()>;
-    
+
     /// Execute a plugin command
-    fn execute_command(&mut self, command: &str, args: &serde_json::Value) -> PluginResult<serde_json::Value>;
-    
+    fn execute_command(
+        &mut self,
+        command: &str,
+        args: &serde_json::Value,
+    ) -> PluginResult<serde_json::Value>;
+
     /// Get list of available commands
     fn available_commands(&self) -> Vec<PluginCommand>;
 }
@@ -208,12 +212,12 @@ impl PluginCommand {
             return_schema: serde_json::json!({"type": "any"}),
         }
     }
-    
+
     pub fn with_args_schema(mut self, schema: serde_json::Value) -> Self {
         self.args_schema = schema;
         self
     }
-    
+
     pub fn with_return_schema(mut self, schema: serde_json::Value) -> Self {
         self.return_schema = schema;
         self

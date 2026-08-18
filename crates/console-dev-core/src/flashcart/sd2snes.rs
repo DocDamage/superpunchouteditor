@@ -63,7 +63,7 @@ impl Sd2snesDevice {
         // In a real implementation, this would enumerate USB devices
         // and check for VID/PID match
         let mut device = Self::new();
-        
+
         // Check if device is present (placeholder)
         if device.is_present() {
             Ok(device)
@@ -128,7 +128,7 @@ impl FlashCart for Sd2snesDevice {
 
         // In a real implementation, this would open the USB device
         log::info!("Connecting to SD2SNES/FXPak Pro...");
-        
+
         // Placeholder: simulate connection
         self.connected = true;
         self.usb_handle = Some(());
@@ -234,7 +234,7 @@ impl FlashCart for Sd2snesDevice {
         }
 
         log::info!("Applying live patch at ${:06X} ({} bytes)", address, data.len());
-        
+
         // Send VCMD_PUT for live patching
         self.send_command(Sd2snesCommand::PutAddress {
             space: AddressSpace::Cpu,

@@ -374,7 +374,13 @@ impl PoseData {
     /// Serialize back to 5 ROM bytes
     pub fn to_bytes(&self) -> [u8; 5] {
         let ptr = self.data_ptr.to_le_bytes();
-        [self.tileset1_id, self.tileset2_id, self.palette_id, ptr[0], ptr[1]]
+        [
+            self.tileset1_id,
+            self.tileset2_id,
+            self.palette_id,
+            ptr[0],
+            ptr[1],
+        ]
     }
 }
 

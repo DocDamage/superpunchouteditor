@@ -442,13 +442,17 @@ impl Spc700State {
         AudioChannelState {
             channel,
             vol_left: self.dsp_registers[ChannelRegister::VolLeft.address(channel) as usize] as i8,
-            vol_right: self.dsp_registers[ChannelRegister::VolRight.address(channel) as usize] as i8,
+            vol_right: self.dsp_registers[ChannelRegister::VolRight.address(channel) as usize]
+                as i8,
             pitch: {
-                let low = self.dsp_registers[ChannelRegister::PitchLow.address(channel) as usize] as u16;
-                let high = self.dsp_registers[ChannelRegister::PitchHigh.address(channel) as usize] as u16;
+                let low =
+                    self.dsp_registers[ChannelRegister::PitchLow.address(channel) as usize] as u16;
+                let high =
+                    self.dsp_registers[ChannelRegister::PitchHigh.address(channel) as usize] as u16;
                 (high << 8) | low
             },
-            source_number: self.dsp_registers[ChannelRegister::SourceNumber.address(channel) as usize],
+            source_number: self.dsp_registers
+                [ChannelRegister::SourceNumber.address(channel) as usize],
             adsr1: self.dsp_registers[ChannelRegister::Adsr1.address(channel) as usize],
             adsr2: self.dsp_registers[ChannelRegister::Adsr2.address(channel) as usize],
             gain: self.dsp_registers[ChannelRegister::Gain.address(channel) as usize],
@@ -697,14 +701,14 @@ mod tests {
     #[test]
     fn test_dsp_register_state() {
         let mut state = Spc700State::new();
-        
+
         // Set up some DSP registers
         state.write_dsp(DspRegister::MasterVolLeft as u8, 0x7F);
         state.write_dsp(DspRegister::KeyOn as u8, 0x03); // Channels 0 and 1
         state.write_dsp(DspRegister::Flags as u8, 0xC0); // Reset + Mute
-        
+
         let dsp = state.dsp_state();
-        
+
         assert_eq!(dsp.master_vol_left, 0x7F);
         assert!(dsp.channel_active(0));
         assert!(dsp.channel_active(1));
@@ -716,7 +720,7 @@ mod tests {
     #[test]
     fn test_audio_channel_state() {
         let mut state = Spc700State::new();
-        
+
         // Set up channel 0
         state.write_dsp(ChannelRegister::VolLeft.address(0), 0x40);
         state.write_dsp(ChannelRegister::VolRight.address(0), 0x60);
@@ -724,9 +728,9 @@ mod tests {
         state.write_dsp(ChannelRegister::PitchHigh.address(0), 0x12);
         state.write_dsp(ChannelRegister::Adsr1.address(0), 0x8F);
         state.write_dsp(ChannelRegister::Adsr2.address(0), 0xE0);
-        
+
         let ch = state.channel_state(0);
-        
+
         assert_eq!(ch.vol_left, 0x40);
         assert_eq!(ch.vol_right, 0x60);
         assert_eq!(ch.pitch, 0x1234);
@@ -739,10 +743,10 @@ mod tests {
     #[test]
     fn test_spc700_memory() {
         let mut state = Spc700State::new();
-        
+
         state.write_ram(0x1000, 0x42);
         assert_eq!(state.read_ram(0x1000), 0x42);
-        
+
         // Test wrap-around
         state.write_ram(0xFFFF, 0x55);
         assert_eq!(state.read_ram(0xFFFF), 0x55);
@@ -751,16 +755,16 @@ mod tests {
     #[test]
     fn test_sample_info() {
         let mut debugger = Spc700Debugger::new();
-        
+
         // Set up source directory at page 0x02
         debugger.state.write_dsp(DspRegister::SourceDir as u8, 0x02);
-        
+
         // Sample 0 entry at 0x0200: start=$1234, loop=$5678
         debugger.state.write_ram(0x0200, 0x34);
         debugger.state.write_ram(0x0201, 0x12);
         debugger.state.write_ram(0x0202, 0x78);
         debugger.state.write_ram(0x0203, 0x56);
-        
+
         let info = debugger.get_sample_info(0).unwrap();
         assert_eq!(info.start_address, 0x1234);
         assert_eq!(info.loop_address, 0x5678);
@@ -769,12 +773,12 @@ mod tests {
     #[test]
     fn test_channel_frequency() {
         let mut state = Spc700State::new();
-        
+
         // Pitch = 0x1000 = 4096
         // Expected frequency = 4096 * 32000 / 4096 = 32000 Hz
         state.write_dsp(ChannelRegister::PitchLow.address(0), 0x00);
         state.write_dsp(ChannelRegister::PitchHigh.address(0), 0x10);
-        
+
         let ch = state.channel_state(0);
         assert!((ch.frequency_hz() - 32000.0).abs() < 0.1);
     }

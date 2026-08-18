@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::text::TextEncoder;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::constants::*;

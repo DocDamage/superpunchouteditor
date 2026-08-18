@@ -14,19 +14,14 @@ use tauri::State;
 use crate::AppState;
 use emulator_core::CreatorSessionState;
 use rom_core::{
-    SpoTextEncoder,
     roster::{
-        BoxerIntro, BoxerRosterEntry, Circuit, CircuitType, RosterData,
-        RosterLoader, RosterWriter, ValidationReport, BOXER_INTRO_TABLE,
-        BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
+        BoxerIntro, BoxerRosterEntry, Circuit, CircuitType, RosterData, RosterLoader, RosterWriter,
+        ValidationReport, BOXER_INTRO_TABLE, BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE,
+        MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
     },
-    CREATOR_SESSION_STATUS_DRAFT_READY,
-    CREATOR_SESSION_STATUS_COMMIT_FAILED,
-    CREATOR_ERROR_GENERIC,
-    CREATOR_ERROR_BOXER_NOT_FOUND,
-    CREATOR_ERROR_INVALID_NAME,
-    CREATOR_ERROR_INVALID_INTRO_TEXT,
-    CREATOR_ERROR_INVALID_INTRO_SLOT,
+    SpoTextEncoder, CREATOR_ERROR_BOXER_NOT_FOUND, CREATOR_ERROR_GENERIC,
+    CREATOR_ERROR_INVALID_INTRO_SLOT, CREATOR_ERROR_INVALID_INTRO_TEXT, CREATOR_ERROR_INVALID_NAME,
+    CREATOR_SESSION_STATUS_COMMIT_FAILED, CREATOR_SESSION_STATUS_DRAFT_READY,
 };
 
 /// Roster data response for the frontend
@@ -44,7 +39,6 @@ impl From<RosterData> for RosterDataResponse {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatorCommitResponse {
@@ -92,7 +86,10 @@ fn validate_creator_session_payload(
             valid: false,
             status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
             error_code: CREATOR_ERROR_INVALID_INTRO_SLOT,
-            message: Some(format!("Intro text slot {} not found", session.intro_text_id)),
+            message: Some(format!(
+                "Intro text slot {} not found",
+                session.intro_text_id
+            )),
         };
     }
 
@@ -139,8 +136,7 @@ fn validate_creator_session_payload(
             error_code: CREATOR_ERROR_INVALID_INTRO_TEXT,
             message: Some(format!(
                 "Intro text too long: {} bytes (max {})",
-                intro_encoded_len,
-                INTRO_FIELD_SIZE
+                intro_encoded_len, INTRO_FIELD_SIZE
             )),
         };
     }
@@ -539,7 +535,10 @@ pub fn validate_boxer_name(_state: State<AppState>, name: String) -> NameValidat
         ));
     }
     if !can_encode {
-        let unsupported: Vec<char> = name.chars().filter(|c| !encoder.can_encode(&c.to_string())).collect();
+        let unsupported: Vec<char> = name
+            .chars()
+            .filter(|c| !encoder.can_encode(&c.to_string()))
+            .collect();
         error = Some(format!("Unsupported characters: {:?}", unsupported));
     }
 
@@ -819,7 +818,10 @@ pub fn validate_intro_text(
         ));
     }
     if !can_encode {
-        let unsupported: Vec<char> = text.chars().filter(|c| !encoder.can_encode(&c.to_string())).collect();
+        let unsupported: Vec<char> = text
+            .chars()
+            .filter(|c| !encoder.can_encode(&c.to_string()))
+            .collect();
         error = Some(format!("Unsupported characters: {:?}", unsupported));
     }
 

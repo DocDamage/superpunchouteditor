@@ -25,10 +25,10 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use crate::undo::EditHistory;
 use asset_core::frame_tags::FrameTagManager;
 use manifest_core::Manifest;
 use project_core::{Project, ToolHooksConfig};
-use crate::undo::EditHistory;
 use rom_core::Rom;
 
 use crate::audio_commands::AudioState;
@@ -49,7 +49,7 @@ pub struct BatchJobInfo {
 }
 use crate::emulator::EmulatorSettings;
 use crate::emulator_embedded::EmbeddedEmulatorState;
-use plugin_core::{PluginManager, PluginApi};
+use plugin_core::{PluginApi, PluginManager};
 
 /// Central application state shared across all Tauri commands
 ///
@@ -122,14 +122,14 @@ impl AppState {
         let plugins_dir = config_dir.join("plugins");
         let plugin_config_dir = config_dir.join("plugin-config");
         let plugin_data_dir = config_dir.join("plugin-data");
-        
+
         // Create plugin API
         let context = Arc::new(parking_lot::RwLock::new(plugin_core::PluginContext::new(
             plugin_config_dir.clone(),
             plugin_data_dir.clone(),
         )));
         let api = Arc::new(PluginApi::new(context));
-        
+
         // Create and initialize plugin manager
         let plugin_manager = Arc::new(PluginManager::new(
             plugins_dir,
@@ -137,12 +137,12 @@ impl AppState {
             plugin_data_dir,
             api,
         ));
-        
+
         // Try to initialize plugins (log error but don't fail)
         if let Err(e) = plugin_manager.initialize() {
             eprintln!("Failed to initialize plugin manager: {}", e);
         }
-        
+
         Self {
             rom: Mutex::new(None),
             manifest: Mutex::new(manifest),

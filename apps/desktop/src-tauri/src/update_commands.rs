@@ -3,8 +3,8 @@
 //! Handles checking for updates from GitHub releases, downloading updates,
 //! and managing update preferences.
 
-use serde::{Deserialize, Serialize};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -115,7 +115,6 @@ pub struct UpdateState {
     pub current_update: Mutex<Option<tauri_plugin_updater::Update>>,
     pub download_progress: Mutex<DownloadProgress>,
 }
-
 
 /// Get the current application version
 #[tauri::command]

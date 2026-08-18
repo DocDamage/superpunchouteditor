@@ -28,9 +28,13 @@ impl BpsMetadata {
             description,
         }
     }
-    
+
     /// Create metadata with patch name, author and description
-    pub fn with_name(patch_name: Option<String>, author: Option<String>, description: Option<String>) -> Self {
+    pub fn with_name(
+        patch_name: Option<String>,
+        author: Option<String>,
+        description: Option<String>,
+    ) -> Self {
         Self {
             patch_name,
             author,

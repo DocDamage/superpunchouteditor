@@ -41,9 +41,7 @@ impl<'a> AnimationLoader<'a> {
 
     /// Get fighter name by ID
     pub fn get_fighter_name(fighter_id: u8) -> &'static str {
-        FIGHTER_NAMES
-            .get(fighter_id as usize)
-            .unwrap_or(&"Unknown")
+        FIGHTER_NAMES.get(fighter_id as usize).unwrap_or(&"Unknown")
     }
 
     /// Get all fighter names
@@ -58,9 +56,10 @@ impl<'a> AnimationLoader<'a> {
         }
 
         let header_offset = FIGHTER_HEADER_BASE + (fighter_id as usize * FIGHTER_HEADER_SIZE);
-        
+
         // Read the 2-byte pose table pointer at offset 0x06 in the header
-        let ptr_bytes = self.rom
+        let ptr_bytes = self
+            .rom
             .read_bytes(header_offset + POSE_TABLE_PTR_OFFSET, 2)
             .map_err(|_| AnimationError::InvalidOffset(header_offset + POSE_TABLE_PTR_OFFSET))?;
 
@@ -70,21 +69,22 @@ impl<'a> AnimationLoader<'a> {
     /// Read all poses for a fighter
     pub fn get_poses(&self, fighter_id: u8) -> Result<Vec<PoseData>, AnimationError> {
         let pose_table_ptr = self.get_pose_table_ptr(fighter_id)?;
-        
+
         // Convert SNES address to PC offset (Bank $09)
         let pose_table_pc = self.rom.snes_to_pc(0x09, pose_table_ptr);
 
         let mut poses = Vec::new();
-        
+
         for i in 0..MAX_POSES_PER_FIGHTER {
             let entry_offset = pose_table_pc + (i * 2);
-            
+
             // Read 2-byte pointer to pose data
             if entry_offset + 2 > self.rom.data.len() {
                 break;
             }
 
-            let pose_ptr_bytes = self.rom
+            let pose_ptr_bytes = self
+                .rom
                 .read_bytes(entry_offset, 2)
                 .map_err(|_| AnimationError::InvalidOffset(entry_offset))?;
             let pose_ptr = u16::from_le_bytes([pose_ptr_bytes[0], pose_ptr_bytes[1]]);
@@ -96,13 +96,14 @@ impl<'a> AnimationLoader<'a> {
 
             // Convert pose pointer to PC offset
             let pose_pc = self.rom.snes_to_pc(0x09, pose_ptr);
-            
+
             // Read 5-byte pose entry
             if pose_pc + POSE_ENTRY_SIZE > self.rom.data.len() {
                 break;
             }
 
-            let pose_bytes = self.rom
+            let pose_bytes = self
+                .rom
                 .read_bytes(pose_pc, POSE_ENTRY_SIZE)
                 .map_err(|_| AnimationError::InvalidOffset(pose_pc))?;
 
@@ -124,7 +125,7 @@ impl<'a> AnimationLoader<'a> {
     }
 
     /// Read animation sequences for a fighter
-    /// 
+    ///
     /// Animation data in SPO ROM is stored as frame sequences referenced by the AI scripts.
     /// This method reconstructs common animation patterns based on pose data.
     pub fn get_animations(&self, fighter_id: u8) -> Result<FighterAnimations, AnimationError> {
@@ -162,7 +163,7 @@ impl<'a> AnimationLoader<'a> {
 
         // Idle typically uses poses 0-3 (breathing animation)
         let idle_poses: Vec<usize> = vec![0, 1, 0, 2];
-        
+
         for &pose_idx in &idle_poses {
             if pose_idx < poses.len() {
                 anim.add_frame(AnimationFrame::new(pose_idx as u8, 8));
@@ -184,7 +185,7 @@ impl<'a> AnimationLoader<'a> {
 
         // Jab typically uses poses 10-13
         let jab_poses: Vec<(usize, u8)> = vec![(10, 4), (11, 3), (12, 6), (10, 4)];
-        
+
         for &(pose_idx, duration) in &jab_poses {
             if pose_idx < poses.len() {
                 let mut frame = AnimationFrame::new(pose_idx as u8, duration);
@@ -210,7 +211,7 @@ impl<'a> AnimationLoader<'a> {
 
         // Hook typically uses poses 20-24
         let hook_poses: Vec<(usize, u8)> = vec![(20, 6), (21, 4), (22, 3), (23, 8), (20, 6)];
-        
+
         for &(pose_idx, duration) in &hook_poses {
             if pose_idx < poses.len() {
                 let mut frame = AnimationFrame::new(pose_idx as u8, duration);
@@ -242,7 +243,7 @@ impl<'a> AnimationLoader<'a> {
             (33, 8, None),
             (30, 6, None),
         ];
-        
+
         for (pose_idx, duration, hitbox) in &uppercut_poses {
             if *pose_idx < poses.len() {
                 let mut frame = AnimationFrame::new(*pose_idx as u8, *duration);
@@ -267,7 +268,7 @@ impl<'a> AnimationLoader<'a> {
         let mut anim = Animation::new("Dodge Left", ANIM_TYPE_DODGE_LEFT);
 
         let dodge_poses: Vec<usize> = vec![40, 41, 40, 0];
-        
+
         for &pose_idx in &dodge_poses {
             if pose_idx < poses.len() {
                 anim.add_frame(AnimationFrame::new(pose_idx as u8, 4));
@@ -287,7 +288,7 @@ impl<'a> AnimationLoader<'a> {
         let mut anim = Animation::new("Dodge Right", ANIM_TYPE_DODGE_RIGHT);
 
         let dodge_poses: Vec<usize> = vec![45, 46, 45, 0];
-        
+
         for &pose_idx in &dodge_poses {
             if pose_idx < poses.len() {
                 anim.add_frame(AnimationFrame::new(pose_idx as u8, 4));
@@ -312,7 +313,7 @@ impl<'a> AnimationLoader<'a> {
             (52, None),
             (0, None),
         ];
-        
+
         for (pose_idx, effect) in &hit_poses {
             if *pose_idx < poses.len() {
                 let mut frame = AnimationFrame::new(*pose_idx as u8, 4);
@@ -341,7 +342,7 @@ impl<'a> AnimationLoader<'a> {
             (62, 8, vec![]),
             (63, 60, vec![]),
         ];
-        
+
         for &(pose_idx, duration, ref effects) in &kd_poses {
             if pose_idx < poses.len() {
                 let mut frame = AnimationFrame::new(pose_idx as u8, duration);
@@ -363,7 +364,7 @@ impl<'a> AnimationLoader<'a> {
         let mut anim = Animation::new("Get Up", ANIM_TYPE_GET_UP);
 
         let getup_poses: Vec<usize> = vec![64, 65, 0];
-        
+
         for &pose_idx in &getup_poses {
             if pose_idx < poses.len() {
                 anim.add_frame(AnimationFrame::new(pose_idx as u8, 8));
@@ -384,7 +385,7 @@ impl<'a> AnimationLoader<'a> {
         anim.looping = true;
 
         let victory_poses: Vec<usize> = vec![70, 71, 72, 71];
-        
+
         for &pose_idx in &victory_poses {
             if pose_idx < poses.len() {
                 anim.add_frame(AnimationFrame::new(pose_idx as u8, 8));
@@ -441,8 +442,17 @@ mod tests {
 
     #[test]
     fn test_animation_category_from_type() {
-        assert_eq!(animation_category_from_type(ANIM_TYPE_IDLE), AnimationCategory::Idle);
-        assert_eq!(animation_category_from_type(ANIM_TYPE_JAB), AnimationCategory::Punch);
-        assert_eq!(animation_category_from_type(ANIM_TYPE_DODGE_LEFT), AnimationCategory::Dodge);
+        assert_eq!(
+            animation_category_from_type(ANIM_TYPE_IDLE),
+            AnimationCategory::Idle
+        );
+        assert_eq!(
+            animation_category_from_type(ANIM_TYPE_JAB),
+            AnimationCategory::Punch
+        );
+        assert_eq!(
+            animation_category_from_type(ANIM_TYPE_DODGE_LEFT),
+            AnimationCategory::Dodge
+        );
     }
 }

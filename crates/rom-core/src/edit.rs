@@ -605,7 +605,9 @@ mod tests {
     fn journal_materialization_is_deterministic() {
         let base = base();
         let mut journal = EditJournal::new();
-        journal.commit(&base, "edit", vec![write(2, &[9, 9])]).unwrap();
+        journal
+            .commit(&base, "edit", vec![write(2, &[9, 9])])
+            .unwrap();
         let first = journal.materialize(&base).unwrap();
         let second = journal.materialize(&base).unwrap();
         assert_eq!(first, second);
@@ -624,7 +626,9 @@ mod tests {
         assert_eq!(journal.materialize(&base).unwrap()[1..3], [9, 2]);
         assert!(journal.can_redo());
 
-        journal.commit(&base, "replacement", vec![write(3, &[7])]).unwrap();
+        journal
+            .commit(&base, "replacement", vec![write(3, &[7])])
+            .unwrap();
         assert!(!journal.can_redo());
         assert_eq!(journal.transactions().len(), 2);
     }
@@ -633,11 +637,7 @@ mod tests {
     fn overlapping_writes_in_one_transaction_are_rejected_atomically() {
         let base = base();
         let mut journal = EditJournal::new();
-        let result = journal.commit(
-            &base,
-            "overlap",
-            vec![write(1, &[8, 8]), write(2, &[9, 9])],
-        );
+        let result = journal.commit(&base, "overlap", vec![write(1, &[8, 8]), write(2, &[9, 9])]);
         assert!(matches!(result, Err(EditError::OverlappingWrites { .. })));
         assert!(journal.transactions().is_empty());
         assert_eq!(journal.materialize(&base).unwrap(), base.bytes());
@@ -670,10 +670,15 @@ mod tests {
     fn serialized_journal_round_trips_and_validates() {
         let base = base();
         let mut journal = EditJournal::new();
-        journal.commit(&base, "edit", vec![write(4, &[1, 1])]).unwrap();
+        journal
+            .commit(&base, "edit", vec![write(4, &[1, 1])])
+            .unwrap();
         let json = serde_json::to_string(&journal).unwrap();
         let restored: EditJournal = serde_json::from_str(&json).unwrap();
         restored.validate_against(&base).unwrap();
-        assert_eq!(restored.materialize(&base).unwrap(), journal.materialize(&base).unwrap());
+        assert_eq!(
+            restored.materialize(&base).unwrap(),
+            journal.materialize(&base).unwrap()
+        );
     }
 }

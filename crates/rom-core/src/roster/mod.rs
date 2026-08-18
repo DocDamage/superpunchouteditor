@@ -64,14 +64,16 @@ mod tests {
         header[24..28].copy_from_slice(&(circuit as u32).to_le_bytes());
         header[28..32].copy_from_slice(&(unlock as u32).to_le_bytes());
         header[32..36].copy_from_slice(&(intro as u32).to_le_bytes());
-        rom.write_bytes(header_pc, &header).expect("write expansion header");
+        rom.write_bytes(header_pc, &header)
+            .expect("write expansion header");
 
         let encoder = TextEncoder::new();
         for boxer_id in 0..boxer_count {
             let slot_pc = name_blob + boxer_id * 16;
             let default_name = format!("BOXER {}", boxer_id + 1);
             let encoded = encoder.encode_with_terminator(&default_name);
-            rom.write_bytes(slot_pc, &encoded).expect("write boxer name");
+            rom.write_bytes(slot_pc, &encoded)
+                .expect("write boxer name");
 
             let (bank, addr) = rom.pc_to_snes(slot_pc);
             let [lo, hi] = addr.to_le_bytes();
@@ -276,7 +278,9 @@ mod tests {
         let roster = loader.load_roster().expect("expanded roster should load");
 
         assert_eq!(roster.boxers.len(), 24);
-        let boxer = roster.get_boxer(20).expect("expanded boxer entry should exist");
+        let boxer = roster
+            .get_boxer(20)
+            .expect("expanded boxer entry should exist");
         assert_eq!(boxer.name, "ROBOT ACE");
         assert_eq!(boxer.circuit, CircuitType::World);
         assert_eq!(boxer.unlock_order, 21);
@@ -300,7 +304,9 @@ mod tests {
 
         let loader = RosterLoader::new(&rom);
         let roster = loader.load_roster().expect("expanded roster should reload");
-        let boxer = roster.get_boxer(20).expect("expanded boxer entry should exist");
+        let boxer = roster
+            .get_boxer(20)
+            .expect("expanded boxer entry should exist");
         assert_eq!(boxer.name, "IRONBOT");
         assert_eq!(boxer.circuit, CircuitType::Special);
         assert_eq!(boxer.unlock_order, 30);
@@ -317,13 +323,17 @@ mod tests {
             let name = encoder.encode_fixed(&format!("BOXER {}", boxer_id + 1), INTRO_FIELD_SIZE);
             rom.write_bytes(base, &name).expect("write intro name");
             let pad = encoder.encode_fixed("USA", INTRO_FIELD_SIZE);
-            rom.write_bytes(base + INTRO_FIELD_SIZE, &pad).expect("write intro origin");
+            rom.write_bytes(base + INTRO_FIELD_SIZE, &pad)
+                .expect("write intro origin");
             let pad = encoder.encode_fixed("10-0-0", INTRO_FIELD_SIZE);
-            rom.write_bytes(base + INTRO_FIELD_SIZE * 2, &pad).expect("write intro record");
+            rom.write_bytes(base + INTRO_FIELD_SIZE * 2, &pad)
+                .expect("write intro record");
             let pad = encoder.encode_fixed("1", INTRO_FIELD_SIZE);
-            rom.write_bytes(base + INTRO_FIELD_SIZE * 3, &pad).expect("write intro rank");
+            rom.write_bytes(base + INTRO_FIELD_SIZE * 3, &pad)
+                .expect("write intro rank");
             let pad = encoder.encode_fixed("HI", INTRO_FIELD_SIZE);
-            rom.write_bytes(base + INTRO_FIELD_SIZE * 4, &pad).expect("write intro quote");
+            rom.write_bytes(base + INTRO_FIELD_SIZE * 4, &pad)
+                .expect("write intro quote");
         }
         rom
     }
@@ -333,8 +343,12 @@ mod tests {
         let mut rom = build_intro_rom();
         {
             let mut writer = RosterWriter::new(&mut rom);
-            writer.write_boxer_intro_field(0, 0, "GARY JAY").expect("name write");
-            writer.write_boxer_intro_field(0, 1, "CANADA").expect("origin write");
+            writer
+                .write_boxer_intro_field(0, 0, "GARY JAY")
+                .expect("name write");
+            writer
+                .write_boxer_intro_field(0, 1, "CANADA")
+                .expect("origin write");
         }
         let loader = RosterLoader::new(&rom);
         let intro = loader.load_boxer_intro(0).expect("intro should load");
@@ -350,7 +364,9 @@ mod tests {
         {
             let mut writer = RosterWriter::new(&mut rom);
             let long = "A".repeat(INTRO_FIELD_SIZE + 4);
-            writer.write_boxer_intro_field(0, 0, &long).expect("should succeed via truncation");
+            writer
+                .write_boxer_intro_field(0, 0, &long)
+                .expect("should succeed via truncation");
         }
         let loader = RosterLoader::new(&rom);
         let intro = loader.load_boxer_intro(0).expect("intro should load");
@@ -370,12 +386,14 @@ mod tests {
         // => addr = (data_pc - 0x60000) | 0x8000
         let data_snes: u16 = ((data_pc - BANK_0C_BASE) as u16) | 0x8000;
         let [dlo, dhi] = data_snes.to_le_bytes();
-        rom.write_bytes(CORNERMAN_POINTER_TABLE, &[dlo, dhi]).expect("pointer");
+        rom.write_bytes(CORNERMAN_POINTER_TABLE, &[dlo, dhi])
+            .expect("pointer");
 
         let text_snes: u16 = ((text_pc - BANK_0C_BASE) as u16) | 0x8000;
         let [tlo, thi] = text_snes.to_le_bytes();
         // data block: count=1, entry: condition=0, text_ptr
-        rom.write_bytes(data_pc, &[1, 0, tlo, thi]).expect("data block");
+        rom.write_bytes(data_pc, &[1, 0, tlo, thi])
+            .expect("data block");
 
         let encoder = TextEncoder::new();
         let mut text_bytes = encoder.encode("GOOD LUCK");

@@ -94,7 +94,10 @@ impl<'a> RosterWriter<'a> {
         }
 
         self.rom
-            .write_bytes(self.layout.circuit_table_pc + boxer_id as usize, &[circuit.to_byte()])
+            .write_bytes(
+                self.layout.circuit_table_pc + boxer_id as usize,
+                &[circuit.to_byte()],
+            )
             .map_err(|_| RosterError::AddressNotFound("Circuit table".to_string()))?;
 
         Ok(())
@@ -191,7 +194,9 @@ impl<'a> RosterWriter<'a> {
         if let Some(condition) = new_condition {
             self.rom
                 .write_bytes(entry_addr, &[condition])
-                .map_err(|_| RosterError::AddressNotFound("Cornerman condition byte".to_string()))?;
+                .map_err(|_| {
+                    RosterError::AddressNotFound("Cornerman condition byte".to_string())
+                })?;
         }
 
         // Read the text pointer (bytes 1-2 of the entry)
@@ -258,9 +263,10 @@ impl<'a> RosterWriter<'a> {
 
         if self.layout.expanded {
             let ptr_addr = self.layout.name_long_pointer_table_pc + (boxer_index * 3);
-            let ptr_bytes = self.rom.read_bytes(ptr_addr, 3).map_err(|_| {
-                RosterError::AddressNotFound("Long name pointer".to_string())
-            })?;
+            let ptr_bytes = self
+                .rom
+                .read_bytes(ptr_addr, 3)
+                .map_err(|_| RosterError::AddressNotFound("Long name pointer".to_string()))?;
             let bank = ptr_bytes[0];
             let addr = u16::from_le_bytes([ptr_bytes[1], ptr_bytes[2]]);
             if bank != 0 && addr >= 0x8000 {

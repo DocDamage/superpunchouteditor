@@ -54,16 +54,16 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-mod constants;
-mod version;
-mod id666;
 mod builder;
+mod constants;
+mod id666;
+mod version;
 
 // Re-exports to maintain the same public API
-pub use constants::*;
-pub use version::SpcVersion;
-pub use id666::Id666Tag;
 pub use builder::SpcBuilder;
+pub use constants::*;
+pub use id666::Id666Tag;
+pub use version::SpcVersion;
 
 /// SPC file handler.
 ///

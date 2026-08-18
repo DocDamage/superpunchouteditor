@@ -63,10 +63,10 @@ impl CpuDebugger {
     pub fn add_breakpoint(&mut self, mut breakpoint: Breakpoint) -> BreakpointId {
         let id = self.next_breakpoint_id;
         self.next_breakpoint_id += 1;
-        
+
         breakpoint.id = Some(id);
         self.breakpoints.insert(id, breakpoint);
-        
+
         BreakpointId(id)
     }
 
@@ -98,18 +98,18 @@ impl CpuDebugger {
         let pc = self.registers.full_pc();
         let instruction = self.fetch_and_decode();
         let cycles = instruction.cycles;
-        
+
         // Check for breakpoints
         let hit_breakpoint = self.check_breakpoints(&pc, &instruction);
-        
+
         // Execute instruction (simplified - real implementation would execute)
         self.execute_instruction(&instruction);
-        
+
         // Update call stack
         self.update_call_stack(&instruction);
-        
+
         self.cycles += cycles as u64;
-        
+
         StepResult {
             instruction,
             hit_breakpoint,
@@ -121,7 +121,7 @@ impl CpuDebugger {
     pub fn step_over(&mut self) -> StepResult {
         let current_pc = self.registers.full_pc();
         let instruction = self.fetch_and_decode();
-        
+
         if instruction.is_call {
             // Set temporary breakpoint after call
             let return_addr = current_pc.to_pc() + instruction.size as u32;
@@ -135,7 +135,7 @@ impl CpuDebugger {
                 description: Some("Step over".to_string()),
             });
             self.step_over_breakpoint = Some(temp_bp.0);
-            
+
             // Run until we hit it
             self.run()
         } else {
@@ -158,11 +158,11 @@ impl CpuDebugger {
     pub fn run(&mut self) -> StepResult {
         loop {
             let result = self.step();
-            
+
             if result.hit_breakpoint.is_some() {
                 return result;
             }
-            
+
             // Check for step out
             if let Some(target) = self.step_out_target {
                 if self.registers.full_pc().to_pc() == target {
@@ -187,23 +187,21 @@ impl CpuDebugger {
     pub fn disassemble_at(&self, addr: SnesAddress, count: usize) -> Vec<DisassembledInstruction> {
         let mut result = Vec::new();
         let mut current_addr = addr;
-        
+
         for _ in 0..count {
             if let Some(instr) = self.fetch_and_decode_at(current_addr) {
-                current_addr = SnesAddress::from_pc(
-                    current_addr.to_pc() + instr.size as u32
-                );
+                current_addr = SnesAddress::from_pc(current_addr.to_pc() + instr.size as u32);
                 result.push(instr);
             } else {
                 break;
             }
         }
-        
+
         result
     }
 
     // Private methods
-    
+
     fn fetch_and_decode(&self) -> DisassembledInstruction {
         let pc = self.registers.full_pc();
         self.fetch_and_decode_at(pc)
@@ -213,7 +211,7 @@ impl CpuDebugger {
     fn fetch_and_decode_at(&self, addr: SnesAddress) -> Option<DisassembledInstruction> {
         // Read opcode byte
         let opcode = self.memory.read_byte(addr.to_pc())?;
-        
+
         // Decode based on opcode (simplified)
         disassembler::decode_instruction(addr, opcode, &*self.memory)
     }
@@ -221,7 +219,7 @@ impl CpuDebugger {
     fn execute_instruction(&mut self, instruction: &DisassembledInstruction) {
         // Simplified execution - real implementation would properly execute 65816
         self.registers.pc = (self.registers.pc + instruction.size as u16) & 0xFFFF;
-        
+
         // Update program bank on long jumps
         if instruction.mnemonic == "JML" || instruction.mnemonic == "JSL" {
             // Would update PB register
@@ -246,23 +244,29 @@ impl CpuDebugger {
         ]
         .into_iter()
         .collect();
-        
+
         let mut to_remove = None;
         let mut result = None;
-        
+
         for (id, bp) in self.breakpoints.iter_mut() {
             if !bp.enabled {
                 continue;
             }
-            
+
             let matches = match &bp.condition {
                 BreakCondition::Always => true,
                 BreakCondition::OnExecute => bp.address == *pc,
-                BreakCondition::OnRead { min_addr: _, max_addr: _ } => {
+                BreakCondition::OnRead {
+                    min_addr: _,
+                    max_addr: _,
+                } => {
                     // Check if instruction reads from this range
                     false // Simplified
                 }
-                BreakCondition::OnWrite { min_addr: _, max_addr: _ } => {
+                BreakCondition::OnWrite {
+                    min_addr: _,
+                    max_addr: _,
+                } => {
                     // Check if instruction writes to this range
                     false // Simplified
                 }
@@ -274,14 +278,19 @@ impl CpuDebugger {
                     false
                 }
             };
-            
+
             if matches {
                 bp.hit_count += 1;
-                
+
                 if let Some(limit) = bp.hit_limit {
                     if bp.hit_count >= limit {
                         // Mark temporary breakpoints for removal
-                        if bp.description.as_ref().map(|d| d.contains("Step")).unwrap_or(false) {
+                        if bp
+                            .description
+                            .as_ref()
+                            .map(|d| d.contains("Step"))
+                            .unwrap_or(false)
+                        {
                             to_remove = Some(*id);
                         }
                         result = Some(BreakpointId(*id));
@@ -293,12 +302,12 @@ impl CpuDebugger {
                 }
             }
         }
-        
+
         // Remove temporary breakpoint outside the loop
         if let Some(id) = to_remove {
             self.breakpoints.remove(&id);
         }
-        
+
         result
     }
 
@@ -359,7 +368,7 @@ impl MemoryAccess for DummyMemory {
     fn read_byte(&self, _addr: u32) -> Option<u8> {
         Some(0xEA) // NOP
     }
-    
+
     fn write_byte(&mut self, _addr: u32, _value: u8) {}
     fn write_bytes(&mut self, _addr: u32, _values: &[u8]) {}
 }

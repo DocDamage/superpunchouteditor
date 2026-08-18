@@ -5,10 +5,10 @@
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::app_state::{AppState, BatchJobInfo};
-use plugin_core::{ScriptRunner, PluginApi};
+use plugin_core::{PluginApi, ScriptRunner};
 
 /// Plugin information response
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,10 +48,7 @@ pub fn list_plugins(state: State<AppState>) -> Result<Vec<PluginInfoResponse>, S
 
 /// Load a plugin from file
 #[tauri::command]
-pub fn load_plugin(
-    state: State<AppState>,
-    path: String,
-) -> Result<PluginInfoResponse, String> {
+pub fn load_plugin(state: State<AppState>, path: String) -> Result<PluginInfoResponse, String> {
     let manager = state.plugin_manager.lock();
     let info = manager.load_plugin(&path).map_err(|e| e.to_string())?;
     Ok(PluginInfoResponse::from(info))
@@ -59,32 +56,25 @@ pub fn load_plugin(
 
 /// Unload a plugin
 #[tauri::command]
-pub fn unload_plugin(
-    state: State<AppState>,
-    plugin_id: String,
-) -> Result<(), String> {
+pub fn unload_plugin(state: State<AppState>, plugin_id: String) -> Result<(), String> {
     let manager = state.plugin_manager.lock();
     manager.unload_plugin(&plugin_id).map_err(|e| e.to_string())
 }
 
 /// Enable a plugin
 #[tauri::command]
-pub fn enable_plugin(
-    state: State<AppState>,
-    plugin_id: String,
-) -> Result<(), String> {
+pub fn enable_plugin(state: State<AppState>, plugin_id: String) -> Result<(), String> {
     let manager = state.plugin_manager.lock();
     manager.enable_plugin(&plugin_id).map_err(|e| e.to_string())
 }
 
 /// Disable a plugin
 #[tauri::command]
-pub fn disable_plugin(
-    state: State<AppState>,
-    plugin_id: String,
-) -> Result<(), String> {
+pub fn disable_plugin(state: State<AppState>, plugin_id: String) -> Result<(), String> {
     let manager = state.plugin_manager.lock();
-    manager.disable_plugin(&plugin_id).map_err(|e| e.to_string())
+    manager
+        .disable_plugin(&plugin_id)
+        .map_err(|e| e.to_string())
 }
 
 /// Execute a plugin command
@@ -96,7 +86,8 @@ pub fn execute_plugin_command(
     args: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     let manager = state.plugin_manager.lock();
-    manager.execute_command(&plugin_id, &command, &args)
+    manager
+        .execute_command(&plugin_id, &command, &args)
         .map_err(|e| e.to_string())
 }
 
@@ -132,7 +123,7 @@ pub fn run_script_file(
         std::path::PathBuf::from("."),
     )));
     let api = Arc::new(PluginApi::new(context));
-    
+
     let runner = ScriptRunner::new(api);
     let result = runner.run_file(&path).map_err(|e| e.to_string())?;
     Ok(ScriptExecutionResult::from(result))
@@ -150,9 +141,11 @@ pub fn run_script(
         std::path::PathBuf::from("."),
     )));
     let api = Arc::new(PluginApi::new(context));
-    
+
     let runner = ScriptRunner::new(api);
-    let result = runner.run_string(&script, None).map_err(|e| e.to_string())?;
+    let result = runner
+        .run_string(&script, None)
+        .map_err(|e| e.to_string())?;
     Ok(ScriptExecutionResult::from(result))
 }
 
@@ -282,7 +275,11 @@ pub fn create_batch_job(
             }
         }
 
-        let final_status = if last_error.is_some() { "failed" } else { "completed" };
+        let final_status = if last_error.is_some() {
+            "failed"
+        } else {
+            "completed"
+        };
 
         if let Some(job) = state
             .batch_jobs
@@ -308,10 +305,7 @@ pub fn create_batch_job(
 /// Sets the job's cancellation flag. The worker thread checks this flag
 /// between inputs and exits cleanly when it is set.
 #[tauri::command]
-pub fn cancel_batch_job(
-    state: State<AppState>,
-    job_id: String,
-) -> Result<(), String> {
+pub fn cancel_batch_job(state: State<AppState>, job_id: String) -> Result<(), String> {
     let flags = state.batch_cancel_flags.lock();
     if let Some(flag) = flags.get(&job_id) {
         flag.store(true, Ordering::Relaxed);
@@ -327,7 +321,7 @@ pub fn get_plugins_directory() -> Result<String, String> {
         .ok_or("Could not find config directory")?
         .join("super-punch-out-editor")
         .join("plugins");
-    
+
     Ok(config_dir.to_string_lossy().into_owned())
 }
 
@@ -335,7 +329,7 @@ pub fn get_plugins_directory() -> Result<String, String> {
 #[tauri::command]
 pub fn open_plugins_directory() -> Result<(), String> {
     let plugins_dir = get_plugins_directory()?;
-    
+
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
@@ -343,7 +337,7 @@ pub fn open_plugins_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open explorer: {}", e))?;
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
@@ -351,7 +345,7 @@ pub fn open_plugins_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open Finder: {}", e))?;
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
@@ -359,7 +353,7 @@ pub fn open_plugins_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open file manager: {}", e))?;
     }
-    
+
     Ok(())
 }
 
@@ -367,16 +361,16 @@ pub fn open_plugins_directory() -> Result<(), String> {
 #[tauri::command]
 pub fn reload_all_plugins(state: State<AppState>) -> Result<Vec<PluginInfoResponse>, String> {
     let manager = state.plugin_manager.lock();
-    
+
     // Get list of currently loaded plugins
     let current_plugins = manager.get_all_plugins();
     let plugin_ids: Vec<String> = current_plugins.iter().map(|p| p.id.clone()).collect();
-    
+
     // Unload all
     for id in &plugin_ids {
         let _ = manager.unload_plugin(id);
     }
-    
+
     // Reload all
     let loaded = manager.load_all_plugins().map_err(|e| e.to_string())?;
     Ok(loaded.into_iter().map(PluginInfoResponse::from).collect())
