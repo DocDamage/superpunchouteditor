@@ -653,8 +653,8 @@ impl Spc700Debugger {
     /// Returns the 9 bytes of the BRR block header + samples
     pub fn read_brr_block(&self, addr: u16) -> [u8; 9] {
         let mut block = [0u8; 9];
-        for i in 0..9 {
-            block[i] = self.state.read_ram(addr.wrapping_add(i as u16));
+        for (i, byte) in block.iter_mut().enumerate() {
+            *byte = self.state.read_ram(addr.wrapping_add(i as u16));
         }
         block
     }

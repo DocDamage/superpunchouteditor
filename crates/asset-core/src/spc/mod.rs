@@ -320,9 +320,7 @@ impl SpcFile {
         let bytes = text.as_bytes();
         let len = bytes.len().min(max_len);
         buffer[..len].copy_from_slice(&bytes[..len]);
-        for i in len..max_len {
-            buffer[i] = 0;
-        }
+        buffer[len..max_len].fill(0);
     }
 
     /// Reads a padded string from buffer.
