@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-      - name: Register implemented frontend command contracts
+      - name: Apply deterministic remediation transforms
         shell: python
         run: |
           from pathlib import Path
@@ -68,6 +68,16 @@ jobs:
               '''        let projection = session\n            .commit(label, requests)\n            .map_err(|e| e.to_string())?;\n''',
           )
           app_state.write_text(text, encoding='utf-8')
+
+          project_lib = Path('crates/project-core/src/lib.rs')
+          text = project_lib.read_text(encoding='utf-8')
+          module = 'pub mod session_document;\npub use session_document::*;\n\n'
+          if 'pub mod session_document;' not in text:
+              marker = 'pub mod tools;\npub use tools::*;\n\n'
+              if marker not in text:
+                  raise SystemExit('project-core module marker changed')
+              text = text.replace(marker, marker + module, 1)
+          project_lib.write_text(text, encoding='utf-8')
       - name: Regenerate Rust lockfile
         run: cargo generate-lockfile
       - name: Apply machine-safe Clippy fixes
