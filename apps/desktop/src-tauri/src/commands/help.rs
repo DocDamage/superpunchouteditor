@@ -7,9 +7,7 @@ use chrono::Utc;
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use crate::help_system::{
-    HelpArticle, HelpArticleSummary, HelpSystem, SearchResult,
-};
+use crate::help_system::{HelpArticle, HelpArticleSummary, HelpSystem, SearchResult};
 
 #[tauri::command]
 pub fn get_help_articles() -> Result<Vec<HelpArticleSummary>, String> {

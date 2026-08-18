@@ -229,7 +229,10 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
         ));
     }
     if patch_crc != crc32(&patch[..patch.len() - 4]) {
-        return Err(io::Error::new(ErrorKind::InvalidData, "BPS patch CRC mismatch"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "BPS patch CRC mismatch",
+        ));
     }
 
     let mut cursor = 4usize;
@@ -240,7 +243,10 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
     let metadata_size = usize::try_from(decode_number(patch, &mut cursor)?)
         .map_err(|_| io::Error::new(ErrorKind::InvalidData, "metadata size overflow"))?;
     if source_size != original.len() {
-        return Err(io::Error::new(ErrorKind::InvalidData, "BPS source size mismatch"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "BPS source size mismatch",
+        ));
     }
     cursor = cursor
         .checked_add(metadata_size)
@@ -253,14 +259,20 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
 
     while target.len() < target_size {
         if cursor >= footer_start {
-            return Err(io::Error::new(ErrorKind::UnexpectedEof, "truncated BPS actions"));
+            return Err(io::Error::new(
+                ErrorKind::UnexpectedEof,
+                "truncated BPS actions",
+            ));
         }
         let command = decode_number(patch, &mut cursor)?;
         let action = command & 3;
         let length = usize::try_from((command >> 2) + 1)
             .map_err(|_| io::Error::new(ErrorKind::InvalidData, "BPS action length overflow"))?;
         if target.len().saturating_add(length) > target_size {
-            return Err(io::Error::new(ErrorKind::InvalidData, "BPS action exceeds target size"));
+            return Err(io::Error::new(
+                ErrorKind::InvalidData,
+                "BPS action exceeds target size",
+            ));
         }
 
         match action {
@@ -279,7 +291,10 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
                     io::Error::new(ErrorKind::InvalidData, "BPS target read overflow")
                 })?;
                 if end > footer_start {
-                    return Err(io::Error::new(ErrorKind::UnexpectedEof, "truncated target data"));
+                    return Err(io::Error::new(
+                        ErrorKind::UnexpectedEof,
+                        "truncated target data",
+                    ));
                 }
                 target.extend_from_slice(&patch[cursor..end]);
                 cursor = end;
@@ -287,9 +302,14 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
             2 => {
                 source_relative = source_relative
                     .checked_add(decode_signed(patch, &mut cursor)?)
-                    .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "source copy overflow"))?;
+                    .ok_or_else(|| {
+                        io::Error::new(ErrorKind::InvalidData, "source copy overflow")
+                    })?;
                 if source_relative < 0 {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "negative source copy"));
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        "negative source copy",
+                    ));
                 }
                 let start = source_relative as usize;
                 let end = start.checked_add(length).ok_or_else(|| {
@@ -304,9 +324,14 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
             3 => {
                 target_relative = target_relative
                     .checked_add(decode_signed(patch, &mut cursor)?)
-                    .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "target copy overflow"))?;
+                    .ok_or_else(|| {
+                        io::Error::new(ErrorKind::InvalidData, "target copy overflow")
+                    })?;
                 if target_relative < 0 {
-                    return Err(io::Error::new(ErrorKind::InvalidData, "negative target copy"));
+                    return Err(io::Error::new(
+                        ErrorKind::InvalidData,
+                        "negative target copy",
+                    ));
                 }
                 for _ in 0..length {
                     let source_index = target_relative as usize;
@@ -322,7 +347,10 @@ pub fn apply_bps(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
     }
 
     if target_crc != crc32(&target) {
-        return Err(io::Error::new(ErrorKind::InvalidData, "BPS target CRC mismatch"));
+        return Err(io::Error::new(
+            ErrorKind::InvalidData,
+            "BPS target CRC mismatch",
+        ));
     }
     Ok(target)
 }

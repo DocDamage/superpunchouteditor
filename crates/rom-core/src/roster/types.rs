@@ -9,9 +9,10 @@ use super::constants::*;
 // ============================================================================
 
 /// Circuit types in Super Punch-Out!!
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CircuitType {
     /// Minor Circuit - first circuit
+    #[default]
     Minor = 0,
     /// Major Circuit - second circuit
     Major = 1,
@@ -62,12 +63,6 @@ impl CircuitType {
     /// Convert to byte value
     pub fn to_byte(&self) -> u8 {
         *self as u8
-    }
-}
-
-impl Default for CircuitType {
-    fn default() -> Self {
-        CircuitType::Minor
     }
 }
 

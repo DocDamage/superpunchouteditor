@@ -42,8 +42,8 @@ export const FEATURE_MATURITY: Record<ProductFeatureKey, FeatureMaturityRecord> 
     releaseDecision: "Core asset/palette editing surface; mutations must use the canonical journal.",
   },
   roster: {
-    status: "stable",
-    releaseDecision: "Stable after roster writers are journal-backed.",
+    status: "experimental",
+    releaseDecision: "Proven roster writes are journal-backed; champion/reset controls remain intentionally unsupported.",
   },
   viewer: {
     status: "stable",

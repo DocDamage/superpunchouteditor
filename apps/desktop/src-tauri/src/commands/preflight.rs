@@ -49,16 +49,28 @@ pub fn get_output_preflight(
     let destination_exists = destination.exists();
     let mut warnings = Vec::new();
     if materialized.transaction_count == 0 {
-        warnings.push("No journal transactions are active; output will match the base ROM.".to_string());
+        warnings.push(
+            "No journal transactions are active; output will match the base ROM.".to_string(),
+        );
     }
-    if materialized.bytes.len() != state.rom_session.lock().as_ref().ok_or("No ROM loaded")?.base().len() {
+    if materialized.bytes.len()
+        != state
+            .rom_session
+            .lock()
+            .as_ref()
+            .ok_or("No ROM loaded")?
+            .base()
+            .len()
+    {
         warnings.push("The working ROM size differs from the base ROM; IPS export may be unavailable and BPS should be used.".to_string());
     }
 
     Ok(OutputPreflight {
         source_sha1: materialized.base_sha1,
         current_sha1: materialized.current_sha1,
-        region: materialized.region.map(|region| region.as_str().to_string()),
+        region: materialized
+            .region
+            .map(|region| region.as_str().to_string()),
         revision: materialized.revision,
         transaction_count: materialized.transaction_count,
         changed_byte_count: materialized.changed_byte_count,

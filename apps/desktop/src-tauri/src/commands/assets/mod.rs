@@ -6,7 +6,6 @@ pub mod palettes;
 pub mod portraits;
 pub mod sprites;
 
-use std::collections::HashMap;
 use std::io::Cursor;
 
 use asset_core::{
@@ -19,7 +18,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::app_state::AppState;
-use crate::utils::{format_hex, parse_offset};
+use crate::utils::parse_offset;
 
 #[allow(ambiguous_glob_reexports)]
 pub use palettes::*;
@@ -52,23 +51,11 @@ pub fn read_original_rom_bytes(
     pc_offset: usize,
     size: usize,
 ) -> AssetResult<Vec<u8>> {
-    let rom_guard = state.rom.lock();
-    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
-    rom.read_bytes(pc_offset, size)
-        .map(|bytes| bytes.to_vec())
-        .map_err(|e| e.to_string())
-}
-
-pub fn pending_bytes_for_offset(
-    pending_writes: &HashMap<String, Vec<u8>>,
-    pc_offset: usize,
-) -> Option<Vec<u8>> {
-    pending_writes
-        .iter()
-        .find_map(|(key, bytes)| match parse_offset(key) {
-            Ok(offset) if offset == pc_offset => Some(bytes.clone()),
-            _ => None,
-        })
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let range = rom_core::validate_range(pc_offset, size, session.base().len())
+        .map_err(|error| error.to_string())?;
+    Ok(session.base().bytes()[range].to_vec())
 }
 
 pub fn read_current_asset_bytes(
@@ -76,11 +63,10 @@ pub fn read_current_asset_bytes(
     pc_offset: usize,
     size: usize,
 ) -> AssetResult<Vec<u8>> {
-    if let Some(bytes) = pending_bytes_for_offset(&state.pending_writes.lock(), pc_offset) {
-        return Ok(bytes);
-    }
-
-    read_original_rom_bytes(state, pc_offset, size)
+    let materialized = state.materialize_current_rom()?;
+    let range = rom_core::validate_range(pc_offset, size, materialized.bytes.len())
+        .map_err(|error| error.to_string())?;
+    Ok(materialized.bytes[range].to_vec())
 }
 
 pub fn read_palette_colors(
@@ -405,12 +391,16 @@ pub fn encode_palette_bytes(colors: &[Color]) -> Vec<u8> {
     encode_palette(colors)
 }
 
-pub fn set_pending_write(state: &AppState, pc_offset: usize, bytes: Vec<u8>) {
+pub fn set_pending_write(state: &AppState, pc_offset: usize, bytes: Vec<u8>) -> AssetResult<()> {
     state
-        .pending_writes
-        .lock()
-        .insert(format_hex(pc_offset), bytes);
-    *state.modified.lock() = true;
+        .commit_rom_write(
+            format!("Import asset at 0x{pc_offset:X}"),
+            pc_offset,
+            bytes,
+            Some(format!("asset@0x{pc_offset:X}")),
+            Some("Imported graphic/sprite asset".to_string()),
+        )
+        .map(|_| ())
 }
 
 fn preferred_theme_boxer(manifest: &Manifest) -> Option<BoxerRecord> {

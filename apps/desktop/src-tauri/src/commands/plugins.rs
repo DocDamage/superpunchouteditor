@@ -130,6 +130,8 @@ mod tests {
 
     #[test]
     fn stable_plugin_execution_is_explicitly_disabled() {
-        assert!(disabled::<()>().unwrap_err().contains("disabled in stable builds"));
+        assert!(disabled::<()>()
+            .unwrap_err()
+            .contains("disabled in stable builds"));
     }
 }

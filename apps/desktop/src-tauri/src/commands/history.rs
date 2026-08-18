@@ -85,7 +85,8 @@ pub fn get_redo_stack(state: State<AppState>) -> Vec<EditSummary> {
 
 fn parse_hex_offset(value: &str) -> Result<usize, String> {
     let clean = value.trim_start_matches("0x").trim_start_matches("0X");
-    usize::from_str_radix(clean, 16).map_err(|error| format!("Invalid ROM offset '{value}': {error}"))
+    usize::from_str_radix(clean, 16)
+        .map_err(|error| format!("Invalid ROM offset '{value}': {error}"))
 }
 
 fn record_compat_edit(
@@ -126,10 +127,14 @@ pub fn record_palette_edit(
     old_color: Vec<u8>,
     new_color: Vec<u8>,
 ) -> Result<(), String> {
+    let base_offset = parse_hex_offset(&pc_offset)?;
+    let byte_offset = base_offset
+        .checked_add(color_index.saturating_mul(2))
+        .ok_or("Palette color offset overflow")?;
     record_compat_edit(
         &state,
         format!("Palette color {color_index} at {pc_offset}"),
-        pc_offset,
+        format!("0x{byte_offset:X}"),
         old_color,
         new_color,
     )

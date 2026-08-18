@@ -38,7 +38,10 @@ fn legacy_file_from_session(
         file.thumbnail = template.thumbnail.clone();
         file.source_region = template.source_region.clone();
     } else {
-        file.source_region = session.base().region().map(|region| region.as_str().to_string());
+        file.source_region = session
+            .base()
+            .region()
+            .map(|region| region.as_str().to_string());
     }
 
     for transaction in session.journal().active_transactions() {
@@ -341,7 +344,9 @@ pub fn get_change_summary(state: State<AppState>) -> Result<ChangeSummary, Strin
     }
     let projected = journal_projection(&state)?;
     let names = boxer_names(&state);
-    Ok(project_core::patch_notes::get_change_summary(&projected, &names))
+    Ok(project_core::patch_notes::get_change_summary(
+        &projected, &names,
+    ))
 }
 
 #[tauri::command]

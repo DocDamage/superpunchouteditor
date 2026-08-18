@@ -30,7 +30,9 @@ fn safe_logical_filename(value: &str) -> bool {
     let path = Path::new(value);
     !value.is_empty()
         && !path.is_absolute()
-        && path.components().all(|component| matches!(component, Component::Normal(_)))
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 fn community_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -132,7 +134,10 @@ pub fn validate_layout_pack(
             .values()
             .find(|fighter| fighter.key == layout.boxer_key);
         let Some(boxer) = boxer else {
-            boxer_errors.push(format!("Boxer '{}' not found in manifest", layout.boxer_key));
+            boxer_errors.push(format!(
+                "Boxer '{}' not found in manifest",
+                layout.boxer_key
+            ));
             boxer_validations.push(BoxerValidation {
                 boxer_key: layout.boxer_key.clone(),
                 exists_in_manifest: false,
@@ -275,7 +280,8 @@ pub fn install_layout_pack(app: AppHandle, source_path: String) -> Result<Layout
     }
     let filename = format!("{stem}.json");
     let destination = community_dir(&app)?.join(&filename);
-    std::fs::copy(source, destination).map_err(|e| format!("Failed to install layout pack: {e}"))?;
+    std::fs::copy(source, destination)
+        .map_err(|e| format!("Failed to install layout pack: {e}"))?;
     Ok(LayoutPackInfo {
         filename,
         name: pack.name,

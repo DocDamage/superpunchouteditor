@@ -52,16 +52,19 @@ fn journal_save_patch_and_project_restore_same_bytes() {
     .unwrap();
     save_project_v2(project_dir.path(), &document).unwrap();
     let restored_document = load_project_v2(project_dir.path()).unwrap();
-    restored_document.validate_against_base(session.base()).unwrap();
+    restored_document
+        .validate_against_base(session.base())
+        .unwrap();
 
     let mut restored = RomSession::from_rom(&base_rom, Some("synthetic.sfc".to_string()));
-    restored
-        .replace_journal(restored_document.journal)
-        .unwrap();
+    restored.replace_journal(restored_document.journal).unwrap();
     let restored_materialized = restored.materialize().unwrap();
 
     assert_eq!(restored_materialized.bytes, materialized.bytes);
-    assert_eq!(restored_materialized.current_sha1, materialized.current_sha1);
+    assert_eq!(
+        restored_materialized.current_sha1,
+        materialized.current_sha1
+    );
     assert_eq!(ips_result, bps_result);
     assert_eq!(bps_result, restored_materialized.bytes);
 }

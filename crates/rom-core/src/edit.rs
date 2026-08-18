@@ -175,6 +175,8 @@ pub struct EditJournal {
     next_id: u64,
     state_revision: u64,
     saved_revision: u64,
+    #[serde(default)]
+    saved_transaction_ids: Vec<u64>,
 }
 
 impl Default for EditJournal {
@@ -191,6 +193,7 @@ impl EditJournal {
             next_id: 1,
             state_revision: 0,
             saved_revision: 0,
+            saved_transaction_ids: Vec::new(),
         }
     }
 
@@ -215,7 +218,12 @@ impl EditJournal {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.state_revision != self.saved_revision
+        let current_ids: Vec<u64> = self
+            .active_transactions()
+            .iter()
+            .map(|transaction| transaction.id)
+            .collect();
+        current_ids != self.saved_transaction_ids
     }
 
     pub fn can_undo(&self) -> bool {
@@ -228,6 +236,11 @@ impl EditJournal {
 
     pub fn mark_saved(&mut self) {
         self.saved_revision = self.state_revision;
+        self.saved_transaction_ids = self
+            .active_transactions()
+            .iter()
+            .map(|transaction| transaction.id)
+            .collect();
     }
 
     pub fn clear(&mut self) {
@@ -664,6 +677,24 @@ mod tests {
         let bytes = journal.materialize(&base).unwrap();
         assert_eq!(bytes.len(), 12);
         assert_eq!(&bytes[8..], &[0xff, 0xff, 0xaa, 0xbb]);
+    }
+
+    #[test]
+    fn redo_back_to_exact_saved_prefix_is_clean() {
+        let base = base();
+        let mut journal = EditJournal::new();
+        journal.commit(&base, "one", vec![write(1, &[9])]).unwrap();
+        journal.mark_saved();
+        assert!(!journal.is_dirty());
+        journal.undo();
+        assert!(journal.is_dirty());
+        journal.redo();
+        assert!(!journal.is_dirty());
+        journal.undo();
+        journal
+            .commit(&base, "replacement", vec![write(2, &[8])])
+            .unwrap();
+        assert!(journal.is_dirty());
     }
 
     #[test]

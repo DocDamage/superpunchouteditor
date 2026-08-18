@@ -90,7 +90,9 @@ pub fn update_boxer_intro_field(
     text: String,
 ) -> Result<BoxerIntroResponse, String> {
     if field_index > 4 {
-        return Err(format!("Invalid intro field index {field_index}; expected 0..=4"));
+        return Err(format!(
+            "Invalid intro field index {field_index}; expected 0..=4"
+        ));
     }
     let normalized = text.trim().to_string();
     state.commit_rom_transform(
@@ -142,22 +144,25 @@ pub fn commit_creator_session(
     let circuit = CircuitType::from_byte(session.circuit);
     let unlock_order = session.unlock_order;
 
-    state.commit_rom_transform(format!("Commit creator session for boxer {boxer_id}"), |rom| {
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_boxer_name(boxer_id, &name)
-            .map_err(|error| error.to_string())?;
-        writer
-            .write_circuit_assignment(boxer_id, circuit)
-            .map_err(|error| error.to_string())?;
-        writer
-            .write_unlock_order(boxer_id, unlock_order)
-            .map_err(|error| error.to_string())?;
-        writer
-            .write_boxer_intro_field(intro_text_id, 4, &intro)
-            .map_err(|error| error.to_string())?;
-        Ok(())
-    })?;
+    state.commit_rom_transform(
+        format!("Commit creator session for boxer {boxer_id}"),
+        |rom| {
+            let mut writer = RosterWriter::new(rom);
+            writer
+                .write_boxer_name(boxer_id, &name)
+                .map_err(|error| error.to_string())?;
+            writer
+                .write_circuit_assignment(boxer_id, circuit)
+                .map_err(|error| error.to_string())?;
+            writer
+                .write_unlock_order(boxer_id, unlock_order)
+                .map_err(|error| error.to_string())?;
+            writer
+                .write_boxer_intro_field(intro_text_id, 4, &intro)
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        },
+    )?;
 
     Ok(CreatorCommitResponse {
         boxer: load_boxer(&state, boxer_id)?,
@@ -176,8 +181,6 @@ pub fn set_champion_status(
 }
 
 #[tauri::command]
-pub fn reset_roster_to_defaults(
-    _state: State<AppState>,
-) -> Result<RosterDataResponse, String> {
+pub fn reset_roster_to_defaults(_state: State<AppState>) -> Result<RosterDataResponse, String> {
     Err("Reset-to-defaults has no proven byte-level restoration map and is disabled rather than returning a false success.".to_string())
 }

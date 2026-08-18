@@ -37,9 +37,10 @@ impl From<AnimationError> for String {
 // ============================================================================
 
 /// Categories of animations for organization
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AnimationCategory {
     /// Idle stance
+    #[default]
     Idle,
     /// Punch attacks (jab, hook, uppercut)
     Punch,
@@ -55,12 +56,6 @@ pub enum AnimationCategory {
     Taunt,
     /// Custom animation
     Custom(String),
-}
-
-impl Default for AnimationCategory {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 impl AnimationCategory {
@@ -184,9 +179,10 @@ impl FrameEffect {
 // ============================================================================
 
 /// Types of hitboxes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum HitboxType {
     /// Offensive hitbox (deals damage)
+    #[default]
     Attack,
     /// Counter hitbox (triggers counter when hit)
     Counter,
@@ -194,12 +190,6 @@ pub enum HitboxType {
     Grab,
     /// Projectile hitbox
     Projectile,
-}
-
-impl Default for HitboxType {
-    fn default() -> Self {
-        Self::Attack
-    }
 }
 
 impl HitboxType {

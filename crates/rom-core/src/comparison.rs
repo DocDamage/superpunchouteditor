@@ -461,7 +461,7 @@ impl ComparisonEngine {
                 .collect();
 
         let max_len = original.len().max(modified.len());
-        let row_count = (max_len + bytes_per_row - 1) / bytes_per_row;
+        let row_count = max_len.div_ceil(bytes_per_row);
 
         let mut rows = Vec::with_capacity(row_count);
 

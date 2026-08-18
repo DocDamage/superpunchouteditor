@@ -56,11 +56,15 @@ pub fn save_rom_as(state: State<AppState>, output_path: String) -> Result<(), St
     let destination = Path::new(&output_path);
     let parent = destination.parent().unwrap_or_else(|| Path::new("."));
     if !parent.exists() {
-        return Err(format!("Destination directory does not exist: {}", parent.display()));
+        return Err(format!(
+            "Destination directory does not exist: {}",
+            parent.display()
+        ));
     }
 
     let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
-    temp.write_all(&materialized.bytes).map_err(|e| e.to_string())?;
+    temp.write_all(&materialized.bytes)
+        .map_err(|e| e.to_string())?;
     temp.as_file().sync_all().map_err(|e| e.to_string())?;
 
     let verify = fs::read(temp.path()).map_err(|e| e.to_string())?;
@@ -148,7 +152,8 @@ pub fn get_rom_bytes(
     let offset = parse_offset(&pc_offset)?;
     let session_guard = state.rom_session.lock();
     let session = session_guard.as_ref().ok_or("No ROM loaded")?;
-    let range = rom_core::validate_range(offset, size, session.base().len()).map_err(|e| e.to_string())?;
+    let range =
+        rom_core::validate_range(offset, size, session.base().len()).map_err(|e| e.to_string())?;
     Ok(session.base().bytes()[range].to_vec())
 }
 

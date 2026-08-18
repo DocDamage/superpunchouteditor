@@ -32,7 +32,10 @@ fn write_atomic(path: &str, bytes: &[u8]) -> Result<(), String> {
     let destination = Path::new(path);
     let parent = destination.parent().unwrap_or_else(|| Path::new("."));
     if !parent.exists() {
-        return Err(format!("Destination directory does not exist: {}", parent.display()));
+        return Err(format!(
+            "Destination directory does not exist: {}",
+            parent.display()
+        ));
     }
     let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
     temp.write_all(bytes).map_err(|e| e.to_string())?;

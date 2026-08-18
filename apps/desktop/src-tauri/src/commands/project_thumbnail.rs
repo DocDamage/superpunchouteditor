@@ -43,10 +43,7 @@ pub fn capture_project_thumbnail(
         return Err("Thumbnail dimensions exceed safety limits".to_string());
     }
     Ok(ProjectThumbnail::from_png_bytes(
-        &png_bytes,
-        width,
-        height,
-        view_type,
+        &png_bytes, width, height, view_type,
     ))
 }
 
@@ -55,7 +52,9 @@ pub fn save_project_thumbnail(
     state: State<AppState>,
     thumbnail_data: ProjectThumbnail,
 ) -> Result<(), String> {
-    let bytes = thumbnail_data.to_png_bytes().map_err(|error| error.to_string())?;
+    let bytes = thumbnail_data
+        .to_png_bytes()
+        .map_err(|error| error.to_string())?;
     if bytes.len() > MAX_THUMBNAIL_PNG_BYTES {
         return Err("Thumbnail exceeds safety limit".to_string());
     }

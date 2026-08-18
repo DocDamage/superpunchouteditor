@@ -8,8 +8,8 @@ use tauri::State;
 
 use crate::app_state::AppState;
 use rom_core::animation::{
-    Animation, AnimationCategory, AnimationFrame, AnimationLoader, AnimationWriter,
-    FighterAnimations, FrameEffect, Hitbox, HitboxType, Hurtbox, ANIM_TYPE_IDLE,
+    Animation, AnimationCategory, AnimationFrame, AnimationLoader, FighterAnimations, FrameEffect,
+    Hitbox, HitboxType, Hurtbox, ANIM_TYPE_IDLE,
 };
 
 // ============================================================================
@@ -289,44 +289,18 @@ fn load_fighter_animations_internal(
 
 /// Internal helper: mutate an animation and write back to ROM
 fn mutate_animation<F>(
-    state: &AppState,
-    boxer_key: &str,
-    animation_name: &str,
-    mutate_fn: F,
+    _state: &AppState,
+    _boxer_key: &str,
+    _animation_name: &str,
+    _mutate_fn: F,
 ) -> Result<(), String>
 where
     F: FnOnce(&mut Animation) -> Result<(), String>,
 {
-    let mut rom_guard = state.rom.lock();
-    let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-
-    let fighter_id = parse_boxer_key(boxer_key)?;
-
-    // Load current animations
-    let mut animations = {
-        let loader = AnimationLoader::new(rom);
-        loader
-            .get_animations(fighter_id)
-            .map_err(|e| e.to_string())?
-    };
-
-    // Mutate the target animation
-    let anim = animations
-        .get_animation_by_name_mut(animation_name)
-        .ok_or_else(|| format!("Animation '{}' not found", animation_name))?;
-
-    mutate_fn(anim)?;
-
-    // Write back
-    let mut writer = AnimationWriter::new(rom);
-    writer
-        .update_animation(fighter_id, &animations)
-        .map_err(|e| e.to_string())?;
-
-    // Mark ROM modified
-    *state.modified.lock() = true;
-
-    Ok(())
+    Err(
+        "Animation, frame, hitbox, and hurtbox mutation is research-blocked: ROM write-back is not sufficiently reverse-engineered to guarantee persistence. The animation surface is read-only until round-trip write tests pass."
+            .to_string(),
+    )
 }
 
 // ============================================================================

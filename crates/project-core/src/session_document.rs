@@ -111,7 +111,7 @@ impl ProjectDocumentV2 {
             duplicated_banks: Vec::new(),
             imported_assets: Vec::new(),
             thumbnail: None,
-            last_saved_revision: session.journal().saved_revision(),
+            last_saved_revision: session.journal().revision(),
             expected_current_sha1: materialized.current_sha1,
             written_at: Utc::now(),
         })
@@ -158,7 +158,10 @@ struct ProjectEnvelopeV2 {
 }
 
 fn document_integrity(document: &ProjectDocumentV2) -> Result<String, ProjectError> {
-    let canonical = serde_json::to_vec(document)?;
+    // Convert through `Value` so object keys (including HashMap-backed settings) are emitted in
+    // deterministic map order before hashing. Integrity must survive deserialize/serialize cycles.
+    let canonical_value = serde_json::to_value(document)?;
+    let canonical = serde_json::to_vec(&canonical_value)?;
     Ok(sha1_hex(&canonical))
 }
 
@@ -316,13 +319,9 @@ mod tests {
     fn project_manifest_never_contains_base_rom_bytes() {
         let directory = tempfile::tempdir().unwrap();
         let session = edited_session();
-        let document = ProjectDocumentV2::from_session(
-            "2.0.0",
-            ProjectMetadata::default(),
-            &session,
-            None,
-        )
-        .unwrap();
+        let document =
+            ProjectDocumentV2::from_session("2.0.0", ProjectMetadata::default(), &session, None)
+                .unwrap();
         save_project_v2(directory.path(), &document).unwrap();
         let text = fs::read_to_string(directory.path().join(PROJECT_V2_FILENAME)).unwrap();
         assert!(!text.contains("AAECAwQ="));
@@ -332,13 +331,9 @@ mod tests {
     fn corrupt_integrity_is_rejected() {
         let directory = tempfile::tempdir().unwrap();
         let session = edited_session();
-        let document = ProjectDocumentV2::from_session(
-            "2.0.0",
-            ProjectMetadata::default(),
-            &session,
-            None,
-        )
-        .unwrap();
+        let document =
+            ProjectDocumentV2::from_session("2.0.0", ProjectMetadata::default(), &session, None)
+                .unwrap();
         save_project_v2(directory.path(), &document).unwrap();
         let path = directory.path().join(PROJECT_V2_FILENAME);
         let mut text = fs::read_to_string(&path).unwrap();

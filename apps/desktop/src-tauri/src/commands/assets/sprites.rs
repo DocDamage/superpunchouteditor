@@ -132,9 +132,15 @@ pub fn import_sprite_bin_from_png(
     };
     let fits = new_bytes.len() <= original_size;
 
-    set_pending_write(state.inner(), asset_pc_offset, new_bytes.clone());
+    if !fits {
+        return Err(format!(
+            "Imported asset is {} bytes but the original slot is {} bytes; relocation is experimental, so no ROM change was committed",
+            new_bytes.len(), original_size
+        ));
+    }
+    set_pending_write(state.inner(), asset_pc_offset, new_bytes.clone())?;
 
-    Ok((new_bytes.len(), original_size, fits))
+    Ok((new_bytes.len(), original_size, true))
 }
 
 #[tauri::command]

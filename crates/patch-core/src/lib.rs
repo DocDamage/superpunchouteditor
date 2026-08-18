@@ -81,9 +81,8 @@ pub fn apply_ips(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
         let header = patch
             .get(cursor..cursor + 5)
             .ok_or_else(|| io::Error::new(ErrorKind::UnexpectedEof, "truncated IPS record"))?;
-        let offset = ((header[0] as usize) << 16)
-            | ((header[1] as usize) << 8)
-            | header[2] as usize;
+        let offset =
+            ((header[0] as usize) << 16) | ((header[1] as usize) << 8) | header[2] as usize;
         let size = u16::from_be_bytes([header[3], header[4]]) as usize;
         cursor += 5;
 
@@ -92,9 +91,9 @@ pub fn apply_ips(original: &[u8], patch: &[u8]) -> io::Result<Vec<u8>> {
                 io::Error::new(ErrorKind::UnexpectedEof, "truncated IPS RLE record")
             })?;
             let count = u16::from_be_bytes([rle[0], rle[1]]) as usize;
-            let end = offset.checked_add(count).ok_or_else(|| {
-                io::Error::new(ErrorKind::InvalidData, "IPS RLE range overflow")
-            })?;
+            let end = offset
+                .checked_add(count)
+                .ok_or_else(|| io::Error::new(ErrorKind::InvalidData, "IPS RLE range overflow"))?;
             if end > output.len() {
                 return Err(io::Error::new(
                     ErrorKind::InvalidData,

@@ -13,6 +13,9 @@ pub use patch_notes::*;
 pub mod tools;
 pub use tools::*;
 
+pub mod session_document;
+pub use session_document::*;
+
 /// Current project file format version
 pub const PROJECT_VERSION: u32 = 1;
 

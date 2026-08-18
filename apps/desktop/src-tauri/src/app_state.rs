@@ -309,7 +309,10 @@ mod tests {
             .commit_rom_write("test", 1, vec![9, 8], None, None)
             .unwrap();
         assert!(result.dirty);
-        assert_eq!(state.materialize_current_rom().unwrap().bytes, vec![0, 9, 8, 3]);
+        assert_eq!(
+            state.materialize_current_rom().unwrap().bytes,
+            vec![0, 9, 8, 3]
+        );
     }
 
     #[test]
@@ -324,6 +327,9 @@ mod tests {
             })
             .unwrap();
         assert_eq!(projection.active_transaction_count, 1);
-        assert_eq!(state.materialize_current_rom().unwrap().bytes, vec![9, 1, 2, 8]);
+        assert_eq!(
+            state.materialize_current_rom().unwrap().bytes,
+            vec![9, 1, 2, 8]
+        );
     }
 }

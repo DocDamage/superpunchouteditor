@@ -38,9 +38,10 @@ use crate::Rom;
 use serde::{Deserialize, Serialize};
 
 /// ROM region variants for Super Punch-Out!!
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RomRegion {
     /// USA version - fully supported
+    #[default]
     Usa,
     /// Japanese version - planned support
     Jpn,
@@ -165,12 +166,6 @@ impl RomRegion {
 impl std::fmt::Display for RomRegion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.display_name())
-    }
-}
-
-impl Default for RomRegion {
-    fn default() -> Self {
-        Self::Usa
     }
 }
 
