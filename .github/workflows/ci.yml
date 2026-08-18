@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, develop, agent/project-remediation-modernization]
+    branches: [master, develop]
   pull_request:
     branches: [master]
 
