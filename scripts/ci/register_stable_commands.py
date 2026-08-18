@@ -30,8 +30,9 @@ insert_after(
             commands::project_thumbnail::get_project_thumbnail,
             commands::project_thumbnail::clear_project_thumbnail,
             commands::project_thumbnail::load_project_thumbnail_from_path,
+            commands::preflight::get_output_preflight,
 """,
-    "commands::project_thumbnail::capture_project_thumbnail,",
+    "commands::preflight::get_output_preflight,",
 )
 
 insert_after(
