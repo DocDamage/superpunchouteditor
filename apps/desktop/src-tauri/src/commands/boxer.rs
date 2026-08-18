@@ -133,7 +133,7 @@ fn clone_asset_list_into_rom(
 
             rom.write_bytes(allocation.offset, &bytes)
                 .map_err(|e| e.to_string())?;
-            set_pending_write(state, allocation.offset, bytes.clone());
+            set_pending_write(state, allocation.offset, bytes.clone())?;
 
             let end_pc = allocation.offset + bytes.len();
             let generated_name = format!("{}_{}_{}", owner_key, asset.subtype, index + 1);
