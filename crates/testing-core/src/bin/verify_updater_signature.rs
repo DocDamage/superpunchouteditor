@@ -1,14 +1,25 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use minisign_verify::{PublicKey, Signature};
 use serde_json::Value;
-use std::{env, error::Error, fs, path::Path};
+use std::{
+    env,
+    error::Error,
+    fs,
+    io::{Error as IoError, ErrorKind},
+    path::Path,
+};
 
 fn configured_public_key(config_path: &Path) -> Result<PublicKey, Box<dyn Error>> {
     let config: Value = serde_json::from_slice(&fs::read(config_path)?)?;
     let encoded = config
         .pointer("/plugins/updater/pubkey")
         .and_then(Value::as_str)
-        .ok_or("tauri config is missing plugins.updater.pubkey")?;
+        .ok_or_else(|| {
+            IoError::new(
+                ErrorKind::InvalidData,
+                "tauri config is missing plugins.updater.pubkey",
+            )
+        })?;
 
     let decoded = STANDARD.decode(encoded)?;
     let minisign_text = String::from_utf8(decoded)?;
@@ -24,7 +35,11 @@ fn check_key(config_path: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn verify(artifact_path: &Path, signature_path: &Path, config_path: &Path) -> Result<(), Box<dyn Error>> {
+fn verify(
+    artifact_path: &Path,
+    signature_path: &Path,
+    config_path: &Path,
+) -> Result<(), Box<dyn Error>> {
     let public_key = configured_public_key(config_path)?;
     let signature = Signature::from_file(signature_path)?;
     let artifact = fs::read(artifact_path)?;
@@ -51,7 +66,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             Path::new(signature),
             Path::new(config),
         ),
-        _ => Err(usage().into()),
+        _ => Err(IoError::new(ErrorKind::InvalidInput, usage()).into()),
     }
 }
 
