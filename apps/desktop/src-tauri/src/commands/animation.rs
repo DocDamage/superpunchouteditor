@@ -8,9 +8,7 @@ use tauri::State;
 
 use crate::app_state::AppState;
 use rom_core::animation::{
-    AnimationLoader, AnimationWriter, AnimationFrame, Animation, FighterAnimations,
-    AnimationCategory, Hitbox, Hurtbox, FrameEffect, HitboxType,
-    ANIM_TYPE_IDLE,
+    Animation, AnimationFrame, AnimationLoader, FighterAnimations, Hitbox, HitboxType, Hurtbox,
 };
 
 // ============================================================================
@@ -65,15 +63,30 @@ pub struct AnimationPlayerState {
 
 impl AnimationPlayerState {
     fn stopped() -> Self {
-        Self { current_frame: 0, frame_time: 0.0, is_playing: false, total_frames: 0 }
+        Self {
+            current_frame: 0,
+            frame_time: 0.0,
+            is_playing: false,
+            total_frames: 0,
+        }
     }
 
     fn playing(total_frames: usize) -> Self {
-        Self { current_frame: 0, frame_time: 0.0, is_playing: true, total_frames }
+        Self {
+            current_frame: 0,
+            frame_time: 0.0,
+            is_playing: true,
+            total_frames,
+        }
     }
 
     fn at_frame(frame: usize, total_frames: usize) -> Self {
-        Self { current_frame: frame.min(total_frames.saturating_sub(1)), frame_time: 0.0, is_playing: false, total_frames }
+        Self {
+            current_frame: frame.min(total_frames.saturating_sub(1)),
+            frame_time: 0.0,
+            is_playing: false,
+            total_frames,
+        }
     }
 }
 
@@ -198,13 +211,14 @@ fn animation_to_frames(anim: &Animation) -> Vec<AnimationFrameData> {
 }
 
 fn frontend_to_frame(frame: &AnimationFrameData) -> AnimationFrame {
-    let mut rom_frame = AnimationFrame::default();
-    rom_frame.pose_id = frame.pose_id;
-    rom_frame.duration = frame.duration;
-    rom_frame.tileset_id = frame.tileset_id;
-    rom_frame.hitboxes = frame.hitboxes.iter().map(frontend_to_hitbox).collect();
-    rom_frame.hurtboxes = frame.hurtboxes.iter().map(frontend_to_hurtbox).collect();
-    rom_frame
+    AnimationFrame {
+        pose_id: frame.pose_id,
+        duration: frame.duration,
+        tileset_id: frame.tileset_id,
+        hitboxes: frame.hitboxes.iter().map(frontend_to_hitbox).collect(),
+        hurtboxes: frame.hurtboxes.iter().map(frontend_to_hurtbox).collect(),
+        ..Default::default()
+    }
 }
 
 /// Parse a boxer key (fighter name or numeric ID) to a fighter ID
@@ -216,10 +230,22 @@ fn parse_boxer_key(boxer_key: &str) -> Result<u8, String> {
     }
 
     const NAMES: &[&str] = &[
-        "Gabby Jay", "Bear Hugger", "Piston Hurricane", "Bald Bull",
-        "Bob Charlie", "Dragon Chan", "Masked Muscle", "Mr. Sandman",
-        "Aran Ryan", "Heike Kagero", "Mad Clown", "Super Macho Man",
-        "Narcis Prince", "Hoy Quarlow", "Rick Bruiser", "Nick Bruiser",
+        "Gabby Jay",
+        "Bear Hugger",
+        "Piston Hurricane",
+        "Bald Bull",
+        "Bob Charlie",
+        "Dragon Chan",
+        "Masked Muscle",
+        "Mr. Sandman",
+        "Aran Ryan",
+        "Heike Kagero",
+        "Mad Clown",
+        "Super Macho Man",
+        "Narcis Prince",
+        "Hoy Quarlow",
+        "Rick Bruiser",
+        "Nick Bruiser",
     ];
 
     for (id, &name) in NAMES.iter().enumerate() {
@@ -241,7 +267,9 @@ fn load_animation_internal(
     let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
     let loader = AnimationLoader::new(rom);
     let fighter_id = parse_boxer_key(boxer_key)?;
-    let animations = loader.get_animations(fighter_id).map_err(|e| e.to_string())?;
+    let animations = loader
+        .get_animations(fighter_id)
+        .map_err(|e| e.to_string())?;
     animations
         .get_animation_by_name(animation_name)
         .ok_or_else(|| format!("Animation '{}' not found", animation_name))
@@ -261,40 +289,18 @@ fn load_fighter_animations_internal(
 
 /// Internal helper: mutate an animation and write back to ROM
 fn mutate_animation<F>(
-    state: &AppState,
-    boxer_key: &str,
-    animation_name: &str,
-    mutate_fn: F,
+    _state: &AppState,
+    _boxer_key: &str,
+    _animation_name: &str,
+    _mutate_fn: F,
 ) -> Result<(), String>
 where
     F: FnOnce(&mut Animation) -> Result<(), String>,
 {
-    let mut rom_guard = state.rom.lock();
-    let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-
-    let fighter_id = parse_boxer_key(boxer_key)?;
-
-    // Load current animations
-    let mut animations = {
-        let loader = AnimationLoader::new(rom);
-        loader.get_animations(fighter_id).map_err(|e| e.to_string())?
-    };
-
-    // Mutate the target animation
-    let anim = animations
-        .get_animation_by_name_mut(animation_name)
-        .ok_or_else(|| format!("Animation '{}' not found", animation_name))?;
-
-    mutate_fn(anim)?;
-
-    // Write back
-    let mut writer = AnimationWriter::new(rom);
-    writer.update_animation(fighter_id, &animations).map_err(|e| e.to_string())?;
-
-    // Mark ROM modified
-    *state.modified.lock() = true;
-
-    Ok(())
+    Err(
+        "Animation, frame, hitbox, and hurtbox mutation is research-blocked: ROM write-back is not sufficiently reverse-engineered to guarantee persistence. The animation surface is read-only until round-trip write tests pass."
+            .to_string(),
+    )
 }
 
 // ============================================================================
@@ -516,7 +522,11 @@ pub fn move_animation_frame(
             return Err("Invalid frame indices".to_string());
         }
         let frame = anim.frames.remove(from_index);
-        let insert_idx = if to_index > from_index { to_index - 1 } else { to_index };
+        let insert_idx = if to_index > from_index {
+            to_index - 1
+        } else {
+            to_index
+        };
         anim.frames.insert(insert_idx, frame);
         Ok(())
     })
@@ -555,7 +565,9 @@ pub fn create_hitbox(
         if frame_index >= anim.frames.len() {
             return Err(format!("Frame index {} out of range", frame_index));
         }
-        anim.frames[frame_index].hitboxes.push(frontend_to_hitbox(&hitbox));
+        anim.frames[frame_index]
+            .hitboxes
+            .push(frontend_to_hitbox(&hitbox));
         Ok(())
     })?;
     Ok(hitbox)
@@ -574,7 +586,9 @@ pub fn create_hurtbox(
         if frame_index >= anim.frames.len() {
             return Err(format!("Frame index {} out of range", frame_index));
         }
-        anim.frames[frame_index].hurtboxes.push(frontend_to_hurtbox(&hurtbox));
+        anim.frames[frame_index]
+            .hurtboxes
+            .push(frontend_to_hurtbox(&hurtbox));
         Ok(())
     })?;
     Ok(hurtbox)
@@ -591,7 +605,9 @@ pub fn update_hitbox(
     hitbox: HitboxData,
 ) -> Result<(), String> {
     mutate_animation(&state, &boxer_key, &animation_name, |anim| {
-        let frame = anim.frames.get_mut(frame_index)
+        let frame = anim
+            .frames
+            .get_mut(frame_index)
             .ok_or_else(|| format!("Frame index {} out of range", frame_index))?;
         if hitbox_index >= frame.hitboxes.len() {
             return Err(format!("Hitbox index {} out of range", hitbox_index));
@@ -611,7 +627,9 @@ pub fn delete_hitbox(
     hitbox_index: usize,
 ) -> Result<(), String> {
     mutate_animation(&state, &boxer_key, &animation_name, |anim| {
-        let frame = anim.frames.get_mut(frame_index)
+        let frame = anim
+            .frames
+            .get_mut(frame_index)
             .ok_or_else(|| format!("Frame index {} out of range", frame_index))?;
         if hitbox_index >= frame.hitboxes.len() {
             return Err(format!("Hitbox index {} out of range", hitbox_index));
@@ -632,7 +650,9 @@ pub fn update_hurtbox(
     hurtbox: HurtboxData,
 ) -> Result<(), String> {
     mutate_animation(&state, &boxer_key, &animation_name, |anim| {
-        let frame = anim.frames.get_mut(frame_index)
+        let frame = anim
+            .frames
+            .get_mut(frame_index)
             .ok_or_else(|| format!("Frame index {} out of range", frame_index))?;
         if hurtbox_index >= frame.hurtboxes.len() {
             return Err(format!("Hurtbox index {} out of range", hurtbox_index));
@@ -652,7 +672,9 @@ pub fn delete_hurtbox(
     hurtbox_index: usize,
 ) -> Result<(), String> {
     mutate_animation(&state, &boxer_key, &animation_name, |anim| {
-        let frame = anim.frames.get_mut(frame_index)
+        let frame = anim
+            .frames
+            .get_mut(frame_index)
             .ok_or_else(|| format!("Frame index {} out of range", frame_index))?;
         if hurtbox_index >= frame.hurtboxes.len() {
             return Err(format!("Hurtbox index {} out of range", hurtbox_index));

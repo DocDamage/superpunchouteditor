@@ -95,10 +95,7 @@ impl PatchNotes {
                     description: edit.description.clone().unwrap_or_default(),
                 });
             } else {
-                boxer_changes
-                    .entry(boxer_key)
-                    .or_insert_with(Vec::new)
-                    .push(change);
+                boxer_changes.entry(boxer_key).or_default().push(change);
             }
 
             // Update summary counts
@@ -150,7 +147,7 @@ impl PatchNotes {
 
         let mut boxer_changes: HashMap<String, Vec<Change>> = HashMap::new();
 
-        for (pc_offset, _bytes) in pending {
+        for pc_offset in pending.keys() {
             let boxer_key = boxer_names
                 .get(pc_offset)
                 .cloned()
@@ -175,7 +172,7 @@ impl PatchNotes {
 
             boxer_changes
                 .entry(boxer_key.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(change);
 
             notes.summary.total_changes += 1;

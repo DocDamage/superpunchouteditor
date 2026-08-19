@@ -80,7 +80,12 @@ fn make_unique_asset_owner_key(
         base_seed
     };
 
-    let key_in_use = |candidate: &str| manifest.fighters.values().any(|boxer| boxer.key == candidate);
+    let key_in_use = |candidate: &str| {
+        manifest
+            .fighters
+            .values()
+            .any(|boxer| boxer.key == candidate)
+    };
 
     if !key_in_use(&base) {
         return base;
@@ -128,7 +133,7 @@ fn clone_asset_list_into_rom(
 
             rom.write_bytes(allocation.offset, &bytes)
                 .map_err(|e| e.to_string())?;
-            set_pending_write(state, allocation.offset, bytes.clone());
+            set_pending_write(state, allocation.offset, bytes.clone())?;
 
             let end_pc = allocation.offset + bytes.len();
             let generated_name = format!("{}_{}_{}", owner_key, asset.subtype, index + 1);
@@ -166,7 +171,12 @@ fn create_boxer_asset_owner_inner(
             .values()
             .find(|boxer| boxer.key == template_boxer_key)
             .cloned()
-            .ok_or_else(|| format!("Template boxer '{}' not found in manifest.", template_boxer_key))?;
+            .ok_or_else(|| {
+                format!(
+                    "Template boxer '{}' not found in manifest.",
+                    template_boxer_key
+                )
+            })?;
         let owner_name = make_unique_asset_owner_name(&manifest, trimmed_name);
         let owner_key = make_unique_asset_owner_key(&manifest, &owner_name, preferred_key);
         (template_boxer, owner_name, owner_key)
@@ -175,9 +185,11 @@ fn create_boxer_asset_owner_inner(
     let mut rom_guard = state.rom.lock();
     let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
 
-    let palette_files = clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.palette_files)?;
+    let palette_files =
+        clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.palette_files)?;
     let icon_files = clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.icon_files)?;
-    let portrait_files = clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.portrait_files)?;
+    let portrait_files =
+        clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.portrait_files)?;
     let large_portrait_files =
         clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.large_portrait_files)?;
     drop(rom_guard);
@@ -203,7 +215,10 @@ fn create_boxer_asset_owner_inner(
         .chain(created.portrait_files.iter())
         .chain(created.large_portrait_files.iter())
     {
-        *manifest.asset_counts.entry(asset.category.clone()).or_insert(0) += 1;
+        *manifest
+            .asset_counts
+            .entry(asset.category.clone())
+            .or_insert(0) += 1;
     }
     manifest.fighters.insert(owner_name, created.clone());
 
@@ -264,7 +279,10 @@ pub fn get_fighter_list(state: State<AppState>) -> Result<Vec<BoxerMetadata>, St
 
 /// Get all poses for a fighter by ROM roster index.
 #[tauri::command]
-pub fn get_fighter_poses(state: State<AppState>, fighter_id: usize) -> Result<Vec<PoseInfo>, String> {
+pub fn get_fighter_poses(
+    state: State<AppState>,
+    fighter_id: usize,
+) -> Result<Vec<PoseInfo>, String> {
     let rom_guard = state.rom.lock();
     let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
     Ok(BoxerManager::new(rom).get_poses(fighter_id))
@@ -596,7 +614,13 @@ mod tests {
     use super::*;
     use rom_core::{Rom, EXPECTED_SIZE};
 
-    fn test_asset(start_pc: usize, size: usize, category: &str, subtype: &str, filename: &str) -> AssetFile {
+    fn test_asset(
+        start_pc: usize,
+        size: usize,
+        category: &str,
+        subtype: &str,
+        filename: &str,
+    ) -> AssetFile {
         AssetFile {
             file: filename.to_string(),
             filename: filename.to_string(),
@@ -622,7 +646,13 @@ mod tests {
                 reference_sheet: "sprites/Template Boxer.png".to_string(),
                 palette_files: vec![test_asset(0x1000, 4, "Palettes", "palette", "Palette.bin")],
                 icon_files: vec![test_asset(0x2000, 32, "Graphics", "icon", "Icon.bin")],
-                portrait_files: vec![test_asset(0x3000, 64, "Graphics", "portrait", "Portrait.bin")],
+                portrait_files: vec![test_asset(
+                    0x3000,
+                    64,
+                    "Graphics",
+                    "portrait",
+                    "Portrait.bin",
+                )],
                 large_portrait_files: vec![test_asset(
                     0x4000,
                     96,
@@ -669,7 +699,14 @@ mod tests {
 
         let manifest = state.manifest.lock();
         assert!(manifest.fighters.contains_key("New Challenger (Assets)"));
-        assert!(manifest.asset_counts.get("Graphics").copied().unwrap_or_default() >= 2);
+        assert!(
+            manifest
+                .asset_counts
+                .get("Graphics")
+                .copied()
+                .unwrap_or_default()
+                >= 2
+        );
         assert!(manifest
             .fighters
             .values()

@@ -19,6 +19,7 @@ mod emulator;
 mod emulator_embedded;
 mod help_system;
 mod roster_commands;
+mod roster_journal_commands;
 mod settings_commands;
 mod text_commands;
 mod tools_commands;
@@ -38,7 +39,8 @@ pub use utils::*;
 pub use audio_commands::AudioState;
 pub use emulator::{EmulatorLauncher, EmulatorSettings, EmulatorType};
 pub use emulator_embedded::{
-    ControllerInput, CreatorRuntimeState, CreatorSessionState, EmbeddedEmulatorState, EmulatorFrameData, EmulatorStatus,
+    ControllerInput, CreatorRuntimeState, CreatorSessionState, EmbeddedEmulatorState,
+    EmulatorFrameData, EmulatorStatus,
 };
 pub use help_system::{HelpArticle, HelpArticleSummary, HelpCategory, HelpSystem, SearchResult};
 pub use settings_commands::{
@@ -135,6 +137,26 @@ pub fn run() {
             commands::project::generate_patch_notes,
             commands::project::get_change_summary,
             commands::project::save_patch_notes,
+            commands::project_thumbnail::capture_project_thumbnail,
+            commands::project_thumbnail::save_project_thumbnail,
+            commands::project_thumbnail::get_project_thumbnail,
+            commands::project_thumbnail::clear_project_thumbnail,
+            commands::project_thumbnail::load_project_thumbnail_from_path,
+            commands::preflight::get_output_preflight,
+            // Layout pack commands (experimental until canonical edit migration)
+            commands::layout_pack::export_layout_pack,
+            commands::layout_pack::import_layout_pack,
+            commands::layout_pack::validate_layout_pack,
+            commands::layout_pack::get_available_layout_packs,
+            commands::layout_pack::delete_layout_pack,
+            commands::layout_pack::install_layout_pack,
+            commands::layout_pack::apply_layout_pack,
+            // Script/fighter parameter commands
+            commands::scripts::get_all_scripts,
+            commands::scripts::get_scripts_for_fighter,
+            commands::scripts::get_fighter_header,
+            commands::scripts::validate_fighter_params,
+            commands::scripts::update_fighter_params,
             // Patch Commands
             commands::patches::export_ips_patch,
             commands::patches::export_bps_patch,
@@ -147,6 +169,7 @@ pub fn run() {
             // External Emulator Commands
             commands::emulator::test_in_emulator,
             commands::emulator::get_emulator_presets,
+            commands::emulator_current::emulator_load_current_rom,
             // Comparison Commands
             commands::comparison::generate_comparison,
             commands::comparison::get_palette_diff,
@@ -191,46 +214,45 @@ pub fn run() {
             set_default_tool,
             get_default_tool,
             verify_tool,
-            // Help System (currently disabled - TODO: implement in help_system.rs)
-            // get_help_articles,
-            // get_help_article,
-            // search_help,
-            // get_context_help,
-            // get_help_categories,
-            // submit_help_feedback,
+            // Help System
+            commands::help::get_help_articles,
+            commands::help::get_help_article,
+            commands::help::search_help,
+            commands::help::get_context_help,
+            commands::help::submit_help_feedback,
             // Roster Commands
             roster_commands::get_roster_data,
             roster_commands::get_boxer_roster_entry,
             roster_commands::get_boxers_by_circuit,
             roster_commands::get_boxers_by_unlock_order,
-            roster_commands::update_boxer_name,
-            roster_commands::commit_creator_session,
+            roster_journal_commands::update_boxer_name,
+            roster_journal_commands::commit_creator_session,
             roster_commands::validate_creator_session,
             roster_commands::validate_boxer_name,
             roster_commands::preview_name_encoding,
             roster_commands::get_text_encoding_info,
-            roster_commands::update_boxer_circuit,
+            roster_journal_commands::update_boxer_circuit,
             roster_commands::get_circuits,
             roster_commands::get_circuit_types,
-            roster_commands::update_unlock_order,
-            roster_commands::set_champion_status,
+            roster_journal_commands::update_unlock_order,
+            roster_journal_commands::set_champion_status,
             roster_commands::get_intro_text,
-            roster_commands::update_intro_text,
+            roster_journal_commands::update_intro_text,
             roster_commands::validate_intro_text,
             roster_commands::validate_roster_changes,
-            roster_commands::reset_roster_to_defaults,
+            roster_journal_commands::reset_roster_to_defaults,
             roster_commands::get_roster_offsets,
             roster_commands::scan_for_text_tables,
             // Text Commands
-            roster_commands::get_cornerman_texts,  // From roster_commands
+            roster_commands::get_cornerman_texts, // From roster_commands
             text_commands::get_cornerman_text,
             text_commands::update_cornerman_text,
             text_commands::add_cornerman_text,
             text_commands::delete_cornerman_text,
             text_commands::get_text_conditions,
-            roster_commands::get_boxer_intro,  // From roster_commands
+            roster_commands::get_boxer_intro, // From roster_commands
             text_commands::update_boxer_intro,
-            roster_commands::get_victory_quotes,  // From roster_commands
+            roster_commands::get_victory_quotes, // From roster_commands
             text_commands::update_victory_quote,
             text_commands::get_victory_conditions,
             text_commands::get_menu_texts,
@@ -334,6 +356,13 @@ pub fn run() {
             commands::history::undo,
             commands::history::redo,
             commands::history::clear_history,
+            commands::history::can_undo,
+            commands::history::can_redo,
+            commands::history::get_undo_stack,
+            commands::history::get_redo_stack,
+            commands::history::record_palette_edit,
+            commands::history::record_sprite_bin_edit,
+            commands::history::record_asset_import,
             // Bank Management Commands
             commands::bank_management::get_bank_visualization,
             commands::bank_management::find_free_regions,

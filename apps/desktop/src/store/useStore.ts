@@ -438,7 +438,7 @@ interface AppStore {
   currentFrame: FrameData | null;
   currentFrameIndex: number;
 
-  /** Set of PC offset strings that have been staged for writing */
+  /** Backend-projected changed-range starts for the current canonical journal revision. */
   pendingWrites: Set<string>;
 
   /** Current project */
@@ -463,6 +463,7 @@ interface AppStore {
   setPendingWrite: (pcOffset: string) => void;
   removePendingWrite: (pcOffset: string) => void;
   clearPendingWrites: () => void;
+  refreshPendingWrites: () => Promise<void>;
 
   loadFighterList: () => Promise<void>;
   selectFighter: (id: number) => Promise<void>;
@@ -826,7 +827,7 @@ export const useStore = create<AppStore>((set, get) => ({
     skipped_versions: [],
     last_check: null,
   },
-  currentVersion: '0.1.0',
+  currentVersion: '2.0.0',
   availableUpdate: null,
   downloadProgress: {
     percent: 0,
@@ -874,8 +875,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
       // Reload boxer list from the region-specific manifest now loaded by the backend.
       await get().loadBoxers();
-      // Sync undo state (history was cleared server-side on ROM load).
-      await get().refreshUndoState();
+      // Sync canonical backend projections for the new session.
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to open ROM:', e);
       set({ error: (e as Error).toString() });
@@ -967,22 +968,28 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
-  setPendingWrite: (pcOffset: string) => {
-    set(state => ({ 
-      pendingWrites: new Set([...state.pendingWrites, pcOffset]),
-      isProjectModified: true 
-    }));
+  setPendingWrite: () => {
+    void get().refreshPendingWrites();
   },
 
-  removePendingWrite: (pcOffset: string) => {
-    set(state => {
-      const next = new Set(state.pendingWrites);
-      next.delete(pcOffset);
-      return { pendingWrites: next };
-    });
+  removePendingWrite: () => {
+    // Selective deletion is not a valid journal operation. Refresh the backend projection instead.
+    void get().refreshPendingWrites();
   },
 
-  clearPendingWrites: () => set({ pendingWrites: new Set() }),
+  clearPendingWrites: () => {
+    // The backend journal owns edits. This action may only refresh, never erase durable state.
+    void get().refreshPendingWrites();
+  },
+
+  refreshPendingWrites: async () => {
+    try {
+      const offsets = await invoke<string[]>('get_pending_writes');
+      set({ pendingWrites: new Set(offsets) });
+    } catch (e) {
+      console.error('Failed to refresh changed-range projection:', e);
+    }
+  },
 
   loadFighterList: async () => {
     try {
@@ -1105,6 +1112,7 @@ export const useStore = create<AppStore>((set, get) => ({
         isProjectModified: false,
         error: null 
       });
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to load project:', e);
       set({ error: (e as Error).toString() });
@@ -1230,7 +1238,7 @@ export const useStore = create<AppStore>((set, get) => ({
   undo: async () => {
     try {
       await invoke('undo');
-      await get().refreshUndoState();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Undo failed:', e);
       set({ error: (e as Error).toString() });
@@ -1240,7 +1248,7 @@ export const useStore = create<AppStore>((set, get) => ({
   redo: async () => {
     try {
       await invoke('redo');
-      await get().refreshUndoState();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Redo failed:', e);
       set({ error: (e as Error).toString() });
@@ -1285,7 +1293,7 @@ export const useStore = create<AppStore>((set, get) => ({
         oldColor,
         newColor,
       });
-      await get().refreshUndoState();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to record palette edit:', e);
     }
@@ -1298,7 +1306,7 @@ export const useStore = create<AppStore>((set, get) => ({
         oldBytes,
         newBytes,
       });
-      await get().refreshUndoState();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to record sprite bin edit:', e);
     }
@@ -1312,7 +1320,7 @@ export const useStore = create<AppStore>((set, get) => ({
         newBytes,
         sourcePath,
       });
-      await get().refreshUndoState();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
     } catch (e) {
       console.error('Failed to record asset import:', e);
     }

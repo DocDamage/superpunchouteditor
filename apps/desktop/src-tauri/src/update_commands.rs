@@ -3,8 +3,8 @@
 //! Handles checking for updates from GitHub releases, downloading updates,
 //! and managing update preferences.
 
-use serde::{Deserialize, Serialize};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use tauri_plugin_updater::UpdaterExt;
 
@@ -116,7 +116,6 @@ pub struct UpdateState {
     pub download_progress: Mutex<DownloadProgress>,
 }
 
-
 /// Get the current application version
 #[tauri::command]
 pub fn get_current_version() -> String {
@@ -170,7 +169,7 @@ pub async fn check_for_updates(
             // Compare versions using semver
             let current = semver::Version::parse(CURRENT_VERSION)
                 .map_err(|e| format!("Failed to parse current version: {}", e))?;
-            let latest = semver::Version::parse(&version.trim_start_matches('v'))
+            let latest = semver::Version::parse(version.trim_start_matches('v'))
                 .map_err(|e| format!("Failed to parse latest version: {}", e))?;
 
             if latest <= current {

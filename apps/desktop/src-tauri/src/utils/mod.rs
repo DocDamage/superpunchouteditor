@@ -222,12 +222,18 @@ mod tests {
 
     #[test]
     fn test_manifest_filename_jpn() {
-        assert_eq!(manifest_filename_for_region(RomRegion::Jpn), "boxers_jpn.json");
+        assert_eq!(
+            manifest_filename_for_region(RomRegion::Jpn),
+            "boxers_jpn.json"
+        );
     }
 
     #[test]
     fn test_manifest_filename_pal() {
-        assert_eq!(manifest_filename_for_region(RomRegion::Pal), "boxers_pal.json");
+        assert_eq!(
+            manifest_filename_for_region(RomRegion::Pal),
+            "boxers_pal.json"
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -293,7 +299,7 @@ mod tests {
         let fake_paths = vec![bogus_dir.join("data/manifests").join(filename)];
         let err = format!(
             "Cannot find {} manifest ({}). Searched {} path(s): {:?}",
-            region,   // formats as "Super Punch-Out!! (USA)"
+            region, // formats as "Super Punch-Out!! (USA)"
             filename,
             fake_paths.len(),
             fake_paths
@@ -304,8 +310,16 @@ mod tests {
             "region identifier missing from error: {}",
             err
         );
-        assert!(err.contains("boxers.json"), "filename missing from error: {}", err);
-        assert!(err.contains("path(s)"), "path count missing from error: {}", err);
+        assert!(
+            err.contains("boxers.json"),
+            "filename missing from error: {}",
+            err
+        );
+        assert!(
+            err.contains("path(s)"),
+            "path count missing from error: {}",
+            err
+        );
     }
 
     #[test]
@@ -319,23 +333,35 @@ mod tests {
         let manifest_dir = repo_root.join("data/manifests");
 
         if !manifest_dir.exists() {
-            eprintln!("Skipping real-file manifest tests: {:?} not found", manifest_dir);
+            eprintln!(
+                "Skipping real-file manifest tests: {:?} not found",
+                manifest_dir
+            );
             return;
         }
 
         // USA -> boxers.json
         let usa = load_manifest_for_region(RomRegion::Usa, Some(&repo_root));
         assert!(usa.is_ok(), "USA manifest load failed: {:?}", usa.err());
-        assert!(!usa.unwrap().fighters.is_empty(), "USA manifest has no fighters");
+        assert!(
+            !usa.unwrap().fighters.is_empty(),
+            "USA manifest has no fighters"
+        );
 
         // JPN -> boxers_jpn.json
         let jpn = load_manifest_for_region(RomRegion::Jpn, Some(&repo_root));
         assert!(jpn.is_ok(), "JPN manifest load failed: {:?}", jpn.err());
-        assert!(!jpn.unwrap().fighters.is_empty(), "JPN manifest has no fighters");
+        assert!(
+            !jpn.unwrap().fighters.is_empty(),
+            "JPN manifest has no fighters"
+        );
 
         // PAL -> boxers_pal.json
         let pal = load_manifest_for_region(RomRegion::Pal, Some(&repo_root));
         assert!(pal.is_ok(), "PAL manifest load failed: {:?}", pal.err());
-        assert!(!pal.unwrap().fighters.is_empty(), "PAL manifest has no fighters");
+        assert!(
+            !pal.unwrap().fighters.is_empty(),
+            "PAL manifest has no fighters"
+        );
     }
 }

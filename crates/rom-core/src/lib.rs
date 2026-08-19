@@ -6,6 +6,9 @@ use thiserror::Error;
 pub mod comparison;
 pub use comparison::*;
 
+pub mod edit;
+pub use edit::*;
+
 pub mod creator_session;
 pub use creator_session::*;
 
@@ -367,7 +370,7 @@ impl Rom {
         if alignment <= 1 {
             value
         } else {
-            ((value + alignment - 1) / alignment) * alignment
+            value.div_ceil(alignment) * alignment
         }
     }
 

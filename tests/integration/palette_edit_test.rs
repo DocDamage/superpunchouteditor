@@ -37,7 +37,7 @@ fn test_single_color_edit() {
     assert_eq!(original_palette.len(), PALETTE_SIZE);
 
     // Verify original color at index 5
-    let _original_color5 = original_palette[5].clone();
+    let _original_color5 = original_palette[5];
 
     // Modify a single color (index 5 - Magenta)
     let new_color = Color {
@@ -46,7 +46,7 @@ fn test_single_color_edit() {
         b: 50,
     };
     let mut modified_palette = original_palette.clone();
-    modified_palette[5] = new_color.clone();
+    modified_palette[5] = new_color;
 
     // Write the modified palette back to ROM
     write_palette_to_rom(&mut rom, TEST_PALETTE_OFFSET_1, &modified_palette);

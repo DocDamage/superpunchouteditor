@@ -79,10 +79,7 @@ pub fn update_attack_pattern(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }
@@ -124,10 +121,7 @@ pub fn update_defense_behavior(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }
@@ -162,10 +156,7 @@ pub fn update_difficulty_curve(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }
@@ -200,10 +191,7 @@ pub fn update_triggers(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }
@@ -369,10 +357,7 @@ pub fn apply_ai_preset(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }
@@ -494,10 +479,7 @@ pub fn reset_ai_to_defaults(
 
     // Store in pending writes
     let pc_offset_str = format!("0x{:X}", ai_offset);
-    state
-        .pending_writes
-        .lock()
-        .insert(pc_offset_str, bytes);
+    state.pending_writes.lock().insert(pc_offset_str, bytes);
 
     Ok(behavior)
 }

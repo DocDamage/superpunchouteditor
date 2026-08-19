@@ -216,18 +216,15 @@ impl ControllerInput {
 
 /// Initialize the emulator with Snes9x core
 #[tauri::command]
-pub fn init_emulator(
-    state: State<'_, AppState>,
-    core_path: Option<String>,
-) -> Result<(), String> {
+pub fn init_emulator(state: State<'_, AppState>, core_path: Option<String>) -> Result<(), String> {
     let requested_core_path =
-        core_path.unwrap_or_else(|| EmbeddedEmulatorState::get_default_core_path());
+        core_path.unwrap_or_else(EmbeddedEmulatorState::get_default_core_path);
     let mut resolved_core_path = requested_core_path.clone();
 
     // Check if core file exists
     if !std::path::Path::new(&requested_core_path).exists() {
         // Try to find in common locations
-        let common_paths = vec![
+        let common_paths = [
             "./cores/snes9x_libretro.dll",
             "./cores/snes9x_libretro.so",
             "./cores/snes9x_libretro.dylib",
@@ -268,10 +265,7 @@ pub fn init_emulator(
 
 /// Load ROM into emulator from file path
 #[tauri::command]
-pub fn emulator_load_rom(
-    state: State<'_, AppState>,
-    rom_path: String,
-) -> Result<(), String> {
+pub fn emulator_load_rom(state: State<'_, AppState>, rom_path: String) -> Result<(), String> {
     let rom_data = std::fs::read(&rom_path).map_err(|e| format!("Failed to read ROM: {}", e))?;
     let rom_size = rom_data.len();
 
@@ -584,10 +578,7 @@ pub fn emulator_set_input(state: State<'_, AppState>, buttons: u16) {
 
 /// Send controller input from structured data
 #[tauri::command]
-pub fn emulator_set_controller_input(
-    state: State<'_, AppState>,
-    input: ControllerInput,
-) {
+pub fn emulator_set_controller_input(state: State<'_, AppState>, input: ControllerInput) {
     let buttons = input.to_buttons();
     let emulator_state = state.embedded_emulator.lock();
     let _ = emulator_state.input_sender.try_send(buttons);
@@ -595,10 +586,7 @@ pub fn emulator_set_controller_input(
 
 /// Save state to a slot
 #[tauri::command]
-pub fn emulator_save_state(
-    state: State<'_, AppState>,
-    slot: u8,
-) -> Result<(), String> {
+pub fn emulator_save_state(state: State<'_, AppState>, slot: u8) -> Result<(), String> {
     let emulator_state = state.embedded_emulator.lock();
     let core_guard = emulator_state.core.lock();
     if let Some(ref core) = *core_guard {
@@ -620,10 +608,7 @@ pub fn emulator_save_state(
 
 /// Load state from a slot
 #[tauri::command]
-pub fn emulator_load_state(
-    state: State<'_, AppState>,
-    slot: u8,
-) -> Result<(), String> {
+pub fn emulator_load_state(state: State<'_, AppState>, slot: u8) -> Result<(), String> {
     let path = get_save_state_path(slot)?;
 
     if !path.exists() {

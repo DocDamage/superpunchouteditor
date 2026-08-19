@@ -13,6 +13,9 @@ pub use patch_notes::*;
 pub mod tools;
 pub use tools::*;
 
+pub mod session_document;
+pub use session_document::*;
+
 /// Current project file format version
 pub const PROJECT_VERSION: u32 = 1;
 
@@ -534,7 +537,7 @@ impl RecentProjects {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+
     use tempfile::TempDir;
 
     #[test]
@@ -572,7 +575,8 @@ mod tests {
             version: "0.1.0".to_string(),
         };
 
-        let project = Project::create(&project_path, "sha1_test", "1.0", metadata.clone()).unwrap();
+        let _project =
+            Project::create(&project_path, "sha1_test", "1.0", metadata.clone()).unwrap();
 
         // Load it back
         let loaded = Project::load(&project_path).unwrap();

@@ -2,8 +2,8 @@
 //!
 //! Commands for working with ROM regions (NTSC/PAL).
 
-use rom_core::{RegionDetectionResult, Rom, RomRegionInfo};
 use crate::utils::{load_manifest_for_region, validate_rom_path};
+use rom_core::{RegionDetectionResult, Rom, RomRegionInfo};
 
 /// Result type for region operations
 pub type RegionResult<T> = Result<T, String>;

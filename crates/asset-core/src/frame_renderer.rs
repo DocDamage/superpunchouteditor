@@ -76,7 +76,7 @@ impl FrameRenderer {
         let grid_pixels = (options.grid_size as f32 * options.zoom) as u32;
 
         // Vertical lines
-        let mut x = options.center_x as i16 % grid_pixels as i16;
+        let mut x = options.center_x % grid_pixels as i16;
         if x < 0 {
             x += grid_pixels as i16;
         }
@@ -89,7 +89,7 @@ impl FrameRenderer {
         }
 
         // Horizontal lines
-        let mut y = options.center_y as i16 % grid_pixels as i16;
+        let mut y = options.center_y % grid_pixels as i16;
         if y < 0 {
             y += grid_pixels as i16;
         }
@@ -272,7 +272,7 @@ pub fn render_tile_palette(
     palette: &[Color],
     tiles_per_row: usize,
 ) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-    let rows = (tiles.len() + tiles_per_row - 1) / tiles_per_row;
+    let rows = tiles.len().div_ceil(tiles_per_row);
     let img_width = tiles_per_row * 8;
     let img_height = rows * 8;
 

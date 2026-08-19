@@ -1,5 +1,5 @@
 //! # Console Development Core
-//! 
+//!
 //! Hardware development tools for serious ROM hackers. Provides deep hardware integration
 //! for flash cart interfaces, hardware testing, and cartridge dumping capabilities.
 //!

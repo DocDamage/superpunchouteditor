@@ -329,9 +329,9 @@ impl CopierDetectionResult {
 
     /// Create a result indicating a reproduction
     pub fn reproduction(indicators: Vec<CopierIndicator>) -> Self {
-        let confidence = indicators.iter().map(|i| i.confidence()).sum::<f64>() 
+        let confidence = indicators.iter().map(|i| i.confidence()).sum::<f64>()
             / indicators.len().max(1) as f64;
-        
+
         Self {
             is_reproduction: true,
             confidence: confidence.min(1.0),
@@ -527,10 +527,10 @@ pub mod utils {
     pub fn detect_rom_size(dumper: &mut dyn CartridgeDumper) -> Result<usize> {
         // Read header at different addresses to detect mirroring
         let header_0 = dumper.read_rom_range(0x7FB0, 16)?;
-        
+
         // Check sizes from 256KB to 4MB
         let sizes = [0x40000, 0x80000, 0x100000, 0x200000, 0x400000];
-        
+
         for &size in &sizes {
             let mirror_addr = size + 0x7FB0;
             if let Ok(mirror_data) = dumper.read_rom_range(mirror_addr as u32, 16) {
@@ -539,7 +539,7 @@ pub mod utils {
                 }
             }
         }
-        
+
         // Default to largest size if no mirroring detected
         Ok(0x400000)
     }
@@ -547,7 +547,7 @@ pub mod utils {
     /// Verify checksum against header
     pub fn verify_checksum(data: &[u8]) -> Result<()> {
         let calculated = calculate_checksum(data);
-        
+
         // Read checksum from header (offset depends on LoROM/HiROM)
         let header_offset = if data.len() >= 0x8000 && data[0x7FD5] == 0x20 {
             // LoROM
@@ -561,19 +561,19 @@ pub mod utils {
                 message: "ROM too small for header".to_string(),
             });
         };
-        
+
         if data.len() < header_offset + 2 {
             return Err(DumperError::ReadFailed {
                 address: header_offset as u32,
                 message: "Cannot read header checksum".to_string(),
             });
         }
-        
+
         let header_checksum = u16::from_le_bytes([
             data[header_offset],
             data[header_offset + 1],
         ]);
-        
+
         if calculated != header_checksum {
             return Err(DumperError::VerificationFailed {
                 address: header_offset as u32,
@@ -581,7 +581,7 @@ pub mod utils {
                 actual: (calculated >> 8) as u8,
             });
         }
-        
+
         Ok(())
     }
 }
@@ -606,8 +606,8 @@ mod tests {
 
     #[test]
     fn test_copier_indicator_confidence() {
-        let indicator = CopierIndicator::ModernFlashChip { 
-            chip_id: "TEST".to_string() 
+        let indicator = CopierIndicator::ModernFlashChip {
+            chip_id: "TEST".to_string()
         };
         assert_eq!(indicator.confidence(), 0.95);
         assert!(indicator.description().contains("Modern flash"));

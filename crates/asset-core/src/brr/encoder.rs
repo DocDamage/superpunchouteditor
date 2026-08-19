@@ -78,7 +78,7 @@ impl BrrEncodeOptions {
 
     /// Sets the quality level.
     pub fn with_quality(mut self, quality: u8) -> Self {
-        self.quality = quality.min(5).max(1);
+        self.quality = quality.clamp(1, 5);
         self
     }
 }
@@ -228,7 +228,7 @@ impl BrrEncoder {
             };
 
             // Clamp to 4-bit signed range (-8 to 7)
-            let clamped = shifted.max(-8).min(7);
+            let clamped = shifted.clamp(-8, 7);
             encoded[i] = clamped as i8;
 
             // Calculate error by decoding and comparing
@@ -252,7 +252,7 @@ impl BrrEncoder {
     /// # Returns
     /// The size of the BRR data in bytes
     pub fn calculate_brr_size(&self, pcm_sample_count: usize) -> usize {
-        let block_count = (pcm_sample_count + SAMPLES_PER_BLOCK - 1) / SAMPLES_PER_BLOCK;
+        let block_count = pcm_sample_count.div_ceil(SAMPLES_PER_BLOCK);
         block_count * BRR_BLOCK_SIZE
     }
 }
@@ -277,7 +277,5 @@ pub(crate) fn decode_sample(nybble: u8, range: u8, filter: u8, old: i16, older: 
         (sample_4bit as i16) << 12
     };
 
-    apply_filter(sample, filter, old, older)
-        .max(-16384)
-        .min(16383)
+    apply_filter(sample, filter, old, older).clamp(-16384, 16383)
 }

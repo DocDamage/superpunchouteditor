@@ -282,7 +282,7 @@ impl FlashCart for Usb2snesDevice {
         let device_name = String::from_utf8_lossy(&info);
         self.info.name = format!("USB2SNES ({})", device_name);
 
-        log::info!("Connected to USB2SNES server v{}", 
+        log::info!("Connected to USB2SNES server v{}",
             self.server_version.as_deref().unwrap_or("unknown"));
 
         Ok(())
@@ -337,7 +337,7 @@ impl FlashCart for Usb2snesDevice {
 
         // SRAM is at $700000-$800000 in SNES address space
         let sram_address = 0x700000;
-        
+
         let mut data = Vec::with_capacity(size);
         let chunk_size = 1024;
         let mut downloaded = 0;
@@ -379,7 +379,7 @@ impl FlashCart for Usb2snesDevice {
             ));
         }
 
-        log::info!("Applying live patch via USB2SNES at ${:06X} ({} bytes)", 
+        log::info!("Applying live patch via USB2SNES at ${:06X} ({} bytes)",
             address, data.len());
 
         self.write_memory(address, data)?;

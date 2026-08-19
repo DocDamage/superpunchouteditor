@@ -70,7 +70,10 @@ impl AiParser {
     ///
     /// # Returns
     /// AI behavior structure or error
-    pub fn parse_from_rom(rom: &[u8], fighter_id: usize) -> Result<super::AiBehavior, AiParseError> {
+    pub fn parse_from_rom(
+        rom: &[u8],
+        fighter_id: usize,
+    ) -> Result<super::AiBehavior, AiParseError> {
         Self::validate_fighter_id(fighter_id)?;
 
         if rom.len() < AI_TABLE_BASE + 0x1000 {
@@ -685,7 +688,7 @@ impl AiParser {
     fn generate_example_patterns(fighter_id: usize) -> Vec<AttackPattern> {
         use MoveType::*;
 
-        let patterns = match fighter_id {
+        match fighter_id {
             0 => vec![
                 // Gabby Jay - Simple patterns
                 AttackPattern {
@@ -769,9 +772,7 @@ impl AiParser {
                     ..Default::default()
                 },
             ],
-        };
-
-        patterns
+        }
     }
 
     /// Generate example defense behaviors

@@ -149,19 +149,10 @@ impl Default for RetroSystemTiming {
 
 /// Audio/Video system information
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RetroSystemAvInfo {
     pub geometry: RetroGameGeometry,
     pub timing: RetroSystemTiming,
-}
-
-impl Default for RetroSystemAvInfo {
-    fn default() -> Self {
-        Self {
-            geometry: RetroGameGeometry::default(),
-            timing: RetroSystemTiming::default(),
-        }
-    }
 }
 
 /// Game information structure
@@ -206,7 +197,11 @@ pub const RETRO_DEVICE_INDEX_ANALOG_RIGHT: libc::c_uint = 1;
 pub const RETRO_DEVICE_ID_ANALOG_X: libc::c_uint = 0;
 pub const RETRO_DEVICE_ID_ANALOG_Y: libc::c_uint = 1;
 
-/// Safe wrapper for converting C strings
+/// Convert a C string pointer into an owned Rust string.
+///
+/// # Safety
+/// `ptr` must be null or point to a valid NUL-terminated C string for the duration of
+/// this call.
 pub unsafe fn c_str_to_string(ptr: *const libc::c_char) -> Option<String> {
     if ptr.is_null() {
         None

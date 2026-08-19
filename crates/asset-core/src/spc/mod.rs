@@ -12,10 +12,11 @@
 //! - Extended ID666: Additional fields (v0.31+)
 //! - SPC700 RAM: 65536 bytes
 //! - DSP Registers: 128 bytes
-//! - Extra RAM: 64 bytes (unused port values)
+//! - Unused: 64 bytes
+//! - XRAM backing store: 64 bytes (RAM behind the IPL ROM window)
 //!
 //! # File Structure
-//! ```
+//! ```text
 //! Offset  Size  Description
 //! 0x00    33    Header signature
 //! 0x21    1     DOS end-of-file marker (0x1A)
@@ -31,7 +32,8 @@
 //! 0x2E    210   ID666 tag (optional)
 //! 0x100   65536 SPC700 RAM
 //! 0x10100 128   DSP registers
-//! 0x10180 64    Extra RAM
+//! 0x10180 64    Unused
+//! 0x101C0 64    XRAM backing store
 //! ```
 //!
 //! ## Example
@@ -54,16 +56,16 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-mod constants;
-mod version;
-mod id666;
 mod builder;
+mod constants;
+mod id666;
+mod version;
 
 // Re-exports to maintain the same public API
-pub use constants::*;
-pub use version::SpcVersion;
-pub use id666::Id666Tag;
 pub use builder::SpcBuilder;
+pub use constants::*;
+pub use id666::Id666Tag;
+pub use version::SpcVersion;
 
 /// SPC file handler.
 ///
@@ -204,7 +206,7 @@ impl SpcFile {
     ///
     /// # Arguments
     /// - `data`: SPC700 data to save
-    /// - `path`: Output file path
+    /// - `path`: Output SPC file path
     /// - `tag`: Optional ID666 metadata
     ///
     /// # Example
@@ -268,7 +270,13 @@ impl SpcFile {
         file.write_all(&data.dsp_registers)
             .map_err(|e| SpcError::IoError(e.to_string()))?;
 
-        // Write extra RAM (64 bytes)
+        // Write unused area (64 bytes at 0x10180)
+        file.write_all(&[0u8; 64])
+            .map_err(|e| SpcError::IoError(e.to_string()))?;
+
+        // Write XRAM backing store (64 bytes at 0x101C0). Spc700Data does not
+        // currently model the hidden RAM behind the IPL ROM window, so a newly
+        // synthesized SPC initializes that backing store deterministically.
         file.write_all(&[0u8; 64])
             .map_err(|e| SpcError::IoError(e.to_string()))?;
 
@@ -320,9 +328,7 @@ impl SpcFile {
         let bytes = text.as_bytes();
         let len = bytes.len().min(max_len);
         buffer[..len].copy_from_slice(&bytes[..len]);
-        for i in len..max_len {
-            buffer[i] = 0;
-        }
+        buffer[len..max_len].fill(0);
     }
 
     /// Reads a padded string from buffer.
@@ -542,41 +548,47 @@ pub fn extract_samples_from_ram(ram: &[u8]) -> Vec<(u16, Vec<u8>)> {
     let mut pos = 0;
 
     while pos + 9 <= ram.len() {
-        // Check if this looks like a valid BRR header
-        let header = ram[pos];
+        let first_block = &ram[pos..pos + 9];
+        let header = first_block[0];
         let range = (header >> 4) & 0x0F;
-        let filter = (header >> 2) & 0x03;
 
-        // Basic sanity checks
-        if range <= 12 && filter <= 3 {
-            // Try to read the sample
-            let mut sample_data = Vec::new();
-            let start_pos = pos;
+        // A zero-filled RAM region is not useful evidence of a BRR sample and,
+        // if treated as a candidate, can consume tens of kilobytes before the
+        // heuristic gives up. Skip it without advancing by a whole BRR block.
+        if range > 12 || first_block.iter().all(|&byte| byte == 0) {
+            pos += 1;
+            continue;
+        }
 
-            loop {
-                if pos + 9 > ram.len() {
-                    break;
-                }
+        let start_pos = pos;
+        let mut scan_pos = pos;
+        let mut sample_data = Vec::new();
+        let mut found_end = false;
 
-                let block_header = ram[pos];
-                sample_data.extend_from_slice(&ram[pos..pos + 9]);
-                pos += 9;
+        while scan_pos + 9 <= ram.len() && sample_data.len() <= 32768 {
+            let block = &ram[scan_pos..scan_pos + 9];
+            let block_header = block[0];
+            let block_range = (block_header >> 4) & 0x0F;
 
-                let end_flag = (block_header & 0x01) != 0;
-                if end_flag {
-                    // Valid sample found
-                    if sample_data.len() >= 18 {
-                        // At least 2 blocks
-                        samples.push((start_pos as u16, sample_data));
-                    }
-                    break;
-                }
-
-                // Safety limit
-                if sample_data.len() > 32768 {
-                    break;
-                }
+            // Keep failed candidates isolated from the outer scan. A malformed
+            // block or a long zero run must not cause us to skip a later valid
+            // sample start.
+            if block_range > 12 || block.iter().all(|&byte| byte == 0) {
+                break;
             }
+
+            sample_data.extend_from_slice(block);
+            scan_pos += 9;
+
+            if (block_header & 0x01) != 0 {
+                found_end = true;
+                break;
+            }
+        }
+
+        if found_end && sample_data.len() >= 18 {
+            samples.push((start_pos as u16, sample_data));
+            pos = scan_pos;
         } else {
             pos += 1;
         }

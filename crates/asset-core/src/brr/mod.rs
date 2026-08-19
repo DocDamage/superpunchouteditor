@@ -191,7 +191,7 @@ mod tests {
         let decoder = BrrDecoder::new();
 
         // Create simple PCM data (16 samples = 1 block)
-        let pcm: Vec<i16> = (0..16).map(|i| (i as i16 * 100)).collect();
+        let pcm: Vec<i16> = (0..16).map(|i| i as i16 * 100).collect();
 
         let options = BrrEncodeOptions::default();
         let brr = encoder.encode(&pcm, options);
@@ -210,7 +210,7 @@ mod tests {
         let decoder = BrrDecoder::new();
 
         // Create PCM data for 2 blocks (32 samples)
-        let pcm: Vec<i16> = (0..32).map(|i| (i as i16 * 50)).collect();
+        let pcm: Vec<i16> = (0..32).map(|i| i as i16 * 50).collect();
 
         let options = BrrEncodeOptions::default();
         let brr = encoder.encode(&pcm, options);
@@ -229,7 +229,7 @@ mod tests {
 
         // 32 PCM samples = 2 BRR blocks = 18 bytes
         assert_eq!(encoder.calculate_brr_size(32), 18);
-        assert_eq!(decoder.calculate_output_size(&vec![0u8; 18]), 32);
+        assert_eq!(decoder.calculate_output_size(&[0u8; 18]), 32);
 
         // 33 PCM samples = 3 BRR blocks = 27 bytes (padded)
         assert_eq!(encoder.calculate_brr_size(33), 27);
@@ -307,9 +307,9 @@ mod tests {
         let decoded = decoder.decode(&brr);
 
         assert_eq!(decoded.len(), 64);
-        // Verify the decoded signal follows the same pattern
-        for i in 0..decoded.len() {
-            assert!(decoded[i].abs() <= 16384);
+        // Verify the decoded signal remains within the expected BRR decoder range.
+        for sample in &decoded {
+            assert!(sample.abs() <= 16384);
         }
     }
 

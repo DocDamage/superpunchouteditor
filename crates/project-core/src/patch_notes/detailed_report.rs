@@ -205,7 +205,8 @@ impl DetailedAssetReport {
         let mut report = Self::new("Untitled Project".to_string(), "1.0.0".to_string());
 
         // Track which assets we've processed
-        let mut processed_offsets: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut processed_offsets: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
 
         for (pc_offset_str, new_bytes) in pending {
             if processed_offsets.contains(pc_offset_str) {
@@ -281,7 +282,7 @@ impl DetailedAssetReport {
                             shared_between: shared_names,
                             change_type: category.to_string(),
                             warning_level,
-                            description: format!("This asset is shared between multiple boxers"),
+                            description: "This asset is shared between multiple boxers".to_string(),
                         });
                     }
                 }
@@ -538,15 +539,15 @@ impl DetailedAssetReport {
         // Summary
         output.push_str("<h2>Summary</h2>\n");
         output.push_str("<div class=\"summary-grid\">\n");
-        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Boxers Modified</span></div>\n", 
+        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Boxers Modified</span></div>\n",
             self.summary.total_boxers_modified));
-        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Palettes Changed</span></div>\n", 
+        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Palettes Changed</span></div>\n",
             self.summary.total_palettes_changed));
-        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Sprites Edited</span></div>\n", 
+        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Sprites Edited</span></div>\n",
             self.summary.total_sprites_edited));
-        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Animations Modified</span></div>\n", 
+        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Animations Modified</span></div>\n",
             self.summary.total_animations_modified));
-        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Total Changes</span></div>\n", 
+        output.push_str(&format!("<div class=\"stat\"><span class=\"stat-value\">{}</span><span class=\"stat-label\">Total Changes</span></div>\n",
             self.summary.total_changes));
         output.push_str("</div>\n");
 

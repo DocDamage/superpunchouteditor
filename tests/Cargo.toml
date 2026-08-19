@@ -15,9 +15,15 @@ path = "integration/palette_edit_test.rs"
 name = "portrait_import_test"
 path = "integration/portrait_import_test.rs"
 
+[[test]]
+name = "canonical_output_invariant_test"
+path = "integration/canonical_output_invariant_test.rs"
+
 [dependencies]
 rom-core = { workspace = true }
 asset-core = { workspace = true }
 manifest-core = { workspace = true }
+patch-core = { workspace = true }
+project-core = { workspace = true }
 tempfile = { workspace = true }
 image = { workspace = true }

@@ -9,8 +9,16 @@ members = [
     "crates/relocation-core",
     "crates/rom-core",
     "crates/script-core",
+    "crates/debugger-core",
+    "crates/expansion-core",
+    "crates/testing-core",
     "apps/desktop/src-tauri",
-    "tests", "crates/debugger-core", "crates/expansion-core", "crates/testing-core",
+    "tests",
+]
+exclude = [
+    "crates/assembly-core",
+    "crates/console-dev-core",
+    "crates/profiler-core",
 ]
 resolver = "2"
 
@@ -19,8 +27,8 @@ version = "2.0.0"
 edition = "2021"
 authors = ["Super Punch-Out!! Editor Team"]
 license = "MIT"
-repository = "https://github.com/yourusername/super-punch-out-editor"
-homepage = "https://github.com/yourusername/super-punch-out-editor"
+repository = "https://github.com/DocDamage/superpunchouteditor"
+homepage = "https://github.com/DocDamage/superpunchouteditor"
 description = "A comprehensive editor for Super Punch-Out!! (SNES)"
 keywords = ["snes", "editor", "rom-hacking", "super-punch-out"]
 categories = ["game-development", "development-tools"]

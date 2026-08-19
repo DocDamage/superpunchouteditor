@@ -1,6 +1,6 @@
 /**
  * EmulatorCanvas Component
- * 
+ *
  * Renders the emulator output to a canvas with proper scaling and aspect ratio.
  * Handles resize events and provides pixel-perfect rendering options.
  */
@@ -35,7 +35,6 @@ export interface EmulatorCanvasProps {
 // SNES resolution constants
 const SNES_WIDTH = 256;
 const SNES_HEIGHT = 224;
-const SNES_ASPECT_RATIO = SNES_WIDTH / SNES_HEIGHT;
 
 export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
   width = SNES_WIDTH,
@@ -56,26 +55,21 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
   const [scale, setScale] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // Calculate optimal scale based on container size
-  const calculateScale = useCallback((containerWidth: number, containerHeight: number): number => {
-    const availableWidth = containerWidth;
-    const availableHeight = containerHeight;
-    
-    // Calculate scale based on aspect ratio
-    const scaleX = availableWidth / width;
-    const scaleY = availableHeight / height;
-    let newScale = Math.min(scaleX, scaleY);
-    
-    if (integerScaling) {
-      // Round down to nearest integer
-      newScale = Math.max(1, Math.floor(newScale));
-    }
-    
-    // Cap at max scale
-    return Math.min(newScale, maxScale);
-  }, [width, height, integerScaling, maxScale]);
+  const calculateScale = useCallback(
+    (containerWidth: number, containerHeight: number): number => {
+      const scaleX = containerWidth / width;
+      const scaleY = containerHeight / height;
+      let newScale = Math.min(scaleX, scaleY);
 
-  // Handle resize
+      if (integerScaling) {
+        newScale = Math.max(1, Math.floor(newScale));
+      }
+
+      return Math.min(newScale, maxScale);
+    },
+    [width, height, integerScaling, maxScale],
+  );
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -83,40 +77,31 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
       for (const entry of entries) {
         const { width: containerWidth, height: containerHeight } = entry.contentRect;
         setContainerSize({ width: containerWidth, height: containerHeight });
-        const newScale = calculateScale(containerWidth, containerHeight);
-        setScale(newScale);
+        setScale(calculateScale(containerWidth, containerHeight));
       }
     });
 
     resizeObserver.observe(containerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
+    return () => resizeObserver.disconnect();
   }, [calculateScale]);
 
-  // Initialize canvas
   useEffect(() => {
     if (canvasRef.current && onCanvasReady) {
       onCanvasReady(canvasRef.current);
     }
-  }, [onCanvasReady]);
+  }, [canvasRef, onCanvasReady]);
 
-  // Get CSS for image rendering based on scaling mode
   const getImageRendering = (): string => {
     switch (scalingMode) {
-      case 'pixel-perfect':
-        return 'pixelated';
       case 'smooth':
-        return 'auto';
       case 'stretch':
         return 'auto';
+      case 'pixel-perfect':
       default:
         return 'pixelated';
     }
   };
 
-  // Calculate canvas display size
   const displayWidth = scalingMode === 'stretch' ? containerSize.width : width * scale;
   const displayHeight = scalingMode === 'stretch' ? containerSize.height : height * scale;
 
@@ -149,7 +134,6 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
         }}
       />
 
-      {/* Scanlines overlay */}
       {showScanlines && (
         <div
           className="scanlines-overlay"
@@ -175,7 +159,6 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
         />
       )}
 
-      {/* CRT effect overlay */}
       {showCrtEffect && (
         <div
           className="crt-overlay"
@@ -200,8 +183,7 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
         />
       )}
 
-      {/* Center crosshair for debugging */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <div
           className="center-crosshair"
           style={{

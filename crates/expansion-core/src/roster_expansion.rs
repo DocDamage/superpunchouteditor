@@ -4,7 +4,7 @@ use rom_core::roster::{
 use rom_core::{Rom, TextEncoder};
 
 use crate::types::{
-    ExpandedRosterLayout, ExpansionError, ExpansionResult, VANILLA_BOXER_COUNT, WriteRange,
+    ExpandedRosterLayout, ExpansionError, ExpansionResult, WriteRange, VANILLA_BOXER_COUNT,
 };
 
 const MAX_BOXER_COUNT: usize = 64;
@@ -26,7 +26,8 @@ pub fn expand_roster_tables(
     let names = (0..target_boxer_count)
         .map(|idx| {
             let text = if idx < source_layout.boxer_count {
-                read_boxer_name_from_layout(rom, &source_layout, idx).unwrap_or_else(|| default_boxer_name(idx))
+                read_boxer_name_from_layout(rom, &source_layout, idx)
+                    .unwrap_or_else(|| default_boxer_name(idx))
             } else {
                 format!("NEW BOXER {}", idx + 1)
             };
@@ -216,7 +217,11 @@ pub fn expand_roster_tables(
     ))
 }
 
-fn read_boxer_name_from_layout(rom: &Rom, layout: &RosterLayout, boxer_id: usize) -> Option<String> {
+fn read_boxer_name_from_layout(
+    rom: &Rom,
+    layout: &RosterLayout,
+    boxer_id: usize,
+) -> Option<String> {
     let name_pc = if layout.expanded {
         let long_ptr_pc = layout.name_long_pointer_table_pc + (boxer_id * 3);
         let ptr = rom.read_bytes(long_ptr_pc, 3).ok()?;
@@ -304,6 +309,6 @@ fn align_up(value: usize, alignment: usize) -> usize {
     if alignment <= 1 {
         value
     } else {
-        value.div_ceil(alignment) * alignment
+        (value / alignment + usize::from(value % alignment != 0)) * alignment
     }
 }

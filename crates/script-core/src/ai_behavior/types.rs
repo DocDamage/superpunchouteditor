@@ -158,7 +158,7 @@ impl MoveType {
 pub struct Hitbox {
     /// X offset from fighter center
     pub x: i8,
-    /// Y offset from fighter center  
+    /// Y offset from fighter center
     pub y: i8,
     /// Width of hitbox
     pub width: u8,

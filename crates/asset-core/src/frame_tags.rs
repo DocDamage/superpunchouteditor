@@ -4,6 +4,7 @@ use std::collections::HashMap;
 /// Category for frame tags
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TagCategory {
     Idle,
     Attack,
@@ -11,6 +12,7 @@ pub enum TagCategory {
     Damage,
     Knockdown,
     Special,
+    #[default]
     Misc,
 }
 
@@ -52,12 +54,6 @@ impl TagCategory {
             TagCategory::Special => "✨",
             TagCategory::Misc => "📌",
         }
-    }
-}
-
-impl Default for TagCategory {
-    fn default() -> Self {
-        TagCategory::Misc
     }
 }
 
@@ -355,8 +351,8 @@ impl FrameTagManager {
     pub fn remove_tag(&mut self, tag_id: &str) {
         self.tags.retain(|t| t.id != tag_id);
         // Also remove from all annotations
-        for (_, boxer_annotations) in &mut self.boxer_annotations {
-            for (_, annotation) in &mut boxer_annotations.frame_annotations {
+        for boxer_annotations in self.boxer_annotations.values_mut() {
+            for annotation in boxer_annotations.frame_annotations.values_mut() {
                 annotation.remove_tag(tag_id);
             }
         }

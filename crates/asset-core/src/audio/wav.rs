@@ -110,7 +110,7 @@ pub fn read_wav_file<P: AsRef<Path>>(path: P) -> Result<(Vec<i16>, u32), WavErro
         }
 
         // Align to word boundary
-        if chunk_size % 2 != 0 {
+        if !chunk_size.is_multiple_of(2) {
             let mut pad = [0u8; 1];
             let _ = file.read_exact(&mut pad);
         }

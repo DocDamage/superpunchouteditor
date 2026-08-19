@@ -297,7 +297,6 @@ impl HelpSystem {
     fn load_articles_from_directory(&mut self, dir: &PathBuf) -> Result<(), String> {
         let entries =
             fs::read_dir(dir).map_err(|e| format!("Failed to read docs directory: {}", e))?;
-
         for entry in entries {
             let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
             let path = entry.path();
@@ -333,8 +332,8 @@ impl HelpSystem {
         // Extract title from first h1
         let title = lines
             .iter()
-            .find(|line| line.starts_with("# "))
-            .map(|line| line[2..].trim().to_string())
+            .find_map(|line| line.strip_prefix("# "))
+            .map(|line| line.trim().to_string())
             .unwrap_or_else(|| "Untitled".to_string());
 
         // Determine category from content
@@ -613,24 +612,24 @@ fn markdown_to_html(markdown: &str) -> String {
         }
 
         // Headers
-        if trimmed.starts_with("# ") {
+        if let Some(header) = trimmed.strip_prefix("# ") {
             if in_list {
                 html.push_str("</ul>\n");
                 in_list = false;
             }
-            html.push_str(&format!("<h1>{}</h1>\n", html_escape(&trimmed[2..])));
-        } else if trimmed.starts_with("## ") {
+            html.push_str(&format!("<h1>{}</h1>\n", html_escape(header)));
+        } else if let Some(header) = trimmed.strip_prefix("## ") {
             if in_list {
                 html.push_str("</ul>\n");
                 in_list = false;
             }
-            html.push_str(&format!("<h2>{}</h2>\n", html_escape(&trimmed[3..])));
-        } else if trimmed.starts_with("### ") {
+            html.push_str(&format!("<h2>{}</h2>\n", html_escape(header)));
+        } else if let Some(header) = trimmed.strip_prefix("### ") {
             if in_list {
                 html.push_str("</ul>\n");
                 in_list = false;
             }
-            html.push_str(&format!("<h3>{}</h3>\n", html_escape(&trimmed[4..])));
+            html.push_str(&format!("<h3>{}</h3>\n", html_escape(header)));
         }
         // Lists
         else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
@@ -700,8 +699,7 @@ fn strip_markdown(markdown: &str) -> String {
         .replace("## ", "")
         .replace("### ", "")
         .replace("**", "")
-        .replace('*', "")
-        .replace('`', "")
+        .replace(['*', '`'], "")
         .replace("[", "")
         .replace("](", " (")
         .replace(')', " ")

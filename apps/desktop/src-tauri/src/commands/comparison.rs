@@ -8,176 +8,96 @@ use crate::app_state::AppState;
 use crate::utils::parse_offset;
 use rom_core::comparison::*;
 
-/// Generate a full comparison between original ROM and current state
+/// Generate a full comparison between the immutable base ROM and the exact current revision.
 #[tauri::command]
 pub fn generate_comparison(state: State<AppState>) -> Result<RomComparison, String> {
-    let rom_opt = state.rom.lock();
-    let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let materialized = session.materialize().map_err(|error| error.to_string())?;
+    let base = session.base();
+    let mut comparison =
+        RomComparison::new(base.sha1().to_string(), materialized.current_sha1.clone());
 
-    let original_sha1 = rom.calculate_sha1();
-    let pending = state.pending_writes.lock();
-
-    // Build modified ROM data by applying pending writes
-    let mut modified_data = rom.data.clone();
-    for (offset_str, bytes) in pending.iter() {
-        let offset = parse_offset(offset_str)?;
-        let len = bytes.len().min(modified_data.len() - offset);
-        modified_data[offset..offset + len].copy_from_slice(&bytes[..len]);
-    }
-
-    // Calculate modified SHA1
-    let modified_sha1 = {
-        use sha1::{Digest, Sha1};
-        let mut hasher = Sha1::new();
-        hasher.update(&modified_data);
-        format!("{:x}", hasher.finalize())
-    };
-
-    let mut comparison = RomComparison::new(original_sha1, modified_sha1);
-
-    let manifest = state.manifest.lock();
-
-    // Compare all assets from the manifest
-    for (fighter_name, boxer) in &manifest.fighters {
-        // Compare palettes
-        for palette in &boxer.palette_files {
-            let offset = parse_offset(&palette.start_pc)?;
-            let original_bytes = rom
-                .read_bytes(offset, palette.size)
-                .map_err(|e| e.to_string())?;
-            let modified_bytes = if let Some(edited) = pending.get(&palette.start_pc) {
-                edited.as_slice()
-            } else {
-                original_bytes
-            };
-
-            if original_bytes != modified_bytes {
-                let changed_indices =
-                    ComparisonEngine::compare_bytes(original_bytes, modified_bytes);
-                let original_colors: Vec<ColorDiff> = original_bytes
-                    .chunks_exact(2)
-                    .map(|chunk| ColorDiff::from_snes_bytes(chunk[0], chunk[1]))
-                    .collect();
-                let modified_colors: Vec<ColorDiff> = modified_bytes
-                    .chunks_exact(2)
-                    .map(|chunk| ColorDiff::from_snes_bytes(chunk[0], chunk[1]))
-                    .collect();
-
-                comparison.add_difference(Difference::Palette {
-                    offset,
-                    asset_id: format!("{}/{}", boxer.key, palette.filename),
-                    boxer: fighter_name.clone(),
-                    original_colors,
-                    modified_colors,
-                    changed_indices,
-                });
-            }
+    for range in &materialized.change_ranges {
+        let original = &base.bytes()[range.start..range.end.min(base.len())];
+        let modified_end = range.end.min(materialized.bytes.len());
+        let modified = &materialized.bytes[range.start..modified_end];
+        let common = original.len().min(modified.len());
+        let mut changed = (0..common)
+            .filter(|index| original[*index] != modified[*index])
+            .count();
+        changed += original.len().abs_diff(modified.len());
+        if changed == 0 && range.end <= base.len() {
+            continue;
         }
-
-        // Compare unique sprite bins
-        for bin in &boxer.unique_sprite_bins {
-            let offset = parse_offset(&bin.start_pc)?;
-            let original_bytes = rom
-                .read_bytes(offset, bin.size)
-                .map_err(|e| e.to_string())?;
-            let modified_bytes = if let Some(edited) = pending.get(&bin.start_pc) {
-                edited.as_slice()
-            } else {
-                original_bytes
-            };
-
-            if original_bytes != modified_bytes {
-                let changed_tiles = ComparisonEngine::compare_tiles(original_bytes, modified_bytes);
-                let total_tiles = original_bytes.len() / 32;
-
-                // Calculate per-tile change counts
-                let mut tile_change_counts = std::collections::HashMap::new();
-                for &tile_idx in &changed_tiles {
-                    let tile_start = tile_idx * 32;
-                    let mut count = 0;
-                    for i in 0..32 {
-                        if tile_start + i < original_bytes.len()
-                            && tile_start + i < modified_bytes.len()
-                            && original_bytes[tile_start + i] != modified_bytes[tile_start + i]
-                        {
-                            count += 1;
-                        }
-                    }
-                    tile_change_counts.insert(tile_idx, count);
-                }
-
-                comparison.add_difference(Difference::Sprite {
-                    boxer: fighter_name.clone(),
-                    bin_name: bin.filename.clone(),
-                    pc_offset: offset,
-                    total_tiles,
-                    changed_tile_indices: changed_tiles,
-                    tile_change_counts,
-                });
-            }
-        }
+        comparison.add_difference(Difference::Binary {
+            offset: range.start,
+            size: range.end.saturating_sub(range.start),
+            bytes_changed: changed.max(range.end.saturating_sub(base.len())),
+            description: format!(
+                "Canonical journal change at 0x{:X} (revision {})",
+                range.start, materialized.revision
+            ),
+        });
     }
 
     Ok(comparison)
 }
 
-/// Get palette diff for a specific offset
+/// Get palette diff for a specific offset.
 #[tauri::command]
 pub fn get_palette_diff(state: State<AppState>, pc_offset: String) -> Result<PaletteDiff, String> {
     let offset = parse_offset(&pc_offset)?;
-
-    let rom_opt = state.rom.lock();
-    let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
-    let pending = state.pending_writes.lock();
     let manifest = state.manifest.lock();
-
-    // Find palette info from manifest
     let mut asset_id = String::new();
     let mut boxer_name = String::new();
     let mut palette_size = 32usize;
-
     for (fighter_name, boxer) in &manifest.fighters {
-        for palette in &boxer.palette_files {
-            if palette.start_pc == pc_offset {
-                asset_id = format!("{}/{}", boxer.key, palette.filename);
-                boxer_name = fighter_name.clone();
-                palette_size = palette.size;
-                break;
-            }
+        if let Some(palette) = boxer
+            .palette_files
+            .iter()
+            .find(|palette| palette.start_pc == pc_offset)
+        {
+            asset_id = format!("{}/{}", boxer.key, palette.filename);
+            boxer_name = fighter_name.clone();
+            palette_size = palette.size;
+            break;
         }
     }
+    drop(manifest);
 
-    let original_bytes = rom
-        .read_bytes(offset, palette_size)
-        .map_err(|e| e.to_string())?;
-    let modified_bytes = if let Some(edited) = pending.get(&pc_offset) {
-        edited.clone()
-    } else {
-        original_bytes.to_vec()
-    };
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let current = session.materialize().map_err(|error| error.to_string())?;
+    let base_range = rom_core::validate_range(offset, palette_size, session.base().len())
+        .map_err(|error| error.to_string())?;
+    let current_range = rom_core::validate_range(offset, palette_size, current.bytes.len())
+        .map_err(|error| error.to_string())?;
+    let original_bytes = &session.base().bytes()[base_range];
+    let modified_bytes = &current.bytes[current_range];
 
-    let color_count = original_bytes.len() / 2;
-    let mut colors = Vec::with_capacity(color_count);
-
-    for i in 0..color_count {
-        let byte_idx = i * 2;
-        let orig = ColorDiff::from_snes_bytes(
-            original_bytes.get(byte_idx).copied().unwrap_or(0),
-            original_bytes.get(byte_idx + 1).copied().unwrap_or(0),
-        );
-        let modified = ColorDiff::from_snes_bytes(
-            modified_bytes.get(byte_idx).copied().unwrap_or(0),
-            modified_bytes.get(byte_idx + 1).copied().unwrap_or(0),
-        );
-        let changed = orig.r != modified.r || orig.g != modified.g || orig.b != modified.b;
-
-        colors.push(ColorComparison {
-            index: i,
-            original: orig,
-            modified,
-            changed,
-        });
-    }
+    let color_count = original_bytes.len().min(modified_bytes.len()) / 2;
+    let colors = (0..color_count)
+        .map(|index| {
+            let byte_index = index * 2;
+            let original = ColorDiff::from_snes_bytes(
+                original_bytes[byte_index],
+                original_bytes[byte_index + 1],
+            );
+            let modified = ColorDiff::from_snes_bytes(
+                modified_bytes[byte_index],
+                modified_bytes[byte_index + 1],
+            );
+            ColorComparison {
+                index,
+                changed: original.r != modified.r
+                    || original.g != modified.g
+                    || original.b != modified.b,
+                original,
+                modified,
+            }
+        })
+        .collect();
 
     Ok(PaletteDiff {
         offset,
@@ -187,87 +107,73 @@ pub fn get_palette_diff(state: State<AppState>, pc_offset: String) -> Result<Pal
     })
 }
 
-/// Get sprite bin diff for a specific offset
+/// Get sprite bin diff for a specific offset.
 #[tauri::command]
 pub fn get_sprite_bin_diff_comparison(
     state: State<AppState>,
     pc_offset: String,
 ) -> Result<SpriteDiff, String> {
     let offset = parse_offset(&pc_offset)?;
-
-    let rom_opt = state.rom.lock();
-    let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
-    let pending = state.pending_writes.lock();
     let manifest = state.manifest.lock();
-
-    // Find bin info from manifest
     let mut bin_name = String::new();
     let mut boxer_name = String::new();
     let mut bin_size = 0usize;
-
     for (fighter_name, boxer) in &manifest.fighters {
-        for bin in boxer
+        if let Some(bin) = boxer
             .unique_sprite_bins
             .iter()
             .chain(boxer.shared_sprite_bins.iter())
+            .find(|bin| bin.start_pc == pc_offset)
         {
-            if bin.start_pc == pc_offset {
-                bin_name = bin.filename.clone();
-                boxer_name = fighter_name.clone();
-                bin_size = bin.size;
-                break;
-            }
+            bin_name = bin.filename.clone();
+            boxer_name = fighter_name.clone();
+            bin_size = bin.size;
+            break;
         }
     }
+    drop(manifest);
+    if bin_size == 0 {
+        return Err(format!(
+            "Sprite bin {pc_offset} was not found in the manifest"
+        ));
+    }
 
-    let original_bytes = rom
-        .read_bytes(offset, bin_size)
-        .map_err(|e| e.to_string())?;
-    let modified_bytes = if let Some(edited) = pending.get(&pc_offset) {
-        edited.clone()
-    } else {
-        original_bytes.to_vec()
-    };
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let current = session.materialize().map_err(|error| error.to_string())?;
+    let base_range = rom_core::validate_range(offset, bin_size, session.base().len())
+        .map_err(|error| error.to_string())?;
+    let current_range = rom_core::validate_range(offset, bin_size, current.bytes.len())
+        .map_err(|error| error.to_string())?;
+    let original_bytes = &session.base().bytes()[base_range];
+    let modified_bytes = &current.bytes[current_range];
 
     let total_tiles = original_bytes.len() / 32;
-    let changed_indices = ComparisonEngine::compare_tiles(&original_bytes, &modified_bytes);
-
+    let changed_indices = ComparisonEngine::compare_tiles(original_bytes, modified_bytes);
     let mut changed_tiles = Vec::new();
-    for &tile_idx in &changed_indices {
+    for tile_idx in changed_indices {
         let tile_start = tile_idx * 32;
         let mut pixel_diffs = Vec::new();
-
-        // Compare each byte in the tile
         for i in 0..32 {
             let idx = tile_start + i;
-            let orig = original_bytes.get(idx).copied().unwrap_or(0);
+            let original = original_bytes.get(idx).copied().unwrap_or(0);
             let modified = modified_bytes.get(idx).copied().unwrap_or(0);
-
-            let orig_low = orig & 0x0F;
-            let orig_high = (orig >> 4) & 0x0F;
-            let mod_low = modified & 0x0F;
-            let mod_high = (modified >> 4) & 0x0F;
-
             let row = (i / 2) % 8;
             let col1 = (i % 2) * 4;
             let col2 = col1 + 1;
-
-            pixel_diffs.push(PixelDiff {
-                x: col1,
-                y: row,
-                original_pixel: orig_low,
-                modified_pixel: mod_low,
-                changed: orig_low != mod_low,
-            });
-            pixel_diffs.push(PixelDiff {
-                x: col2,
-                y: row,
-                original_pixel: orig_high,
-                modified_pixel: mod_high,
-                changed: orig_high != mod_high,
-            });
+            for (x, original_pixel, modified_pixel) in [
+                (col1, original & 0x0f, modified & 0x0f),
+                (col2, (original >> 4) & 0x0f, (modified >> 4) & 0x0f),
+            ] {
+                pixel_diffs.push(PixelDiff {
+                    x,
+                    y: row,
+                    original_pixel,
+                    modified_pixel,
+                    changed: original_pixel != modified_pixel,
+                });
+            }
         }
-
         changed_tiles.push(TileDiff {
             tile_index: tile_idx,
             pixel_diffs,
@@ -284,7 +190,7 @@ pub fn get_sprite_bin_diff_comparison(
     })
 }
 
-/// Get binary/hex diff for a specific offset
+/// Get binary/hex diff for a specific offset.
 #[tauri::command]
 pub fn get_binary_diff(
     state: State<AppState>,
@@ -292,21 +198,16 @@ pub fn get_binary_diff(
     size: usize,
 ) -> Result<BinaryDiff, String> {
     let offset = parse_offset(&pc_offset)?;
-
-    let rom_opt = state.rom.lock();
-    let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
-    let pending = state.pending_writes.lock();
-
-    let original_bytes = rom.read_bytes(offset, size).map_err(|e| e.to_string())?;
-    let modified_bytes = if let Some(edited) = pending.get(&pc_offset) {
-        edited.clone()
-    } else {
-        original_bytes.to_vec()
-    };
-
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let current = session.materialize().map_err(|error| error.to_string())?;
+    let base_range = rom_core::validate_range(offset, size, session.base().len())
+        .map_err(|error| error.to_string())?;
+    let current_range = rom_core::validate_range(offset, size, current.bytes.len())
+        .map_err(|error| error.to_string())?;
     Ok(ComparisonEngine::generate_hex_diff(
-        &original_bytes,
-        &modified_bytes,
+        &session.base().bytes()[base_range],
+        &current.bytes[current_range],
         offset,
     ))
 }

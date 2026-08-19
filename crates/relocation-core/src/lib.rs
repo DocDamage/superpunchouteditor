@@ -9,7 +9,10 @@ pub mod relocation;
 pub use bank_manager::*;
 pub use free_space::{find_free_regions, FreeSpaceRegion};
 pub use manifest_update::{update_manifest_address, ManifestUpdateError};
-pub use relocation::{validate_relocation, PointerUpdate, RelocationPlanner, RelocationValidation, RelocationSafetyReport, RiskLevel};
+pub use relocation::{
+    validate_relocation, PointerUpdate, RelocationPlanner, RelocationSafetyReport,
+    RelocationValidation, RiskLevel,
+};
 
 /// Errors that can occur during relocation operations
 #[derive(Error, Debug)]

@@ -300,7 +300,10 @@ fn find_existing_creator_hook(
     None
 }
 
-fn detect_existing_creator_hook_at(rom: &rom_core::Rom, hook_pc: usize) -> Option<ExistingCreatorHook> {
+fn detect_existing_creator_hook_at(
+    rom: &rom_core::Rom,
+    hook_pc: usize,
+) -> Option<ExistingCreatorHook> {
     let hook_bytes = rom.read_bytes(hook_pc, 4).ok()?;
     if hook_bytes[0] != 0x5C {
         return None;
@@ -352,8 +355,14 @@ pub fn analyze_in_game_hook_sites(
 
     let limit = req.limit.unwrap_or(25).clamp(1, 200);
 
-    let ranges = if req.start_pc_offset.as_deref().is_some_and(|value| !value.trim().is_empty())
-        || req.end_pc_offset.as_deref().is_some_and(|value| !value.trim().is_empty())
+    let ranges = if req
+        .start_pc_offset
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty())
+        || req
+            .end_pc_offset
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty())
     {
         let start_pc = match req.start_pc_offset.as_deref() {
             Some(value) if !value.trim().is_empty() => parse_offset(value)?,
@@ -511,18 +520,9 @@ fn default_hook_scan_ranges(rom: &rom_core::Rom) -> Vec<(usize, usize)> {
     let rom_size = rom.size().min(0x20_0000);
     let ranges = match rom.detect_region() {
         // Region-specific windows tuned for executable banks and existing SPO patching workflows.
-        Some(rom_core::RomRegion::Usa) => vec![
-            (0x008000, 0x030000),
-            (0x040000, 0x070000),
-        ],
-        Some(rom_core::RomRegion::Jpn) => vec![
-            (0x008000, 0x030000),
-            (0x03F800, 0x06F800),
-        ],
-        Some(rom_core::RomRegion::Pal) => vec![
-            (0x008000, 0x030000),
-            (0x03FFC0, 0x06FFC0),
-        ],
+        Some(rom_core::RomRegion::Usa) => vec![(0x008000, 0x030000), (0x040000, 0x070000)],
+        Some(rom_core::RomRegion::Jpn) => vec![(0x008000, 0x030000), (0x03F800, 0x06F800)],
+        Some(rom_core::RomRegion::Pal) => vec![(0x008000, 0x030000), (0x03FFC0, 0x06FFC0)],
         None => vec![(0x008000, rom_size)],
     };
 
@@ -610,8 +610,13 @@ mod tests {
         let hook_pc = 0x009000usize;
         let stub_pc = 0x018000usize;
 
-        rom.write_bytes(stub_pc, &[0x08, 0xE2, 0x20, 0xEA, 0xEA, b'I', b'N', b'G', b'A', b'M', b'E'])
-            .expect("write stub bytes");
+        rom.write_bytes(
+            stub_pc,
+            &[
+                0x08, 0xE2, 0x20, 0xEA, 0xEA, b'I', b'N', b'G', b'A', b'M', b'E',
+            ],
+        )
+        .expect("write stub bytes");
         let (bank, addr) = rom.pc_to_snes(stub_pc);
         let [lo, hi] = addr.to_le_bytes();
         rom.write_bytes(hook_pc, &[0x5C, lo, hi, bank])

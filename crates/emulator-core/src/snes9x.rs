@@ -9,18 +9,12 @@ use crate::libretro_runtime::{clear_callback_targets, LibretroCore};
 use crate::video::{PixelFormat, VideoBuffer, VideoFrame};
 use crate::{EmulatorError, Result};
 use rom_core::{
-    SpoTextEncoder,
-    roster::{CircuitType, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, RosterLoader, RosterWriter},
+    roster::{CircuitType, RosterLoader, RosterWriter, INTRO_FIELD_SIZE, MAX_NAME_LENGTH},
+    SpoTextEncoder, CREATOR_ERROR_BOXER_NOT_FOUND, CREATOR_ERROR_GENERIC,
+    CREATOR_ERROR_INVALID_INTRO_SLOT, CREATOR_ERROR_INVALID_INTRO_TEXT, CREATOR_ERROR_INVALID_NAME,
+    CREATOR_SESSION_STATUS_CANCELLED, CREATOR_SESSION_STATUS_COMMIT_FAILED,
+    CREATOR_SESSION_STATUS_COMMIT_PENDING, CREATOR_SESSION_STATUS_COMMIT_SUCCEEDED,
     CREATOR_SESSION_STATUS_DRAFT_READY,
-    CREATOR_SESSION_STATUS_COMMIT_PENDING,
-    CREATOR_SESSION_STATUS_COMMIT_SUCCEEDED,
-    CREATOR_SESSION_STATUS_COMMIT_FAILED,
-    CREATOR_SESSION_STATUS_CANCELLED,
-    CREATOR_ERROR_GENERIC,
-    CREATOR_ERROR_BOXER_NOT_FOUND,
-    CREATOR_ERROR_INVALID_NAME,
-    CREATOR_ERROR_INVALID_INTRO_TEXT,
-    CREATOR_ERROR_INVALID_INTRO_SLOT,
 };
 use serde::{Deserialize, Serialize};
 
@@ -198,7 +192,9 @@ pub struct Snes9xCore {
 enum RuntimeBackend {
     Libretro(LibretroCore),
     #[allow(dead_code)]
-    Stub { system_ram: Vec<u8> },
+    Stub {
+        system_ram: Vec<u8>,
+    },
 }
 
 /// Handle to the emulation thread
@@ -242,15 +238,18 @@ impl Snes9xCore {
             audio_buffer.disable();
         }
 
-        let runtime_backend =
-            match LibretroCore::load(&config.core_path, &video_buffer, &audio_buffer, &input_manager)
-            {
-                Ok(core) => RuntimeBackend::Libretro(core),
-                Err(error) => {
-                    clear_callback_targets();
-                    return Err(error);
-                }
-            };
+        let runtime_backend = match LibretroCore::load(
+            &config.core_path,
+            &video_buffer,
+            &audio_buffer,
+            &input_manager,
+        ) {
+            Ok(core) => RuntimeBackend::Libretro(core),
+            Err(error) => {
+                clear_callback_targets();
+                return Err(error);
+            }
+        };
 
         Ok(Self {
             config,
@@ -351,7 +350,11 @@ impl Snes9xCore {
         }
 
         let config = self.audio_buffer.get_config();
-        Some(AudioBatch::new(samples, config.sample_rate, config.channels))
+        Some(AudioBatch::new(
+            samples,
+            config.sample_rate,
+            config.channels,
+        ))
     }
 
     pub fn get_audio_samples_vec(&self) -> Vec<i16> {
@@ -571,10 +574,7 @@ impl Snes9xCore {
 
         match runtime.action {
             CREATOR_ACTION_COMMIT => {
-                let rom_bytes = self
-                    .rom_data
-                    .clone()
-                    .ok_or(EmulatorError::NotInitialized)?;
+                let rom_bytes = self.rom_data.clone().ok_or(EmulatorError::NotInitialized)?;
                 let mut rom = rom_core::Rom::new(rom_bytes);
                 let validation = validate_creator_session_payload(&rom, &session);
 
@@ -584,7 +584,8 @@ impl Snes9xCore {
                         error_code: validation.error_code,
                         ..session
                     };
-                    if !self.set_creator_session_state(&failed_session) || !self.write_creator_action(0)
+                    if !self.set_creator_session_state(&failed_session)
+                        || !self.write_creator_action(0)
                     {
                         return Err(EmulatorError::StateError(
                             "Failed to update creator runtime after validation failure".to_string(),
@@ -598,7 +599,8 @@ impl Snes9xCore {
                     });
                 }
 
-                commit_creator_session_to_rom(&mut rom, &session).map_err(EmulatorError::RomLoadError)?;
+                commit_creator_session_to_rom(&mut rom, &session)
+                    .map_err(EmulatorError::RomLoadError)?;
                 let refreshed_session = load_creator_session_from_rom(
                     &rom,
                     session.boxer_id,
@@ -631,10 +633,7 @@ impl Snes9xCore {
                 })
             }
             CREATOR_ACTION_CANCEL => {
-                let rom_bytes = self
-                    .rom_data
-                    .clone()
-                    .ok_or(EmulatorError::NotInitialized)?;
+                let rom_bytes = self.rom_data.clone().ok_or(EmulatorError::NotInitialized)?;
                 let rom = rom_core::Rom::new(rom_bytes);
                 let refreshed_session = load_creator_session_from_rom(
                     &rom,
@@ -643,7 +642,8 @@ impl Snes9xCore {
                     0,
                 )
                 .map_err(EmulatorError::RomLoadError)?;
-                if !self.set_creator_session_state(&refreshed_session) || !self.write_creator_action(0)
+                if !self.set_creator_session_state(&refreshed_session)
+                    || !self.write_creator_action(0)
                 {
                     return Err(EmulatorError::StateError(
                         "Failed to restore creator session from ROM".to_string(),
@@ -652,7 +652,10 @@ impl Snes9xCore {
 
                 Ok(CreatorRuntimeActionResolution {
                     runtime_state: self.creator_runtime_state(),
-                    message: Some(format!("Reverted slot #{} to ROM values.", session.boxer_id)),
+                    message: Some(format!(
+                        "Reverted slot #{} to ROM values.",
+                        session.boxer_id
+                    )),
                     rom_updated: false,
                 })
             }
@@ -853,7 +856,6 @@ impl Snes9xCore {
                 self.set_wram(CREATOR_MODE_DIRTY, 1);
             }
         } else {
-
             if (input_low & 0x40) != 0 {
                 let page = self.get_wram(CREATOR_MODE_PAGE);
                 let next_page = if page == 0 {
@@ -863,7 +865,8 @@ impl Snes9xCore {
                 };
                 self.set_wram(CREATOR_MODE_PAGE, next_page);
                 let next_cursor = if next_page == 1 {
-                    self.get_wram(CREATOR_SESSION_CIRCUIT).min(CREATOR_MODE_CURSOR_MAX)
+                    self.get_wram(CREATOR_SESSION_CIRCUIT)
+                        .min(CREATOR_MODE_CURSOR_MAX)
                 } else {
                     0
                 };
@@ -880,7 +883,8 @@ impl Snes9xCore {
                 };
                 self.set_wram(CREATOR_MODE_PAGE, next_page);
                 let next_cursor = if next_page == 1 {
-                    self.get_wram(CREATOR_SESSION_CIRCUIT).min(CREATOR_MODE_CURSOR_MAX)
+                    self.get_wram(CREATOR_SESSION_CIRCUIT)
+                        .min(CREATOR_MODE_CURSOR_MAX)
                 } else {
                     0
                 };
@@ -920,23 +924,33 @@ impl Snes9xCore {
                             CREATOR_ACTION_INTRO_EDIT
                         }
                         2 => {
-                            let next_unlock = self.get_wram(CREATOR_SESSION_UNLOCK_ORDER).wrapping_add(1);
+                            let next_unlock =
+                                self.get_wram(CREATOR_SESSION_UNLOCK_ORDER).wrapping_add(1);
                             self.set_wram(CREATOR_SESSION_UNLOCK_ORDER, next_unlock);
-                            self.set_wram(CREATOR_SESSION_STATUS, CREATOR_SESSION_STATUS_DRAFT_READY);
+                            self.set_wram(
+                                CREATOR_SESSION_STATUS,
+                                CREATOR_SESSION_STATUS_DRAFT_READY,
+                            );
                             self.set_wram(CREATOR_SESSION_ERROR_CODE, 0);
                             CREATOR_ACTION_NAME_EDIT
                         }
                         3 => {
-                            let next_intro = self.get_wram(CREATOR_SESSION_INTRO_TEXT_ID).wrapping_add(1);
+                            let next_intro =
+                                self.get_wram(CREATOR_SESSION_INTRO_TEXT_ID).wrapping_add(1);
                             self.set_wram(CREATOR_SESSION_INTRO_TEXT_ID, next_intro);
-                            self.set_wram(CREATOR_SESSION_STATUS, CREATOR_SESSION_STATUS_DRAFT_READY);
+                            self.set_wram(
+                                CREATOR_SESSION_STATUS,
+                                CREATOR_SESSION_STATUS_DRAFT_READY,
+                            );
                             self.set_wram(CREATOR_SESSION_ERROR_CODE, 0);
                             CREATOR_ACTION_INTRO_EDIT
                         }
                         _ => CREATOR_ACTION_NAME_EDIT,
                     },
                     1 => {
-                        let selected_circuit = self.get_wram(CREATOR_MODE_CURSOR).min(CREATOR_MODE_CURSOR_MAX);
+                        let selected_circuit = self
+                            .get_wram(CREATOR_MODE_CURSOR)
+                            .min(CREATOR_MODE_CURSOR_MAX);
                         self.set_wram(CREATOR_SESSION_CIRCUIT, selected_circuit);
                         self.set_wram(CREATOR_SESSION_STATUS, CREATOR_SESSION_STATUS_DRAFT_READY);
                         self.set_wram(CREATOR_SESSION_ERROR_CODE, 0);
@@ -945,7 +959,10 @@ impl Snes9xCore {
                     2 => CREATOR_ACTION_PORTRAIT_EDIT,
                     3 => match self.get_wram(CREATOR_MODE_CURSOR) {
                         1 => {
-                            self.set_wram(CREATOR_SESSION_STATUS, CREATOR_SESSION_STATUS_COMMIT_PENDING);
+                            self.set_wram(
+                                CREATOR_SESSION_STATUS,
+                                CREATOR_SESSION_STATUS_COMMIT_PENDING,
+                            );
                             self.set_wram(CREATOR_SESSION_ERROR_CODE, 0);
                             CREATOR_ACTION_COMMIT
                         }
@@ -1080,7 +1097,10 @@ fn validate_creator_session_payload(
             valid: false,
             status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
             error_code: CREATOR_ERROR_INVALID_INTRO_SLOT,
-            message: Some(format!("Intro text slot {} not found", session.intro_text_id)),
+            message: Some(format!(
+                "Intro text slot {} not found",
+                session.intro_text_id
+            )),
         };
     }
 
@@ -1243,7 +1263,7 @@ fn creator_input_bytes(buttons: u16) -> (u8, u8) {
 fn cycle_creator_name_char(current: u8, direction: i8) -> u8 {
     match direction.cmp(&0) {
         std::cmp::Ordering::Greater => {
-            if current < b' ' || current >= b'Z' {
+            if !(b' '..b'Z').contains(&current) {
                 b' '
             } else {
                 current + 1
@@ -1333,7 +1353,8 @@ mod tests {
             let (bank, addr) = rom.pc_to_snes(slot_pc);
             let [lo, hi] = addr.to_le_bytes();
             rom.write_bytes(name_ptr + boxer_id * 2, &[lo, hi]).unwrap();
-            rom.write_bytes(long_ptr + boxer_id * 3, &[bank, lo, hi]).unwrap();
+            rom.write_bytes(long_ptr + boxer_id * 3, &[bank, lo, hi])
+                .unwrap();
 
             let intro_base = intro + boxer_id * 80;
             let intro_fields = [
@@ -1703,10 +1724,22 @@ mod tests {
         core.set_input(0, 0x2000 | 0x1000 | 0x0020 | 0x0010);
         core.run_frame();
 
-        assert_eq!(core.read_system_ram(CREATOR_RENDER_ROW0, 1).unwrap(), vec![CREATOR_PAGE0_ROWS[0]]);
-        assert_eq!(core.read_system_ram(CREATOR_RENDER_ROW1, 1).unwrap(), vec![CREATOR_PAGE0_ROWS[1]]);
-        assert_eq!(core.read_system_ram(CREATOR_RENDER_ROW2, 1).unwrap(), vec![CREATOR_PAGE0_ROWS[2]]);
-        assert_eq!(core.read_system_ram(CREATOR_RENDER_ROW3, 1).unwrap(), vec![CREATOR_PAGE0_ROWS[3]]);
+        assert_eq!(
+            core.read_system_ram(CREATOR_RENDER_ROW0, 1).unwrap(),
+            vec![CREATOR_PAGE0_ROWS[0]]
+        );
+        assert_eq!(
+            core.read_system_ram(CREATOR_RENDER_ROW1, 1).unwrap(),
+            vec![CREATOR_PAGE0_ROWS[1]]
+        );
+        assert_eq!(
+            core.read_system_ram(CREATOR_RENDER_ROW2, 1).unwrap(),
+            vec![CREATOR_PAGE0_ROWS[2]]
+        );
+        assert_eq!(
+            core.read_system_ram(CREATOR_RENDER_ROW3, 1).unwrap(),
+            vec![CREATOR_PAGE0_ROWS[3]]
+        );
     }
 
     #[test]

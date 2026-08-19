@@ -1,71 +1,42 @@
-//! ROM Commands
+//! ROM commands.
 //!
-//! Commands for ROM loading, validation, and basic operations.
+//! The canonical current image is always materialized from `AppState::rom_session`. The legacy
+//! pending-write map remains available only as a compatibility projection for older frontend views.
+
+use std::fs;
+use std::io::Write;
+use std::path::Path;
 
 use tauri::{AppHandle, Manager, State};
 
 use crate::app_state::AppState;
 use crate::utils::{load_manifest_for_region, parse_offset, validation::validate_rom_path};
+use rom_core::EditOperation;
 
 pub(crate) fn build_current_rom_image(state: &AppState) -> Result<Vec<u8>, String> {
-    let rom_guard = state.rom.lock();
-    let rom = rom_guard.as_ref().ok_or("No ROM loaded")?;
-    let mut rom_image = rom.data.clone();
-    drop(rom_guard);
-
-    let pending = state.pending_writes.lock();
-    for (offset_str, bytes) in pending.iter() {
-        let offset = parse_offset(offset_str)?;
-        if offset >= rom_image.len() {
-            continue;
-        }
-        let len = bytes.len().min(rom_image.len() - offset);
-        rom_image[offset..offset + len].copy_from_slice(&bytes[..len]);
-    }
-
-    Ok(rom_image)
+    Ok(state.materialize_current_rom()?.bytes)
 }
 
-/// Open a ROM file from the specified path
-///
-/// Validates the ROM, calculates its SHA1 hash, and stores it in the app state.
-/// Clears any pending writes and edit history from previous ROMs.
 #[tauri::command]
 pub fn open_rom(app: AppHandle, state: State<AppState>, path: String) -> Result<String, String> {
-    // Validate path first
     validate_rom_path(&path)?;
 
     let rom = Rom::load(&path).map_err(|e| e.to_string())?;
-    let region = rom.detect_region().ok_or_else(|| {
-        format!(
-            "Unknown ROM region. SHA1: {}",
-            rom.calculate_sha1()
-        )
-    })?;
+    let region = rom
+        .detect_region()
+        .ok_or_else(|| format!("Unknown ROM region. SHA1: {}", rom.calculate_sha1()))?;
 
-    // Resolve the Tauri resource directory for manifest loading.
-    // This is populated in packaged builds and may be absent in some dev setups.
     let resource_dir = app.path().resource_dir().ok();
     let manifest = load_manifest_for_region(region, resource_dir.as_deref())?;
-
     let sha1 = rom.calculate_sha1();
 
-    // Update state
-    *state.rom.lock() = Some(rom);
-    *state.rom_path.lock() = Some(path);
+    // Validate everything before replacing the existing session.
     *state.manifest.lock() = manifest;
-
-    // Clear pending writes when new ROM is loaded
-    state.pending_writes.lock().clear();
-
-    // Clear edit history when loading new ROM (can't undo across different ROMs)
-    state.edit_history.lock().clear();
-    *state.modified.lock() = false;
+    state.install_rom_session(rom, path);
 
     Ok(sha1)
 }
 
-/// Get the SHA1 hash of the currently loaded ROM
 #[tauri::command]
 pub fn get_rom_sha1(state: State<AppState>) -> Result<String, String> {
     state
@@ -73,60 +44,105 @@ pub fn get_rom_sha1(state: State<AppState>) -> Result<String, String> {
         .ok_or_else(|| "No ROM loaded".to_string())
 }
 
-/// Get the path of the currently loaded ROM
 #[tauri::command]
 pub fn get_rom_path(state: State<AppState>) -> Option<String> {
     state.rom_path.lock().clone()
 }
 
-/// Save the ROM with all pending writes applied
-///
-/// Applies all pending modifications to the ROM data and writes it to disk.
+/// Save the exact materialized current revision through a same-filesystem temporary file.
 #[tauri::command]
 pub fn save_rom_as(state: State<AppState>, output_path: String) -> Result<(), String> {
-    let mut rom_opt = state.rom.lock();
-    let rom = rom_opt.as_mut().ok_or("No ROM loaded")?;
-
-    let pending = state.pending_writes.lock();
-
-    // Apply pending writes to ROM data
-    for (offset_str, bytes) in pending.iter() {
-        let offset = parse_offset(offset_str)?;
-        // Write only as many bytes as fit in original space
-        let len = bytes.len().min(rom.data.len() - offset);
-        rom.data[offset..offset + len].copy_from_slice(&bytes[..len]);
+    let materialized = state.materialize_current_rom()?;
+    let destination = Path::new(&output_path);
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+    if !parent.exists() {
+        return Err(format!(
+            "Destination directory does not exist: {}",
+            parent.display()
+        ));
     }
 
-    drop(pending);
+    let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+    temp.write_all(&materialized.bytes)
+        .map_err(|e| e.to_string())?;
+    temp.as_file().sync_all().map_err(|e| e.to_string())?;
 
-    rom.save(&output_path).map_err(|e| e.to_string())?;
+    let verify = fs::read(temp.path()).map_err(|e| e.to_string())?;
+    if verify.len() != materialized.bytes.len() {
+        return Err("Temporary ROM verification failed: length mismatch".to_string());
+    }
+    let verify_hash = Rom::new(verify).calculate_sha1();
+    if verify_hash != materialized.current_sha1 {
+        return Err("Temporary ROM verification failed: SHA-1 mismatch".to_string());
+    }
+
+    // Keep a best-effort backup before overwriting an existing destination. `persist` performs the
+    // same-filesystem rename; if it fails, the previous destination remains available as itself or
+    // the backup copy.
+    if destination.exists() {
+        let backup = destination.with_extension(
+            destination
+                .extension()
+                .and_then(|value| value.to_str())
+                .map(|ext| format!("{ext}.bak"))
+                .unwrap_or_else(|| "bak".to_string()),
+        );
+        fs::copy(destination, &backup).map_err(|e| {
+            format!(
+                "Could not create backup {} before overwrite: {}",
+                backup.display(),
+                e
+            )
+        })?;
+    }
+
+    temp.persist(destination)
+        .map_err(|error| format!("Could not atomically persist ROM: {}", error.error))?;
+
+    state.mark_rom_saved()?;
     Ok(())
 }
 
-/// Get a list of all pending write offsets
-///
-/// Returns a list of PC offsets (as hex strings) that have pending modifications.
+/// Compatibility projection of changed ranges. The journal remains authoritative.
 #[tauri::command]
 pub fn get_pending_writes(state: State<AppState>) -> Vec<String> {
-    state.pending_writes.lock().keys().cloned().collect()
+    state
+        .materialize_current_rom()
+        .map(|materialized| {
+            materialized
+                .change_ranges
+                .into_iter()
+                .map(|range| format!("0x{:X}", range.start))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-/// Get pending bytes for a specific offset
-///
-/// Returns the modified bytes stored for the given PC offset.
 #[tauri::command]
 pub fn get_pending_bytes(state: State<AppState>, pc_offset: String) -> Result<Vec<u8>, String> {
-    let pending = state.pending_writes.lock();
+    let offset = parse_offset(&pc_offset)?;
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
 
-    pending
-        .get(&pc_offset)
-        .cloned()
-        .ok_or_else(|| format!("No pending bytes for offset {}", pc_offset))
+    for transaction in session.journal().active_transactions().iter().rev() {
+        for operation in transaction.operations.iter().rev() {
+            if let EditOperation::WriteBytes {
+                offset: write_offset,
+                after,
+                ..
+            } = operation
+            {
+                if *write_offset == offset {
+                    return Ok(after.clone());
+                }
+            }
+        }
+    }
+
+    Err(format!("No journal write begins at offset {pc_offset}"))
 }
 
-/// Get original bytes from the ROM for a given offset
-///
-/// Reads bytes directly from the loaded ROM without any pending modifications.
+/// Read bytes from the immutable source ROM rather than the mutable working projection.
 #[tauri::command]
 pub fn get_rom_bytes(
     state: State<AppState>,
@@ -134,34 +150,30 @@ pub fn get_rom_bytes(
     size: usize,
 ) -> Result<Vec<u8>, String> {
     let offset = parse_offset(&pc_offset)?;
-
-    let rom_opt = state.rom.lock();
-    let rom = rom_opt.as_ref().ok_or("No ROM loaded")?;
-
-    rom.read_bytes(offset, size)
-        .map(|bytes| bytes.to_vec())
-        .map_err(|e| e.to_string())
+    let session_guard = state.rom_session.lock();
+    let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+    let range =
+        rom_core::validate_range(offset, size, session.base().len()).map_err(|e| e.to_string())?;
+    Ok(session.base().bytes()[range].to_vec())
 }
 
-/// Get the full loaded ROM image with pending writes applied.
 #[tauri::command]
 pub fn get_loaded_rom_image(state: State<AppState>) -> Result<Vec<u8>, String> {
     build_current_rom_image(&state)
 }
 
-/// Discard a pending write for a specific offset
-///
-/// Removes the pending modification, reverting to the original ROM data.
+/// Arbitrary removal of a middle journal transaction is intentionally not supported. Undo keeps
+/// history deterministic and validates before-bytes.
 #[tauri::command]
-pub fn discard_bin_edit(state: State<AppState>, pc_offset: String) -> bool {
-    state.pending_writes.lock().remove(&pc_offset).is_some()
+pub fn discard_bin_edit(_state: State<AppState>, pc_offset: String) -> Result<bool, String> {
+    Err(format!(
+        "Selective discard at {pc_offset} is unsupported with the canonical journal; use Undo"
+    ))
 }
 
-/// Check if a ROM is currently loaded
 #[tauri::command]
 pub fn is_rom_loaded(state: State<AppState>) -> bool {
     state.has_rom()
 }
 
-// Re-export Rom type for use in other modules
 pub use rom_core::Rom;

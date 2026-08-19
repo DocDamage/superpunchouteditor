@@ -84,16 +84,16 @@ pub struct Bottleneck {
 pub trait ProfilerTrait {
     /// Start recording performance data
     fn start_recording(&mut self) -> Result<()>;
-    
+
     /// Stop recording performance data
     fn stop_recording(&mut self) -> Result<()>;
-    
+
     /// Check if currently recording
     fn is_recording(&self) -> bool;
-    
+
     /// Clear all collected data
     fn clear(&mut self);
-    
+
     /// Get the duration of the current/profiling session
     fn recording_duration(&self) -> Option<Duration>;
 }
@@ -173,7 +173,7 @@ mod tests {
     fn test_calculate_stats() {
         let samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let stats = utils::calculate_stats(&samples).unwrap();
-        
+
         assert_eq!(stats.mean, 3.0);
         assert_eq!(stats.median, 3.0);
         assert_eq!(stats.min, 1.0);
@@ -185,7 +185,7 @@ mod tests {
     fn test_find_frequent() {
         let items = vec!["a", "b", "a", "c", "a", "b"];
         let frequent = utils::find_frequent(&items, 2);
-        
+
         assert_eq!(frequent.len(), 2);
         assert_eq!(frequent[0], ("a", 3));
         assert_eq!(frequent[1], ("b", 2));

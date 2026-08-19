@@ -54,8 +54,9 @@ impl FrameEffect {
 }
 
 /// Categories of animations for organization
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum AnimationCategory {
+    #[default]
     Idle,
     PunchLeft,
     PunchRight,
@@ -104,12 +105,6 @@ impl AnimationCategory {
             AnimationCategory::Special => "⭐",
             AnimationCategory::Custom(_) => "📦",
         }
-    }
-}
-
-impl Default for AnimationCategory {
-    fn default() -> Self {
-        AnimationCategory::Idle
     }
 }
 

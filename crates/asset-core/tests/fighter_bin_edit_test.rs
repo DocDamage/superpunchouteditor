@@ -596,7 +596,7 @@ fn test_large_bin_edit() {
     let verify_data = reloaded
         .read_bytes(TEST_UNCOMPRESSED_OFFSET, LARGE_TILE_COUNT * 32)
         .unwrap();
-    let verify_tiles = decode_4bpp_sheet(&verify_data);
+    let verify_tiles = decode_4bpp_sheet(verify_data);
 
     for i in (0..LARGE_TILE_COUNT).step_by(4) {
         assert!(

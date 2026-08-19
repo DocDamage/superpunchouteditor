@@ -237,10 +237,7 @@ impl MemoryWatcher {
         self.history.push(access);
 
         // Update address statistics
-        let stats = self
-            .address_stats
-            .entry(address)
-            .or_insert_with(AddressStats::default);
+        let stats = self.address_stats.entry(address).or_default();
         stats.record_access(access_type, value, timestamp);
 
         // Check watchpoints
@@ -374,7 +371,7 @@ impl MemoryWatcher {
             .map(|(&addr, stats)| (addr, stats.total_accesses()))
             .collect();
 
-        addresses.sort_by(|a, b| b.1.cmp(&a.1));
+        addresses.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         addresses.into_iter().take(count).collect()
     }
 
@@ -386,7 +383,7 @@ impl MemoryWatcher {
             .map(|(&addr, stats)| (addr, stats.write_count))
             .collect();
 
-        addresses.sort_by(|a, b| b.1.cmp(&a.1));
+        addresses.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         addresses.into_iter().take(count).collect()
     }
 
@@ -398,7 +395,7 @@ impl MemoryWatcher {
             .map(|(&addr, stats)| (addr, stats.value_changes))
             .collect();
 
-        addresses.sort_by(|a, b| b.1.cmp(&a.1));
+        addresses.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         addresses.into_iter().take(count).collect()
     }
 }

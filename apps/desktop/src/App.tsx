@@ -11,6 +11,7 @@ import {
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useStore } from "./store/useStore";
+import { featureLabel, isFeatureVisible } from "./featureMaturity";
 import { ThemeProvider, useTheme } from "./context/ThemeProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 import "./App.css";
@@ -69,7 +70,7 @@ type TabKey =
 
 const MODAL_STYLE_TABS = new Set<TabKey>(["plugins", "packs", "test", "settings"]);
 
-const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
+const ALL_TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: "editor", label: "Editor" },
   { key: "roster", label: "Character Create" },
   { key: "viewer", label: "Viewer" },
@@ -88,6 +89,10 @@ const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: "test", label: "Test" },
   { key: "settings", label: "Settings" },
 ];
+
+const TAB_ITEMS: Array<{ key: TabKey; label: string }> = ALL_TAB_ITEMS
+  .filter(({ key }) => isFeatureVisible(key))
+  .map(({ key, label }) => ({ key, label: featureLabel(label, key) }));
 
 const RUNTIME_ERROR =
   "Desktop runtime not detected. Start this app with `npm run tauri dev` from apps/desktop.";
@@ -173,7 +178,6 @@ function App() {
     getCurrentProject,
     undo,
     redo,
-    clearHistory,
     setError,
     error,
   } = useStore();
@@ -228,11 +232,6 @@ function App() {
 
   // Undo state is refreshed explicitly after each mutating action (openRom, undo,
   // redo, recordPaletteEdit, etc.) — no polling needed.
-
-  useEffect(() => {
-    if (!isDesktopRuntime || !romSha1) return;
-    void clearHistory();
-  }, [isDesktopRuntime, romSha1, clearHistory]);
 
   useEffect(() => {
     setCreatorSessionContext(null);
@@ -381,7 +380,7 @@ function App() {
       };
 
       const targetTab = quickTabs[e.key];
-      if (targetTab) {
+      if (targetTab && isFeatureVisible(targetTab)) {
         e.preventDefault();
         setCurrentTab(targetTab);
       }

@@ -88,9 +88,7 @@ pub async fn browse_for_emulator() -> Result<Option<String>, String> {
 /// Verify the configured emulator
 #[tauri::command]
 pub fn verify_emulator(state: State<AppState>) -> Result<serde_json::Value, String> {
-    let settings = state
-        .emulator_settings
-        .lock();
+    let settings = state.emulator_settings.lock();
 
     if settings.emulator_path.is_empty() {
         return Ok(serde_json::json!({

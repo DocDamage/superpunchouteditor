@@ -14,19 +14,14 @@ use tauri::State;
 use crate::AppState;
 use emulator_core::CreatorSessionState;
 use rom_core::{
-    SpoTextEncoder,
     roster::{
-        BoxerIntro, BoxerRosterEntry, Circuit, CircuitType, RosterData,
-        RosterLoader, RosterWriter, ValidationReport, BOXER_INTRO_TABLE,
-        BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE, MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
+        BoxerIntro, BoxerRosterEntry, Circuit, CircuitType, RosterData, RosterLoader,
+        ValidationReport, BOXER_INTRO_TABLE, BOXER_NAME_POINTERS, CIRCUIT_TABLE, INTRO_FIELD_SIZE,
+        MAX_NAME_LENGTH, UNLOCK_ORDER_TABLE,
     },
-    CREATOR_SESSION_STATUS_DRAFT_READY,
-    CREATOR_SESSION_STATUS_COMMIT_FAILED,
-    CREATOR_ERROR_GENERIC,
-    CREATOR_ERROR_BOXER_NOT_FOUND,
-    CREATOR_ERROR_INVALID_NAME,
-    CREATOR_ERROR_INVALID_INTRO_TEXT,
-    CREATOR_ERROR_INVALID_INTRO_SLOT,
+    SpoTextEncoder, CREATOR_ERROR_BOXER_NOT_FOUND, CREATOR_ERROR_GENERIC,
+    CREATOR_ERROR_INVALID_INTRO_SLOT, CREATOR_ERROR_INVALID_INTRO_TEXT, CREATOR_ERROR_INVALID_NAME,
+    CREATOR_SESSION_STATUS_COMMIT_FAILED, CREATOR_SESSION_STATUS_DRAFT_READY,
 };
 
 /// Roster data response for the frontend
@@ -44,7 +39,6 @@ impl From<RosterData> for RosterDataResponse {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreatorCommitResponse {
@@ -92,7 +86,10 @@ fn validate_creator_session_payload(
             valid: false,
             status: CREATOR_SESSION_STATUS_COMMIT_FAILED,
             error_code: CREATOR_ERROR_INVALID_INTRO_SLOT,
-            message: Some(format!("Intro text slot {} not found", session.intro_text_id)),
+            message: Some(format!(
+                "Intro text slot {} not found",
+                session.intro_text_id
+            )),
         };
     }
 
@@ -139,8 +136,7 @@ fn validate_creator_session_payload(
             error_code: CREATOR_ERROR_INVALID_INTRO_TEXT,
             message: Some(format!(
                 "Intro text too long: {} bytes (max {})",
-                intro_encoded_len,
-                INTRO_FIELD_SIZE
+                intro_encoded_len, INTRO_FIELD_SIZE
             )),
         };
     }
@@ -160,60 +156,6 @@ pub(crate) fn validate_creator_session_internal(
     let rom_guard = state.rom.lock();
     if let Some(ref rom) = *rom_guard {
         Ok(validate_creator_session_payload(rom, session))
-    } else {
-        Err("No ROM loaded".to_string())
-    }
-}
-
-pub(crate) fn commit_creator_session_internal(
-    state: &AppState,
-    session: CreatorSessionState,
-) -> Result<CreatorCommitResponse, String> {
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
-        let validation = validate_creator_session_payload(rom, &session);
-        if !validation.valid {
-            return Err(validation
-                .message
-                .unwrap_or_else(|| "Creator session validation failed".to_string()));
-        }
-
-        let normalized_name = session.name_text.trim().to_string();
-        let normalized_intro = session.intro_text.trim().to_string();
-        let circuit = CircuitType::from_byte(session.circuit);
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_boxer_name(session.boxer_id, &normalized_name)
-            .map_err(|e| e.to_string())?;
-        writer
-            .write_circuit_assignment(session.boxer_id, circuit)
-            .map_err(|e| e.to_string())?;
-        writer
-            .write_unlock_order(session.boxer_id, session.unlock_order)
-            .map_err(|e| e.to_string())?;
-        writer
-            .write_boxer_intro_field(session.intro_text_id, 4, &normalized_intro)
-            .map_err(|e| e.to_string())?;
-
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let roster = loader.load_roster().map_err(|e| e.to_string())?;
-
-        let boxer = roster
-            .get_boxer(session.boxer_id)
-            .cloned()
-            .ok_or_else(|| format!("Boxer with ID {} not found", session.boxer_id))?;
-
-        Ok(CreatorCommitResponse {
-            boxer,
-            intro_text_id: session.intro_text_id,
-            intro_text: normalized_intro,
-        })
     } else {
         Err("No ROM loaded".to_string())
     }
@@ -455,72 +397,13 @@ pub fn get_boxers_by_unlock_order(state: State<AppState>) -> Result<Vec<BoxerRos
 // NAME EDITING COMMANDS
 // ============================================================================
 
-/// Update a boxer's name
-///
-/// Writes to ROM if loaded, otherwise just validates
-#[tauri::command]
-pub fn update_boxer_name(
-    state: State<AppState>,
-    fighter_id: u8,
-    new_name: String,
-) -> Result<BoxerRosterEntry, String> {
-    // Validate name first
-    let encoder = SpoTextEncoder::new();
-    encoder
-        .validate(&new_name)
-        .map_err(|invalid| format!("Invalid characters: {:?}", invalid))?;
-
-    let encoded = encoder.encode(&new_name);
-    if encoded.len() > MAX_NAME_LENGTH {
-        return Err(format!(
-            "Name too long: {} bytes (max {})",
-            encoded.len(),
-            MAX_NAME_LENGTH
-        ));
-    }
-
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
-        // Write to ROM
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_boxer_name(fighter_id, &new_name)
-            .map_err(|e| e.to_string())?;
-
-        // Mark ROM as modified
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
-        // Return updated entry
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let roster = loader.load_roster().map_err(|e| e.to_string())?;
-
-        roster
-            .get_boxer(fighter_id)
-            .cloned()
-            .ok_or_else(|| format!("Boxer with ID {} not found", fighter_id))
-    } else {
-        Err("No ROM loaded".to_string())
-    }
-}
-
+/// Validate a creator session payload against the current ROM state.
 #[tauri::command]
 pub fn validate_creator_session(
     state: State<AppState>,
     session: CreatorSessionState,
 ) -> Result<CreatorSessionValidationResponse, String> {
     validate_creator_session_internal(&state, &session)
-}
-
-#[tauri::command]
-pub fn commit_creator_session(
-    state: State<AppState>,
-    session: CreatorSessionState,
-) -> Result<CreatorCommitResponse, String> {
-    commit_creator_session_internal(&state, session)
 }
 
 /// Validate a boxer name (check encoding and length)
@@ -539,7 +422,10 @@ pub fn validate_boxer_name(_state: State<AppState>, name: String) -> NameValidat
         ));
     }
     if !can_encode {
-        let unsupported: Vec<char> = name.chars().filter(|c| !encoder.can_encode(&c.to_string())).collect();
+        let unsupported: Vec<char> = name
+            .chars()
+            .filter(|c| !encoder.can_encode(&c.to_string()))
+            .collect();
         error = Some(format!("Unsupported characters: {:?}", unsupported));
     }
 
@@ -575,35 +461,6 @@ pub fn get_text_encoding_info(_state: State<AppState>) -> TextEncodingInfo {
 // ============================================================================
 // CIRCUIT EDITING COMMANDS
 // ============================================================================
-
-/// Update a boxer's circuit assignment
-#[tauri::command]
-pub fn update_boxer_circuit(
-    state: State<AppState>,
-    fighter_id: u8,
-    circuit: CircuitType,
-) -> Result<RosterDataResponse, String> {
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_circuit_assignment(fighter_id, circuit)
-            .map_err(|e| e.to_string())?;
-
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let roster = loader.load_roster().map_err(|e| e.to_string())?;
-
-        Ok(roster.into())
-    } else {
-        Err("No ROM loaded".to_string())
-    }
-}
 
 /// Get all circuits
 #[tauri::command]
@@ -641,65 +498,6 @@ pub fn get_circuit_types(_state: State<AppState>) -> Vec<serde_json::Value> {
 }
 
 // ============================================================================
-// UNLOCK ORDER COMMANDS
-// ============================================================================
-
-/// Update a boxer's unlock order
-#[tauri::command]
-pub fn update_unlock_order(
-    state: State<AppState>,
-    fighter_id: u8,
-    order: u8,
-) -> Result<BoxerRosterEntry, String> {
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_unlock_order(fighter_id, order)
-            .map_err(|e| e.to_string())?;
-
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let roster = loader.load_roster().map_err(|e| e.to_string())?;
-
-        roster
-            .get_boxer(fighter_id)
-            .cloned()
-            .ok_or_else(|| format!("Boxer with ID {} not found", fighter_id))
-    } else {
-        Err("No ROM loaded".to_string())
-    }
-}
-
-/// Set champion flag for a boxer
-#[tauri::command]
-pub fn set_champion_status(
-    state: State<AppState>,
-    fighter_id: u8,
-    is_champion: bool,
-) -> Result<BoxerRosterEntry, String> {
-    // Note: Champion status is derived from position in circuit
-    // This is a convenience command that updates the boxer entry
-    let rom_guard = state.rom.lock();
-
-    let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-    let mut roster = loader.load_roster().map_err(|e| e.to_string())?;
-    drop(rom_guard);
-
-    if let Some(boxer) = roster.get_boxer_mut(fighter_id) {
-        boxer.is_champion = is_champion;
-        Ok(boxer.clone())
-    } else {
-        Err(format!("Boxer with ID {} not found", fighter_id))
-    }
-}
-
-// ============================================================================
 // INTRO TEXT COMMANDS
 // ============================================================================
 
@@ -719,40 +517,6 @@ pub fn get_boxer_intro(
         let intro = loader
             .load_boxer_intro(fighter_id)
             .map_err(|e| e.to_string())?;
-        Ok(intro.into())
-    } else {
-        Err("No ROM loaded".to_string())
-    }
-}
-
-/// Update a specific intro field for a boxer
-///
-/// Fields: 0=name, 1=origin, 2=record, 3=rank, 4=quote
-#[tauri::command]
-pub fn update_boxer_intro_field(
-    state: State<AppState>,
-    fighter_id: u8,
-    field_index: u8,
-    text: String,
-) -> Result<BoxerIntroResponse, String> {
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
-        let mut writer = RosterWriter::new(rom);
-        writer
-            .write_boxer_intro_field(fighter_id, field_index, &text)
-            .map_err(|e| e.to_string())?;
-
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
-        let intro = loader
-            .load_boxer_intro(fighter_id)
-            .map_err(|e| e.to_string())?;
-
         Ok(intro.into())
     } else {
         Err("No ROM loaded".to_string())
@@ -784,22 +548,6 @@ pub fn get_intro_text(state: State<AppState>, text_id: u8) -> Result<IntroTextRe
     }
 }
 
-/// Update intro text (legacy - use update_boxer_intro_field instead)
-#[tauri::command]
-pub fn update_intro_text(
-    state: State<AppState>,
-    text_id: u8,
-    text: String,
-) -> Result<IntroTextResponse, String> {
-    update_boxer_intro_field(state, text_id, 4, text)?; // 4 = quote field
-
-    Ok(IntroTextResponse {
-        text_id,
-        text: format!("Updated intro text for boxer {}", text_id),
-        fighter_id: text_id,
-    })
-}
-
 /// Validate intro text
 #[tauri::command]
 pub fn validate_intro_text(
@@ -819,7 +567,10 @@ pub fn validate_intro_text(
         ));
     }
     if !can_encode {
-        let unsupported: Vec<char> = text.chars().filter(|c| !encoder.can_encode(&c.to_string())).collect();
+        let unsupported: Vec<char> = text
+            .chars()
+            .filter(|c| !encoder.can_encode(&c.to_string()))
+            .collect();
         error = Some(format!("Unsupported characters: {:?}", unsupported));
     }
 
@@ -931,13 +682,6 @@ pub fn validate_roster_changes(state: State<AppState>) -> Result<ValidationRepor
     };
 
     Ok(roster.validate())
-}
-
-/// Reset roster to defaults
-#[tauri::command]
-pub fn reset_roster_to_defaults(_state: State<AppState>) -> Result<RosterDataResponse, String> {
-    let roster = RosterData::new();
-    Ok(roster.into())
 }
 
 // ============================================================================

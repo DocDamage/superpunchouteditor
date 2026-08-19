@@ -16,7 +16,7 @@ impl FreeSpaceRegion {
 
     /// Check if this region can accommodate data with alignment requirements
     pub fn can_fit_aligned(&self, size: usize, alignment: usize) -> Option<usize> {
-        let aligned_start = ((self.start_pc + alignment - 1) / alignment) * alignment;
+        let aligned_start = self.start_pc.div_ceil(alignment) * alignment;
         let available = self.end_pc.saturating_sub(aligned_start) + 1;
         if available >= size {
             Some(aligned_start)
@@ -165,11 +165,7 @@ impl FreeSpaceStats {
         let total_free: usize = regions.iter().map(|r| r.size).sum();
         let largest_block = regions.iter().map(|r| r.size).max().unwrap_or(0);
         let region_count = regions.len();
-        let average_block_size = if region_count > 0 {
-            total_free / region_count
-        } else {
-            0
-        };
+        let average_block_size = total_free.checked_div(region_count).unwrap_or(0);
 
         // Fragmentation score: 1 - (largest_block / total_free)
         // If all free space is in one block, fragmentation is 0

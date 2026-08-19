@@ -410,7 +410,7 @@ impl HardwareTester {
     /// Returns an error if the test fails critically
     pub fn run_test(&mut self, test: &mut dyn HardwareTest) -> Result<TestComparison> {
         let config = test.config().clone();
-        
+
         log::info!("Running test: {}", config.name);
 
         let hardware_result = if config.test_hardware && self.hardware_connected {
@@ -432,7 +432,7 @@ impl HardwareTester {
         // Compare results if both are available
         let comparison = if let (Some(ref hw), Some(ref emu)) = (&hardware_result, &emulator_result) {
             let match_result = test.compare(hw, emu);
-            
+
             TestComparison {
                 test_name: config.name.clone(),
                 hardware_result: Some(hw.clone()),
@@ -518,23 +518,23 @@ impl TestComparison {
     /// Generate a summary report
     pub fn summary(&self) -> String {
         let mut report = format!("Test: {}\n", self.test_name);
-        
+
         if let Some(ref hw) = self.hardware_result {
-            report.push_str(&format!("  Hardware: {}\n", 
+            report.push_str(&format!("  Hardware: {}\n",
                 if hw.passed { "PASSED" } else { "FAILED" }));
         } else {
             report.push_str("  Hardware: NOT RUN\n");
         }
 
         if let Some(ref emu) = self.emulator_result {
-            report.push_str(&format!("  Emulator: {}\n", 
+            report.push_str(&format!("  Emulator: {}\n",
                 if emu.passed { "PASSED" } else { "FAILED" }));
         } else {
             report.push_str("  Emulator: NOT RUN\n");
         }
 
         if self.is_complete() {
-            report.push_str(&format!("  Match: {}\n", 
+            report.push_str(&format!("  Match: {}\n",
                 if self.matched { "YES" } else { "NO" }));
         }
 

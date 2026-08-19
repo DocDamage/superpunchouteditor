@@ -80,7 +80,7 @@ pub enum HotkeyContext {
 /// Menu item contributed by a plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginMenuItem {
-    pub path: String,  // e.g., "Tools/My Plugin/Do Something"
+    pub path: String, // e.g., "Tools/My Plugin/Do Something"
     pub command: String,
     pub shortcut: Option<String>,
     pub icon: Option<String>,

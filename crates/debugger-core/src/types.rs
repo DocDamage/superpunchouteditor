@@ -23,7 +23,10 @@ impl SnesAddress {
         // LoROM unmapping
         let bank = ((pc >> 15) & 0xFF) as u8;
         let addr = (pc & 0x7FFF) as u16;
-        Self { bank, addr: addr | 0x8000 }
+        Self {
+            bank,
+            addr: addr | 0x8000,
+        }
     }
 }
 

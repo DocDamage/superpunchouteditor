@@ -379,14 +379,16 @@ impl RomComparison {
     pub fn filter_by_type(&self, filter: DifferenceFilter) -> Vec<&Difference> {
         self.differences
             .iter()
-            .filter(|d| match (filter, d) {
-                (DifferenceFilter::Palette, Difference::Palette { .. }) => true,
-                (DifferenceFilter::Sprite, Difference::Sprite { .. }) => true,
-                (DifferenceFilter::Header, Difference::Header { .. }) => true,
-                (DifferenceFilter::Animation, Difference::Animation { .. }) => true,
-                (DifferenceFilter::Binary, Difference::Binary { .. }) => true,
-                (DifferenceFilter::All, _) => true,
-                _ => false,
+            .filter(|d| {
+                matches!(
+                    (filter, d),
+                    (DifferenceFilter::Palette, Difference::Palette { .. })
+                        | (DifferenceFilter::Sprite, Difference::Sprite { .. })
+                        | (DifferenceFilter::Header, Difference::Header { .. })
+                        | (DifferenceFilter::Animation, Difference::Animation { .. })
+                        | (DifferenceFilter::Binary, Difference::Binary { .. })
+                        | (DifferenceFilter::All, _)
+                )
             })
             .collect()
     }
@@ -461,7 +463,7 @@ impl ComparisonEngine {
                 .collect();
 
         let max_len = original.len().max(modified.len());
-        let row_count = (max_len + bytes_per_row - 1) / bytes_per_row;
+        let row_count = max_len.div_ceil(bytes_per_row);
 
         let mut rows = Vec::with_capacity(row_count);
 
@@ -527,7 +529,7 @@ mod tests {
     #[test]
     fn test_compare_tiles() {
         // 2 tiles (32 bytes each)
-        let mut original = vec![0u8; 64];
+        let original = vec![0u8; 64];
         let mut modified = vec![0u8; 64];
 
         // Change byte in second tile

@@ -38,9 +38,10 @@ use crate::Rom;
 use serde::{Deserialize, Serialize};
 
 /// ROM region variants for Super Punch-Out!!
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RomRegion {
     /// USA version - fully supported
+    #[default]
     Usa,
     /// Japanese version - planned support
     Jpn,
@@ -168,12 +169,6 @@ impl std::fmt::Display for RomRegion {
     }
 }
 
-impl Default for RomRegion {
-    fn default() -> Self {
-        Self::Usa
-    }
-}
-
 /// Region-specific memory addresses and configuration
 ///
 /// This struct contains all the memory addresses and offsets that vary
@@ -232,7 +227,7 @@ impl RegionConfig {
     }
 
     /// JPN version configuration (RESEARCHED)
-    /// 
+    ///
     /// Research findings:
     /// - Fighter headers at same address as USA (0x048000)
     /// - Palettes offset: -271 bytes from USA
@@ -241,20 +236,20 @@ impl RegionConfig {
     fn jpn() -> Self {
         Self {
             region: RomRegion::Jpn,
-            fighter_header_table: 0x048000,  // Same as USA
-            palette_table: 0x06B7D3,         // USA: 0x06B9DA - 0x207 (-271 bytes)
-            sprite_table: 0x118000,          // Same as USA
-            text_table: 0x128000,            // Japanese encoding - custom
-            music_table: 0x138000,           // Same as USA
-            script_table: 0x148000,          // Same as USA
-            animation_table: 0x158000,       // Same as USA
-            boxer_names_table: 0x168000,     // Japanese names
-            circuit_table: 0x06ABE8,         // USA: 0x06ABD4 + 0x14 (+20 bytes)
+            fighter_header_table: 0x048000, // Same as USA
+            palette_table: 0x06B7D3,        // USA: 0x06B9DA - 0x207 (-271 bytes)
+            sprite_table: 0x118000,         // Same as USA
+            text_table: 0x128000,           // Japanese encoding - custom
+            music_table: 0x138000,          // Same as USA
+            script_table: 0x148000,         // Same as USA
+            animation_table: 0x158000,      // Same as USA
+            boxer_names_table: 0x168000,    // Japanese names
+            circuit_table: 0x06ABE8,        // USA: 0x06ABD4 + 0x14 (+20 bytes)
         }
     }
 
     /// PAL version configuration (RESEARCHED)
-    /// 
+    ///
     /// Research findings:
     /// - Fighter headers at same address as USA (0x048000)
     /// - Palettes offset: -7 bytes from USA
@@ -263,15 +258,15 @@ impl RegionConfig {
     fn pal() -> Self {
         Self {
             region: RomRegion::Pal,
-            fighter_header_table: 0x048000,  // Same as USA
-            palette_table: 0x06B9D3,         // USA: 0x06B9DA - 0x7 (-7 bytes)
-            sprite_table: 0x118000,          // Same as USA
-            text_table: 0x128000,            // European localization
-            music_table: 0x138000,           // Same as USA
-            script_table: 0x148000,          // Same as USA
-            animation_table: 0x158000,       // Same as USA
-            boxer_names_table: 0x168000,     // European names
-            circuit_table: 0x06ABCD,         // USA: 0x06ABD4 - 0x7 (-7 bytes)
+            fighter_header_table: 0x048000, // Same as USA
+            palette_table: 0x06B9D3,        // USA: 0x06B9DA - 0x7 (-7 bytes)
+            sprite_table: 0x118000,         // Same as USA
+            text_table: 0x128000,           // European localization
+            music_table: 0x138000,          // Same as USA
+            script_table: 0x148000,         // Same as USA
+            animation_table: 0x158000,      // Same as USA
+            boxer_names_table: 0x168000,    // European names
+            circuit_table: 0x06ABCD,        // USA: 0x06ABD4 - 0x7 (-7 bytes)
         }
     }
 

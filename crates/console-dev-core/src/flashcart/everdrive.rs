@@ -120,7 +120,7 @@ impl EverdriveDevice {
         // In a real implementation, this would enumerate USB devices
         // and query the device for its model
         let mut device = Self::new_auto();
-        
+
         if device.is_present() {
             // Try to detect model
             device.detect_model()?;
@@ -211,7 +211,7 @@ impl FlashCart for EverdriveDevice {
         }
 
         log::info!("Connecting to {}...", self.model.name());
-        
+
         // Placeholder: simulate connection
         self.connected = true;
         self.usb_handle = Some(());
@@ -244,8 +244,8 @@ impl FlashCart for EverdriveDevice {
             ));
         }
 
-        log::info!("Uploading ROM to {} ({} bytes)...", 
-            self.model.name(), 
+        log::info!("Uploading ROM to {} ({} bytes)...",
+            self.model.name(),
             rom_data.data().len()
         );
 
@@ -278,8 +278,8 @@ impl FlashCart for EverdriveDevice {
             ));
         }
 
-        log::info!("Downloading SRAM from {} ({} bytes)...", 
-            self.model.name(), 
+        log::info!("Downloading SRAM from {} ({} bytes)...",
+            self.model.name(),
             size
         );
 
@@ -307,8 +307,8 @@ impl FlashCart for EverdriveDevice {
             ));
         }
 
-        log::info!("Uploading SRAM to {} ({} bytes)...", 
-            self.model.name(), 
+        log::info!("Uploading SRAM to {} ({} bytes)...",
+            self.model.name(),
             sram_data.len()
         );
         Ok(())
@@ -328,7 +328,7 @@ impl FlashCart for EverdriveDevice {
         }
 
         log::info!("Applying live patch at ${:06X} ({} bytes)", address, data.len());
-        
+
         // Send command for live patching
         self.send_command(EverdriveCommand::WriteRam {
             address,

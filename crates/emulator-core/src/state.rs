@@ -186,7 +186,7 @@ impl StateManager {
         let save_dir = save_dir.as_ref().to_path_buf();
 
         // Create directory if it doesn't exist
-        std::fs::create_dir_all(&save_dir).map_err(|e| EmulatorError::IoError(e))?;
+        std::fs::create_dir_all(&save_dir).map_err(EmulatorError::IoError)?;
 
         Ok(Self {
             save_dir,

@@ -51,7 +51,9 @@ pub fn get_frame_annotation(
     frame_index: usize,
 ) -> FrameTagResult<Option<FrameAnnotation>> {
     let manager = state.frame_tag_manager.lock();
-    Ok(manager.get_frame_annotation(&fighter_id, frame_index).cloned())
+    Ok(manager
+        .get_frame_annotation(&fighter_id, frame_index)
+        .cloned())
 }
 
 /// Save (create or replace) the annotation for a specific frame.
@@ -79,8 +81,7 @@ pub fn add_tag_to_frame(
     tag_id: String,
 ) -> FrameTagResult<FrameAnnotation> {
     let mut manager = state.frame_tag_manager.lock();
-    let boxer_annotations =
-        manager.get_or_create_boxer_annotations(&fighter_id, &fighter_name);
+    let boxer_annotations = manager.get_or_create_boxer_annotations(&fighter_id, &fighter_name);
     let annotation = boxer_annotations.get_or_create_annotation(frame_index);
     annotation.add_tag(&tag_id);
     Ok(annotation.clone())
@@ -97,8 +98,7 @@ pub fn remove_tag_from_frame(
     tag_id: String,
 ) -> FrameTagResult<FrameAnnotation> {
     let mut manager = state.frame_tag_manager.lock();
-    let boxer_annotations =
-        manager.get_or_create_boxer_annotations(&fighter_id, &fighter_name);
+    let boxer_annotations = manager.get_or_create_boxer_annotations(&fighter_id, &fighter_name);
     let annotation = boxer_annotations.get_or_create_annotation(frame_index);
     annotation.remove_tag(&tag_id);
     Ok(annotation.clone())
@@ -112,8 +112,11 @@ pub fn get_boxer_annotations(
 ) -> FrameTagResult<Vec<FrameAnnotation>> {
     let manager = state.frame_tag_manager.lock();
     if let Some(boxer_annotations) = manager.get_boxer_annotations(&fighter_id) {
-        let mut annotations: Vec<FrameAnnotation> =
-            boxer_annotations.frame_annotations.values().cloned().collect();
+        let mut annotations: Vec<FrameAnnotation> = boxer_annotations
+            .frame_annotations
+            .values()
+            .cloned()
+            .collect();
         annotations.sort_by_key(|a| a.frame_index);
         Ok(annotations)
     } else {

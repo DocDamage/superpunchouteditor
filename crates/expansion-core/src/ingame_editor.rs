@@ -1,15 +1,15 @@
 use debugger_core::cpu::{Disassembler, MemoryAccess};
 use debugger_core::{DisassembledInstruction, SnesAddress};
 use rom_core::{
-    Rom, CREATOR_SESSION_STATUS_DRAFT_READY, CREATOR_SESSION_STATUS_COMMIT_PENDING,
-    CREATOR_SESSION_STATUS_CANCELLED,
+    Rom, CREATOR_SESSION_STATUS_CANCELLED, CREATOR_SESSION_STATUS_COMMIT_PENDING,
+    CREATOR_SESSION_STATUS_DRAFT_READY,
 };
 use std::collections::HashMap;
 
 use crate::roster_expansion::expand_roster_tables;
 use crate::types::{
-    ExpansionError, ExpansionOptions, ExpansionReport, ExpansionResult, HookSiteCandidate, WriteRange,
-    EDITOR_HEADER_MAGIC,
+    ExpansionError, ExpansionOptions, ExpansionReport, ExpansionResult, HookSiteCandidate,
+    WriteRange, EDITOR_HEADER_MAGIC,
 };
 
 const EDITOR_HEADER_VERSION: u8 = 2;
@@ -134,7 +134,9 @@ pub fn analyze_ingame_hook_sites(
                     hook_pc: cursor,
                     overwrite_len,
                     return_pc: cursor + overwrite_len,
-                    first_instruction: format!("{} {}", instruction.mnemonic, instruction.operands).trim().to_string(),
+                    first_instruction: format!("{} {}", instruction.mnemonic, instruction.operands)
+                        .trim()
+                        .to_string(),
                     preview_bytes: bytes.to_vec(),
                 });
             }
@@ -184,11 +186,9 @@ pub fn apply_ingame_editor_expansion(
 
     let hook_plan = build_hook_patch_plan(rom, options)?;
     let bootstrap_size = estimate_bootstrap_size(hook_plan.as_ref());
-    let bootstrap_alloc = rom
-        .find_or_expand_free_space(bootstrap_size, 16)
-        .ok_or(ExpansionError::FreeSpaceNotFound(
-            "in-game editor bootstrap block",
-        ))?;
+    let bootstrap_alloc = rom.find_or_expand_free_space(bootstrap_size, 16).ok_or(
+        ExpansionError::FreeSpaceNotFound("in-game editor bootstrap block"),
+    )?;
 
     let header_pc = align_up(bootstrap_alloc.offset, 16);
     let header_bytes = build_editor_header(&layout, header_pc, hook_plan.as_ref());
@@ -308,7 +308,7 @@ fn build_editor_header(
     bytes.extend_from_slice(&(hook_plan.map_or(0, |plan| plan.hook_pc) as u32).to_le_bytes());
     bytes.extend_from_slice(&(hook_plan.map_or(0, |plan| plan.overwrite_len) as u16).to_le_bytes());
     bytes.extend_from_slice(&0u16.to_le_bytes()); // reserved
-    // Version 2 contract pointers consumed by ROM-side menu/font renderer.
+                                                  // Version 2 contract pointers consumed by ROM-side menu/font renderer.
     bytes.extend_from_slice(&CREATOR_RENDER_VISIBLE_WRAM);
     bytes.extend_from_slice(&CREATOR_RENDER_PAGE_WRAM);
     bytes.extend_from_slice(&CREATOR_RENDER_CURSOR_WRAM);
@@ -368,10 +368,9 @@ impl StubAssembler {
 
     fn finalize(mut self) -> ExpansionResult<Vec<u8>> {
         for (branch_pos, target_label) in &self.branches {
-            let target_pos = *self
-                .labels
-                .get(target_label)
-                .ok_or_else(|| ExpansionError::Rom(format!("unresolved stub label: {target_label}")))?;
+            let target_pos = *self.labels.get(target_label).ok_or_else(|| {
+                ExpansionError::Rom(format!("unresolved stub label: {target_label}"))
+            })?;
             let rel = target_pos as isize - (*branch_pos as isize + 2);
             if !(-128..=127).contains(&rel) {
                 return Err(ExpansionError::Rom(format!(
@@ -381,10 +380,9 @@ impl StubAssembler {
             self.bytes[*branch_pos + 1] = (rel as i8) as u8;
         }
         for (branch_pos, target_label) in &self.long_branches {
-            let target_pos = *self
-                .labels
-                .get(target_label)
-                .ok_or_else(|| ExpansionError::Rom(format!("unresolved stub label: {target_label}")))?;
+            let target_pos = *self.labels.get(target_label).ok_or_else(|| {
+                ExpansionError::Rom(format!("unresolved stub label: {target_label}"))
+            })?;
             let rel = target_pos as isize - (*branch_pos as isize + 3);
             if !(-32768..=32767).contains(&rel) {
                 return Err(ExpansionError::Rom(format!(
@@ -520,7 +518,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
     lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
     asm.byte(0xAA); // TAX
-    asm.bytes(&[0xBF, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // LDA $7E1FD0,X
+    asm.bytes(&[
+        0xBF,
+        CREATOR_INTRO_BUFFER_BASE[0],
+        CREATOR_INTRO_BUFFER_BASE[1],
+        CREATOR_INTRO_BUFFER_BASE[2],
+    ]); // LDA $7E1FD0,X
     asm.bytes(&[0xC9, 0x20]); // CMP #' '
     asm.branch(0x90, "intro_edit_up_wrap"); // BCC
     asm.bytes(&[0xC9, 0x5A]); // CMP #'Z'
@@ -530,7 +533,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.label("intro_edit_up_wrap");
     asm.bytes(&[0xA9, 0x20]); // LDA #' '
     asm.label("intro_edit_up_store");
-    asm.bytes(&[0x9F, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // STA $7E1FD0,X
+    asm.bytes(&[
+        0x9F,
+        CREATOR_INTRO_BUFFER_BASE[0],
+        CREATOR_INTRO_BUFFER_BASE[1],
+        CREATOR_INTRO_BUFFER_BASE[2],
+    ]); // STA $7E1FD0,X
     asm.byte(0xFA); // PLX
     asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
     sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
@@ -548,7 +556,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
     lda_long(&mut asm, CREATOR_INTRO_CURSOR_WRAM);
     asm.byte(0xAA); // TAX
-    asm.bytes(&[0xBF, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // LDA $7E1FD0,X
+    asm.bytes(&[
+        0xBF,
+        CREATOR_INTRO_BUFFER_BASE[0],
+        CREATOR_INTRO_BUFFER_BASE[1],
+        CREATOR_INTRO_BUFFER_BASE[2],
+    ]); // LDA $7E1FD0,X
     asm.bytes(&[0xC9, 0x20]); // CMP #' '
     asm.branch(0xB0, "intro_edit_down_decrement"); // BCS
     asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
@@ -561,7 +574,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.label("intro_edit_down_real_decrement");
     asm.byte(0x3A); // DEC A
     asm.label("intro_edit_down_store");
-    asm.bytes(&[0x9F, CREATOR_INTRO_BUFFER_BASE[0], CREATOR_INTRO_BUFFER_BASE[1], CREATOR_INTRO_BUFFER_BASE[2]]); // STA $7E1FD0,X
+    asm.bytes(&[
+        0x9F,
+        CREATOR_INTRO_BUFFER_BASE[0],
+        CREATOR_INTRO_BUFFER_BASE[1],
+        CREATOR_INTRO_BUFFER_BASE[2],
+    ]); // STA $7E1FD0,X
     asm.byte(0xFA); // PLX
     asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
     sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
@@ -641,7 +659,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
     lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
     asm.byte(0xAA); // TAX
-    asm.bytes(&[0xBF, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // LDA $7E1FC0,X
+    asm.bytes(&[
+        0xBF,
+        CREATOR_NAME_BUFFER_BASE[0],
+        CREATOR_NAME_BUFFER_BASE[1],
+        CREATOR_NAME_BUFFER_BASE[2],
+    ]); // LDA $7E1FC0,X
     asm.bytes(&[0xC9, 0x20]); // CMP #' '
     asm.branch(0x90, "name_edit_up_wrap"); // BCC
     asm.bytes(&[0xC9, 0x5A]); // CMP #'Z'
@@ -651,7 +674,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.label("name_edit_up_wrap");
     asm.bytes(&[0xA9, 0x20]); // LDA #' '
     asm.label("name_edit_up_store");
-    asm.bytes(&[0x9F, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // STA $7E1FC0,X
+    asm.bytes(&[
+        0x9F,
+        CREATOR_NAME_BUFFER_BASE[0],
+        CREATOR_NAME_BUFFER_BASE[1],
+        CREATOR_NAME_BUFFER_BASE[2],
+    ]); // STA $7E1FC0,X
     asm.byte(0xFA); // PLX
     asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
     sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
@@ -669,7 +697,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.bytes(&[0xDA, 0xE2, 0x10]); // PHX / SEP #$10
     lda_long(&mut asm, CREATOR_NAME_CURSOR_WRAM);
     asm.byte(0xAA); // TAX
-    asm.bytes(&[0xBF, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // LDA $7E1FC0,X
+    asm.bytes(&[
+        0xBF,
+        CREATOR_NAME_BUFFER_BASE[0],
+        CREATOR_NAME_BUFFER_BASE[1],
+        CREATOR_NAME_BUFFER_BASE[2],
+    ]); // LDA $7E1FC0,X
     asm.bytes(&[0xC9, 0x20]); // CMP #' '
     asm.branch(0xB0, "name_edit_down_decrement"); // BCS
     asm.bytes(&[0xA9, 0x5A]); // LDA #'Z'
@@ -682,7 +715,12 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.label("name_edit_down_real_decrement");
     asm.byte(0x3A); // DEC A
     asm.label("name_edit_down_store");
-    asm.bytes(&[0x9F, CREATOR_NAME_BUFFER_BASE[0], CREATOR_NAME_BUFFER_BASE[1], CREATOR_NAME_BUFFER_BASE[2]]); // STA $7E1FC0,X
+    asm.bytes(&[
+        0x9F,
+        CREATOR_NAME_BUFFER_BASE[0],
+        CREATOR_NAME_BUFFER_BASE[1],
+        CREATOR_NAME_BUFFER_BASE[2],
+    ]); // STA $7E1FC0,X
     asm.byte(0xFA); // PLX
     asm.bytes(&[0xA9, CREATOR_SESSION_STATUS_DRAFT_READY]);
     sta_long(&mut asm, CREATOR_SESSION_STATUS_WRAM);
@@ -997,7 +1035,10 @@ fn build_editor_stub(hook_plan: Option<&HookPatchPlan>) -> ExpansionResult<Vec<u
     asm.finalize()
 }
 
-fn build_hook_patch_plan(rom: &Rom, options: &ExpansionOptions) -> ExpansionResult<Option<HookPatchPlan>> {
+fn build_hook_patch_plan(
+    rom: &Rom,
+    options: &ExpansionOptions,
+) -> ExpansionResult<Option<HookPatchPlan>> {
     if !options.patch_editor_hook {
         return Ok(None);
     }
@@ -1006,7 +1047,8 @@ fn build_hook_patch_plan(rom: &Rom, options: &ExpansionOptions) -> ExpansionResu
         .editor_hook_pc_offset
         .ok_or(ExpansionError::MissingHookOffset)?;
 
-    let overwrite_len = determine_hook_overwrite_len(rom, hook_pc, options.editor_hook_overwrite_len)?;
+    let overwrite_len =
+        determine_hook_overwrite_len(rom, hook_pc, options.editor_hook_overwrite_len)?;
     let overwritten_bytes = rom
         .read_bytes(hook_pc, overwrite_len)
         .map_err(|err| ExpansionError::Rom(err.to_string()))?
@@ -1060,7 +1102,11 @@ fn determine_hook_overwrite_len(
     Ok(total_len)
 }
 
-fn validate_hook_instruction_span(rom: &Rom, start_pc: usize, expected_len: usize) -> ExpansionResult<()> {
+fn validate_hook_instruction_span(
+    rom: &Rom,
+    start_pc: usize,
+    expected_len: usize,
+) -> ExpansionResult<()> {
     let mut cursor = start_pc;
     let end_pc = start_pc + expected_len;
 
@@ -1093,7 +1139,10 @@ fn decode_hook_instruction(rom: &Rom, pc: usize) -> ExpansionResult<Disassembled
         .ok_or(ExpansionError::HookDecodeFailed { pc })
 }
 
-fn validate_hook_instruction(pc: usize, instruction: &DisassembledInstruction) -> ExpansionResult<()> {
+fn validate_hook_instruction(
+    pc: usize,
+    instruction: &DisassembledInstruction,
+) -> ExpansionResult<()> {
     if instruction.size == 0 {
         return Err(ExpansionError::HookDecodeFailed { pc });
     }
@@ -1120,7 +1169,18 @@ fn validate_hook_instruction(pc: usize, instruction: &DisassembledInstruction) -
 fn is_ambiguous_immediate_mnemonic(mnemonic: &str) -> bool {
     matches!(
         mnemonic,
-        "ADC" | "AND" | "BIT" | "CMP" | "CPX" | "CPY" | "EOR" | "LDA" | "LDX" | "LDY" | "ORA" | "SBC"
+        "ADC"
+            | "AND"
+            | "BIT"
+            | "CMP"
+            | "CPX"
+            | "CPY"
+            | "EOR"
+            | "LDA"
+            | "LDX"
+            | "LDY"
+            | "ORA"
+            | "SBC"
     )
 }
 
@@ -1139,7 +1199,7 @@ fn align_up(value: usize, alignment: usize) -> usize {
     if alignment <= 1 {
         value
     } else {
-        value.div_ceil(alignment) * alignment
+        (value / alignment + usize::from(value % alignment != 0)) * alignment
     }
 }
 
@@ -1185,7 +1245,10 @@ mod tests {
             .expect("write split-span test bytes");
 
         let result = verify_ingame_hook_site(&rom, 0x14000, Some(4));
-        assert!(matches!(result, Err(ExpansionError::HookSplitInstruction { .. })));
+        assert!(matches!(
+            result,
+            Err(ExpansionError::HookSplitInstruction { .. })
+        ));
     }
 
     #[test]

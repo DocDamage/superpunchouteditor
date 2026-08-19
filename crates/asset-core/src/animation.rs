@@ -148,10 +148,12 @@ pub struct FrameFlags {
 /// Blend mode for frame interpolation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum BlendMode {
     /// No interpolation
     None,
     /// Linear interpolation
+    #[default]
     Linear,
     /// Ease in
     EaseIn,
@@ -159,12 +161,6 @@ pub enum BlendMode {
     EaseOut,
     /// Ease in-out
     EaseInOut,
-}
-
-impl Default for BlendMode {
-    fn default() -> Self {
-        BlendMode::Linear
-    }
 }
 
 /// Complete animation sequence
@@ -196,24 +192,24 @@ impl AnimationSequence {
             next_animation: None,
         }
     }
-    
+
     /// Add a frame to the sequence
     pub fn add_frame(&mut self, frame: AnimationFrame) {
         self.total_duration += frame.duration as usize;
         self.frames.push(frame);
     }
-    
+
     /// Get the frame at a specific time (in frames)
     pub fn frame_at(&self, time: usize) -> Option<&AnimationFrame> {
         let mut current_time = 0;
-        
+
         for frame in &self.frames {
             current_time += frame.duration as usize;
             if time < current_time {
                 return Some(frame);
             }
         }
-        
+
         // Handle looping
         if self.loops && !self.frames.is_empty() {
             let loop_duration = self.total_duration - self.loop_start;
@@ -221,19 +217,24 @@ impl AnimationSequence {
             let adjusted_time = self.loop_start + loop_time;
             return self.frame_at(adjusted_time);
         }
-        
+
         self.frames.last()
     }
-    
+
     /// Get interpolated frame data between two frames
-    pub fn interpolate_frames(&self, frame1: usize, frame2: usize, t: f32) -> Option<InterpolatedFrame> {
+    pub fn interpolate_frames(
+        &self,
+        frame1: usize,
+        frame2: usize,
+        t: f32,
+    ) -> Option<InterpolatedFrame> {
         let f1 = self.frames.get(frame1)?;
         let f2 = self.frames.get(frame2)?;
-        
+
         // Calculate position delta based on sprite bounding box changes
         let dx = (f2.frame.width as i16 - f1.frame.width as i16) as f32;
         let dy = (f2.frame.height as i16 - f1.frame.height as i16) as f32;
-        
+
         Some(InterpolatedFrame {
             position_x: Self::lerp(0.0, dx, t),
             position_y: Self::lerp(0.0, dy, t),
@@ -243,7 +244,7 @@ impl AnimationSequence {
             opacity: Self::lerp(1.0, 1.0, t),
         })
     }
-    
+
     fn lerp(a: f32, b: f32, t: f32) -> f32 {
         a + (b - a) * t
     }
@@ -264,7 +265,13 @@ impl InterpolatedFrame {
     /// Apply interpolation to get final transform values
     pub fn apply_easing(&self, mode: BlendMode, t: f32) -> Self {
         let eased_t = match mode {
-            BlendMode::None => if t < 1.0 { 0.0 } else { 1.0 },
+            BlendMode::None => {
+                if t < 1.0 {
+                    0.0
+                } else {
+                    1.0
+                }
+            }
             BlendMode::Linear => t,
             BlendMode::EaseIn => t * t,
             BlendMode::EaseOut => 1.0 - (1.0 - t) * (1.0 - t),
@@ -276,7 +283,7 @@ impl InterpolatedFrame {
                 }
             }
         };
-        
+
         Self {
             position_x: self.position_x * eased_t,
             position_y: self.position_y * eased_t,
@@ -316,25 +323,25 @@ impl AnimationPlayer {
             interpolate: true,
         }
     }
-    
+
     /// Update the animation by delta time (in seconds)
     pub fn update(&mut self, delta_time: f32) {
         if !self.is_playing {
             return;
         }
-        
+
         let frame_duration = 1.0 / 60.0; // 60 FPS
         self.frame_time += delta_time * self.playback_speed / frame_duration;
-        
+
         while self.frame_time >= 1.0 {
             self.frame_time -= 1.0;
             self.advance_frame();
         }
     }
-    
+
     fn advance_frame(&mut self) {
         self.current_frame += 1;
-        
+
         if self.current_frame >= self.sequence.frames.len() {
             if self.sequence.loops {
                 self.current_frame = self.sequence.loop_start;
@@ -344,38 +351,39 @@ impl AnimationPlayer {
             }
         }
     }
-    
+
     /// Get the current display frame with interpolation
     pub fn get_current_frame(&self) -> Option<(&AnimationFrame, Option<InterpolatedFrame>)> {
         let frame = self.sequence.frames.get(self.current_frame)?;
-        
+
         let interp = if self.interpolate && self.frame_time > 0.0 {
             let next_frame = (self.current_frame + 1) % self.sequence.frames.len();
-            self.sequence.interpolate_frames(self.current_frame, next_frame, self.frame_time)
+            self.sequence
+                .interpolate_frames(self.current_frame, next_frame, self.frame_time)
         } else {
             None
         };
-        
+
         Some((frame, interp))
     }
-    
+
     /// Play the animation
     pub fn play(&mut self) {
         self.is_playing = true;
     }
-    
+
     /// Pause the animation
     pub fn pause(&mut self) {
         self.is_playing = false;
     }
-    
+
     /// Stop and reset to beginning
     pub fn stop(&mut self) {
         self.is_playing = false;
         self.current_frame = 0;
         self.frame_time = 0.0;
     }
-    
+
     /// Seek to a specific frame
     pub fn seek(&mut self, frame: usize) {
         self.current_frame = frame.min(self.sequence.frames.len().saturating_sub(1));
@@ -428,14 +436,14 @@ impl HitboxEditor {
         } else {
             (x, y)
         };
-        
+
         CombatHitbox {
             x: sx,
             y: sy,
             ..Default::default()
         }
     }
-    
+
     /// Create a new hurtbox at the given position
     pub fn create_hurtbox(&self, x: i16, y: i16) -> Hurtbox {
         let (sx, sy) = if self.snap_to_grid {
@@ -446,7 +454,7 @@ impl HitboxEditor {
         } else {
             (x, y)
         };
-        
+
         Hurtbox {
             x: sx,
             y: sy,

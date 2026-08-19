@@ -200,7 +200,7 @@ impl InputLag {
         }
 
         let count = measurements.len() as f64;
-        
+
         let total_lag_sum: f64 = measurements.iter()
             .map(|m| m.total_lag.as_secs_f64())
             .sum();
@@ -268,7 +268,7 @@ impl HardwareTest for InputLag {
 
     fn run_hardware(&mut self) -> Result<TestResult> {
         log::info!("Running input lag test on hardware...");
-        
+
         let start_time = Instant::now();
         let mut measurements = Vec::new();
 
@@ -280,7 +280,7 @@ impl HardwareTest for InputLag {
         // 1. Upload test ROM to flash cart
         // 2. Connect automated controller or use manual input
         // 3. Measure response time using photodiode/high-speed camera
-        
+
         // Placeholder: simulate measurements
         for button in &self.config.buttons_to_test {
             let samples_per_button = self.config.sample_count / self.config.buttons_to_test.len() as u32;

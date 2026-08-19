@@ -359,7 +359,7 @@ pub fn get_bank_for_offset(offset: usize) -> u8 {
 
 /// Check if offset is at a bank boundary
 pub fn is_at_bank_boundary(offset: usize) -> bool {
-    offset % SNES_BANK_SIZE == 0
+    offset.is_multiple_of(SNES_BANK_SIZE)
 }
 
 /// Get the remaining bytes in the current bank from the given offset
@@ -412,7 +412,7 @@ mod tests {
             g: 150,
             b: 200,
         };
-        modify_palette_color(&mut palette, 5, new_color.clone());
+        modify_palette_color(&mut palette, 5, new_color);
         assert_eq!(palette[5].r, new_color.r);
         assert_eq!(palette[5].g, new_color.g);
         assert_eq!(palette[5].b, new_color.b);
