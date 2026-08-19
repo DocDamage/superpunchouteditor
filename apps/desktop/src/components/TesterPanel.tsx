@@ -136,7 +136,7 @@ export function TesterPanel({
 
   if (!isOpen) return null;
 
-  const setField = <K extends keyof TesterReportState>(key: K, value: TesterReportState[K]) => {
+  const setField = <K extends keyof TesterReportState,>(key: K, value: TesterReportState[K]) => {
     setState((current) => ({ ...current, [key]: value }));
   };
 
