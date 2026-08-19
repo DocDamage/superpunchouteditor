@@ -16,7 +16,7 @@
 //! - XRAM backing store: 64 bytes (RAM behind the IPL ROM window)
 //!
 //! # File Structure
-//! ```
+//! ```text
 //! Offset  Size  Description
 //! 0x00    33    Header signature
 //! 0x21    1     DOS end-of-file marker (0x1A)
