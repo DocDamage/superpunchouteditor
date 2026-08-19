@@ -1,0 +1,59 @@
+name: Codex Handoff Source Export
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Export authoritative master source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out authoritative master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify authoritative source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="cea811f630e88c0769878f6cd0b194fee8203b61"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Expected master $expected but found $actual" >&2
+            exit 1
+          fi
+          echo "Authoritative master verified: $actual"
+
+      - name: Assemble source export
+        shell: bash
+        run: |
+          set -euo pipefail
+          export_dir="$RUNNER_TEMP/superpunchouteditor-master-cea811f6"
+          mkdir -p "$export_dir"
+          rsync -a --exclude='.git' ./ "$export_dir/"
+          cat > "$export_dir/SOURCE_EXPORT_INFO.txt" <<'EOF'
+          Repository: https://github.com/DocDamage/superpunchouteditor
+          Authoritative branch: master
+          Source commit: cea811f630e88c0769878f6cd0b194fee8203b61
+          Source tree: 179f0fdfc040efe0a42bbb8c0aa69d1098f97b08
+          Export purpose: private Codex continuation handoff
+          Default GitHub branch may still be main; do not develop from main.
+          EOF
+
+      - name: Upload source export
+        uses: actions/upload-artifact@v4
+        with:
+          name: superpunchouteditor-codex-source-cea811f6
+          path: ${{ runner.temp }}/superpunchouteditor-master-cea811f6
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
