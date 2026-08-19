@@ -1,0 +1,134 @@
+name: Community Windows Tester Kit
+
+on:
+  workflow_run:
+    workflows: ["Windows Package Smoke"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  package:
+    name: Package shareable tester kit
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out exact tested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Download installer from successful package-smoke run
+        uses: actions/download-artifact@v4
+        with:
+          name: super-punch-out-editor-windows-nsis-smoke
+          path: input-installer
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Assemble community tester kit
+        id: kit
+        shell: pwsh
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $installers = @(Get-ChildItem -Path 'input-installer' -Filter '*.exe' -File -Recurse)
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one Windows installer, found $($installers.Count)."
+          }
+
+          $installer = $installers[0]
+          $installerHash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+
+          $kitDir = Join-Path (Get-Location) 'target/community-tester-kit'
+          $advancedDir = Join-Path $kitDir 'advanced-evidence'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $kitDir
+          New-Item -ItemType Directory -Force -Path $kitDir, $advancedDir | Out-Null
+
+          Copy-Item -LiteralPath $installer.FullName -Destination $kitDir
+          Copy-Item -LiteralPath 'docs/COMMUNITY_TESTING.md' -Destination (Join-Path $kitDir 'START_HERE.md')
+          Copy-Item -LiteralPath 'docs/WINDOWS_ACCEPTANCE.md' -Destination (Join-Path $advancedDir 'WINDOWS_ACCEPTANCE.md')
+          Copy-Item -Path 'scripts/windows/acceptance-*.ps1' -Destination $advancedDir
+
+          @"
+          Super Punch-Out!! Editor - Community Windows Tester Kit
+
+          READ START_HERE.md FIRST.
+
+          This is a TEST build, not a production stable release.
+          Supply your own legally obtained ROM locally.
+          Never upload or share ROMs, SRAM/save states, or emulator binaries with bug reports.
+
+          Source package-smoke run: $env:SOURCE_RUN_ID
+          Source event: $env:SOURCE_EVENT
+          Source branch: $env:SOURCE_HEAD_BRANCH
+          Source commit: $env:SOURCE_HEAD_SHA
+          Installer: $($installer.Name)
+          Installer SHA-256: $installerHash
+          Installer Authenticode status: $($signature.Status)
+
+          The build is expected to be unsigned unless it came from the separate production signed-release workflow.
+          Do not treat this tester kit as proof of production signing.
+          "@ | Set-Content -LiteralPath (Join-Path $kitDir 'README_FIRST.txt') -Encoding utf8
+
+          @"
+          $installerHash *$($installer.Name)
+          "@ | Set-Content -LiteralPath (Join-Path $kitDir 'CHECKSUMS.txt') -Encoding ascii
+
+          @{
+            schemaVersion = 1
+            sourceWorkflow = 'Windows Package Smoke'
+            sourceRunId = [long]$env:SOURCE_RUN_ID
+            sourceEvent = $env:SOURCE_EVENT
+            sourceBranch = $env:SOURCE_HEAD_BRANCH
+            sourceCommit = $env:SOURCE_HEAD_SHA
+            installerFile = $installer.Name
+            installerSizeBytes = $installer.Length
+            installerSha256 = $installerHash
+            authenticodeStatus = [string]$signature.Status
+            generatedAtUtc = [DateTime]::UtcNow.ToString('o')
+          } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $kitDir 'BUILD_INFO.json') -Encoding utf8
+
+          $forbidden = @(
+            Get-ChildItem -Path $kitDir -Recurse -File | Where-Object {
+              $_.Extension -in @('.sfc', '.smc', '.srm') -or
+              $_.Name -ieq 'SUPERZSNES.exe' -or
+              $_.Extension -in @('.state', '.savestate')
+            }
+          )
+          if ($forbidden.Count -gt 0) {
+            throw "Forbidden ROM/emulator/save-state content entered tester kit: $($forbidden.FullName -join ', ')"
+          }
+
+          $checksumLine = Get-Content -LiteralPath (Join-Path $kitDir 'CHECKSUMS.txt') -Raw
+          if ($checksumLine -notmatch [regex]::Escape($installerHash)) {
+            throw 'Tester-kit checksum manifest does not contain the installer SHA-256.'
+          }
+
+          "path=$kitDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          "## Community tester kit" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Source commit: ``$env:SOURCE_HEAD_SHA``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Installer SHA-256: ``$installerHash``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Authenticode: ``$($signature.Status)``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- ROM/emulator/save-state boundary scan: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload community tester kit
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-punch-out-editor-community-tester-kit
+          path: ${{ steps.kit.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
