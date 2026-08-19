@@ -397,9 +397,7 @@ pub fn get_boxers_by_unlock_order(state: State<AppState>) -> Result<Vec<BoxerRos
 // NAME EDITING COMMANDS
 // ============================================================================
 
-/// Update a boxer's name
-///
-/// Writes to ROM if loaded, otherwise just validates
+/// Validate a creator session payload against the current ROM state.
 #[tauri::command]
 pub fn validate_creator_session(
     state: State<AppState>,
@@ -464,7 +462,6 @@ pub fn get_text_encoding_info(_state: State<AppState>) -> TextEncodingInfo {
 // CIRCUIT EDITING COMMANDS
 // ============================================================================
 
-/// Update a boxer's circuit assignment
 /// Get all circuits
 #[tauri::command]
 pub fn get_circuits(state: State<AppState>) -> Result<Vec<Circuit>, String> {
@@ -501,12 +498,6 @@ pub fn get_circuit_types(_state: State<AppState>) -> Vec<serde_json::Value> {
 }
 
 // ============================================================================
-// UNLOCK ORDER COMMANDS
-// ============================================================================
-
-/// Update a boxer's unlock order
-/// Set champion flag for a boxer
-// ============================================================================
 // INTRO TEXT COMMANDS
 // ============================================================================
 
@@ -532,9 +523,6 @@ pub fn get_boxer_intro(
     }
 }
 
-/// Update a specific intro field for a boxer
-///
-/// Fields: 0=name, 1=origin, 2=record, 3=rank, 4=quote
 /// Get intro text (legacy - use get_boxer_intro instead)
 #[tauri::command]
 pub fn get_intro_text(state: State<AppState>, text_id: u8) -> Result<IntroTextResponse, String> {
@@ -560,7 +548,6 @@ pub fn get_intro_text(state: State<AppState>, text_id: u8) -> Result<IntroTextRe
     }
 }
 
-/// Update intro text (legacy - use update_boxer_intro_field instead)
 /// Validate intro text
 #[tauri::command]
 pub fn validate_intro_text(
@@ -697,7 +684,6 @@ pub fn validate_roster_changes(state: State<AppState>) -> Result<ValidationRepor
     Ok(roster.validate())
 }
 
-/// Reset roster to defaults
 // ============================================================================
 // ROM OFFSET/INFO COMMANDS
 // ============================================================================
