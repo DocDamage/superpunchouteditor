@@ -41,9 +41,18 @@ The gate verifies:
 - silent uninstall;
 - preservation of roaming and local app-data markers on default uninstall.
 
-The workflow also syntax-checks every `scripts/windows/acceptance-*.ps1` helper and exercises the canonical artifact verifier against synthetic ROM-like files. Equivalent saved/BPS/IPS/project-restored outputs must be accepted, while a deliberately tampered BPS output must be rejected.
+The workflow also syntax-checks every `scripts/windows/acceptance-*.ps1` helper and exercises the acceptance toolkit against synthetic ROM-like files. Equivalent saved/BPS/IPS/project-restored outputs must be accepted, manually overriding a hash-proven equivalence field must be rejected, a complete local evidence matrix must summarize as `PASS`, unsigned installer evidence must fail the signed-installer requirement, and a deliberately tampered BPS output must be rejected.
 
 The pull-request smoke installer disables updater-artifact generation only. It is **not** evidence that release signing is configured. Tagged release artifacts must still pass the signed release workflow.
+
+### Downloadable acceptance kit
+
+Each successful Windows Package Smoke run uploads two short-lived artifacts:
+
+- `super-punch-out-editor-windows-nsis-smoke` — the unsigned functional NSIS installer only;
+- `super-punch-out-editor-windows-acceptance-kit` — the same installer plus this guide and all `scripts/windows/acceptance-*.ps1` helpers.
+
+The acceptance kit is intended to make local real-ROM testing self-contained. Its installer is still an **unsigned smoke build** and must not be treated as a stable production release. A stable candidate must come from the signed tag workflow and pass the production Authenticode/updater-signature gates.
 
 ## Local acceptance prerequisites
 
@@ -96,6 +105,51 @@ The verifier fails closed if:
 - both `-IpsPatchedRomPath` and `-IpsUnsupported` are supplied.
 
 On success it writes a sibling `*.verified.json` evidence file by default, adds an `artifactVerification` metadata section, and records `PASS` for the hash-proven equivalence fields.
+
+## Record manual/visual gate results
+
+Use `scripts/windows/acceptance-record-status.ps1` for observations that require the installed editor or emulator. The recorder deliberately cannot change hash-proven fields such as saved-ROM/BPS/IPS/project equivalence; those fields belong only to `acceptance-verify-artifacts.ps1`.
+
+Examples:
+
+```powershell
+./scripts/windows/acceptance-record-status.ps1 `
+  -EvidencePath '.\windows-acceptance-evidence.verified.json' `
+  -Field loadValidation `
+  -Status PASS `
+  -Note 'Supported USA ROM loaded without mutation.'
+
+./scripts/windows/acceptance-record-status.ps1 `
+  -EvidencePath '.\windows-acceptance-evidence.verified.json' `
+  -Field embeddedEmulatorCurrentRevision `
+  -Status PASS `
+  -Note 'Edited palette was visible after stop/restart.'
+```
+
+Use the same helper for the automated-gate fields when transcribing the exact candidate's already-green CI/package evidence. External-emulator acceptance may be `N/A` when no locally supplied external emulator is part of the release claim.
+
+## Generate the release evidence matrix
+
+`scripts/windows/acceptance-summary.ps1` turns the evidence JSON into a Markdown matrix suitable for release notes or a release issue.
+
+During functional acceptance with an unsigned smoke installer:
+
+```powershell
+./scripts/windows/acceptance-summary.ps1 `
+  -EvidencePath '.\windows-acceptance-evidence.verified.json' `
+  -RequireCompleteLocalAcceptance
+```
+
+For final stable-release evidence using the signed production candidate:
+
+```powershell
+./scripts/windows/acceptance-summary.ps1 `
+  -EvidencePath '.\windows-acceptance-evidence.verified.json' `
+  -RequireCompleteLocalAcceptance `
+  -RequireSignedInstaller
+```
+
+`-RequireCompleteLocalAcceptance` fails if any required local gate is unrecorded/failed or the source-ROM immutability proof is missing. `-RequireSignedInstaller` additionally requires the preflight Authenticode status to be `Valid`. Tauri updater signature/public-key verification remains authoritative in the tagged production release workflow.
 
 ## Real-ROM canonical-output acceptance
 
