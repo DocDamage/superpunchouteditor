@@ -24,6 +24,19 @@ The workspace package version is authoritative. CI verifies that the frontend pa
 9. Updater staging test from the previous supported stable release.
 10. Final feature-maturity matrix and known-limitations review.
 
+## Windows-first acceptance
+
+Windows is the active release-priority platform for the current milestone. The Windows gate is defined in [WINDOWS_ACCEPTANCE.md](WINDOWS_ACCEPTANCE.md) and has two required evidence layers before a Windows release candidate can be promoted:
+
+- automated source/package/install/launch/uninstall certification on the exact candidate revision;
+- local, metadata-only real-ROM acceptance using a user-owned ROM.
+
+The automated package gate must build a real x64 NSIS installer, verify its hash, install it on a clean Windows runner, launch the installed application, reject accidentally bundled ROM/emulator content, uninstall it, and verify default uninstall preserves application-data markers.
+
+The local real-ROM gate must demonstrate that edit → undo/redo → saved ROM → IPS/BPS → comparison → project-v2 reopen → embedded emulator → optional external emulator all consume the same canonical edited revision. `scripts/windows/acceptance-preflight.ps1` records installer/ROM/emulator hashes and Windows metadata without copying ROM bytes.
+
+macOS and Linux can be certified on their own schedule while Windows is the active milestone. Shared-code defects discovered on those platforms still require triage before a stable multi-platform claim.
+
 ## Signing and updater
 
 Release installers and updater artifacts must be signed. The updater feed is a signed static `latest.json` release asset under the official repository. Private signing keys/certificates are never stored in source control. Release automation consumes protected signing material only in the release environment.
