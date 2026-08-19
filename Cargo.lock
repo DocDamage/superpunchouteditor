@@ -5218,6 +5218,11 @@ dependencies = [
 [[package]]
 name = "testing-core"
 version = "2.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "minisign-verify",
+ "serde_json",
+]
 
 [[package]]
 name = "thiserror"
