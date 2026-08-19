@@ -44,6 +44,11 @@ jobs:
             throw "Version/updater configuration validation failed."
           }
 
+          cargo run --locked -p testing-core --bin verify_updater_signature -- check-key apps/desktop/src-tauri/tauri.conf.json
+          if ($LASTEXITCODE -ne 0) {
+            throw "The configured updater public key could not be parsed by the release verifier."
+          }
+
           $version = python -c "import tomllib; print(tomllib.load(open('Cargo.toml','rb'))['workspace']['package']['version'])"
           $expectedTag = "v$version"
           if ($env:GITHUB_REF_NAME -ne $expectedTag) {
@@ -189,11 +194,16 @@ jobs:
             }
           }
 
+          cargo run --locked -p testing-core --bin verify_updater_signature -- verify $installer.FullName $updaterSig apps/desktop/src-tauri/tauri.conf.json
+          if ($LASTEXITCODE -ne 0) {
+            throw "Tauri updater signature does not verify against the configured public key."
+          }
+
           "installer=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "updater_sig=$updaterSig" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "- Application Authenticode: valid" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           "- NSIS installer Authenticode: valid" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "- Tauri updater signature: present" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Tauri updater signature/public-key match: valid" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - name: Publish SBOM and SHA-256 checksums
         shell: pwsh
