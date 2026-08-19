@@ -70,7 +70,7 @@ jobs:
 
           Write-Host "Validated $($scripts.Count) Windows acceptance script(s)."
 
-      - name: Exercise canonical acceptance artifact verifier
+      - name: Exercise canonical acceptance evidence toolkit
         shell: pwsh
         run: |
           $fixtureDir = Join-Path $env:RUNNER_TEMP 'acceptance-artifact-verifier'
@@ -84,6 +84,7 @@ jobs:
           $project = Join-Path $fixtureDir 'project-restored.sfc'
           $evidencePath = Join-Path $fixtureDir 'evidence.json'
           $verifiedPath = Join-Path $fixtureDir 'verified.json'
+          $summaryPath = Join-Path $fixtureDir 'summary.md'
 
           [byte[]]$sourceBytes = 0..255
           [byte[]]$editedBytes = $sourceBytes.Clone()
@@ -100,17 +101,44 @@ jobs:
             schemaVersion = 1
             generatedAtUtc = [DateTime]::UtcNow.ToString('o')
             gitCommit = '${{ github.sha }}'
+            windows = [ordered]@{
+              caption = 'Synthetic Windows CI fixture'
+              version = '0'
+              buildNumber = '0'
+              architecture = 'x64'
+              manufacturer = 'GitHub Actions'
+              model = 'Synthetic'
+            }
+            installer = [ordered]@{
+              fileName = 'synthetic-unsigned-setup.exe'
+              sizeBytes = 1
+              sha256 = ('0' * 64)
+              authenticodeStatus = 'NotSigned'
+              signerSubject = $null
+            }
             rom = [ordered]@{
               fileName = 'source.sfc'
               sizeBytes = (Get-Item -LiteralPath $rom).Length
               sha256 = $sourceHash
             }
+            emulator = $null
             acceptance = [ordered]@{
+              automatedWindowsSourceGate = 'NOT_RECORDED'
+              automatedNsisPackageGate = 'NOT_RECORDED'
+              automatedInstallLaunchUninstallGate = 'NOT_RECORDED'
+              loadValidation = 'NOT_RUN'
+              editUndoRedo = 'NOT_RUN'
               savedRomEquivalence = 'NOT_RUN'
               ipsEquivalence = 'NOT_RUN'
               bpsEquivalence = 'NOT_RUN'
+              comparisonPath = 'NOT_RUN'
               projectV2RestoreEquivalence = 'NOT_RUN'
+              embeddedEmulatorCurrentRevision = 'NOT_RUN'
+              externalEmulatorCurrentRevision = 'N/A'
+              safeSaveRecovery = 'NOT_RUN'
+              defaultUninstallDataPreservation = 'NOT_RUN'
             }
+            notes = @('Synthetic metadata only.')
           }
           $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $evidencePath -Encoding utf8
 
@@ -131,6 +159,63 @@ jobs:
           }
           if (-not $verified.artifactVerification.sourceRomUnchanged) {
             throw 'Artifact verifier did not preserve source-ROM integrity evidence.'
+          }
+
+          $manualOverrideRejected = $false
+          try {
+            & ./scripts/windows/acceptance-record-status.ps1 `
+              -EvidencePath $verifiedPath `
+              -Field savedRomEquivalence `
+              -Status FAIL
+          } catch {
+            $manualOverrideRejected = $true
+            Write-Host "Expected hash-field override rejection: $($_.Exception.Message)"
+          }
+          if (-not $manualOverrideRejected) {
+            throw 'Manual status recorder allowed a hash-proven equivalence field to be overridden.'
+          }
+
+          $manualPassFields = @(
+            'automatedWindowsSourceGate',
+            'automatedNsisPackageGate',
+            'automatedInstallLaunchUninstallGate',
+            'loadValidation',
+            'editUndoRedo',
+            'comparisonPath',
+            'embeddedEmulatorCurrentRevision',
+            'safeSaveRecovery',
+            'defaultUninstallDataPreservation'
+          )
+          foreach ($field in $manualPassFields) {
+            & ./scripts/windows/acceptance-record-status.ps1 `
+              -EvidencePath $verifiedPath `
+              -Field $field `
+              -Status PASS `
+              -Note 'Synthetic Windows acceptance toolkit certification.'
+          }
+
+          & ./scripts/windows/acceptance-summary.ps1 `
+            -EvidencePath $verifiedPath `
+            -OutputPath $summaryPath `
+            -RequireCompleteLocalAcceptance
+
+          $summary = Get-Content -LiteralPath $summaryPath -Raw
+          if ($summary -notmatch 'Local canonical acceptance: \*\*PASS\*\*') {
+            throw 'Acceptance summary did not report a complete local PASS matrix.'
+          }
+
+          $signedGateRejected = $false
+          try {
+            & ./scripts/windows/acceptance-summary.ps1 `
+              -EvidencePath $verifiedPath `
+              -OutputPath (Join-Path $fixtureDir 'signed-summary.md') `
+              -RequireSignedInstaller
+          } catch {
+            $signedGateRejected = $true
+            Write-Host "Expected unsigned-installer rejection: $($_.Exception.Message)"
+          }
+          if (-not $signedGateRejected) {
+            throw 'Acceptance summary accepted unsigned installer evidence as production-signed.'
           }
 
           [byte[]]$tampered = [System.IO.File]::ReadAllBytes($bps)
@@ -156,7 +241,7 @@ jobs:
             throw 'Artifact verifier accepted a tampered BPS output.'
           }
 
-          "- Canonical acceptance artifact verifier: passed (equivalence + tamper rejection)" |
+          "- Windows acceptance toolkit: passed (equivalence, protected fields, summary, signing gate, tamper rejection)" |
             Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - name: Build unsigned NSIS smoke bundle
@@ -206,6 +291,46 @@ jobs:
           path: |
             target/**/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assemble Windows acceptance kit
+        id: acceptance-kit
+        shell: pwsh
+        run: |
+          $kitDir = Join-Path (Get-Location) 'target/windows-acceptance-kit'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $kitDir
+          New-Item -ItemType Directory -Force -Path $kitDir | Out-Null
+
+          $installer = '${{ steps.installer.outputs.path }}'
+          $installerHash = '${{ steps.installer.outputs.sha256 }}'
+          Copy-Item -LiteralPath $installer -Destination $kitDir
+          Copy-Item -Path 'scripts/windows/acceptance-*.ps1' -Destination $kitDir
+          Copy-Item -LiteralPath 'docs/WINDOWS_ACCEPTANCE.md' -Destination $kitDir
+
+          @"
+          Super Punch-Out!! Editor Windows Acceptance Kit
+
+          Workflow build commit: $env:GITHUB_SHA
+          Installer SHA-256: $installerHash
+
+          This installer is the unsigned PR/package smoke artifact for functional acceptance.
+          Production stable artifacts must come from the signed tag release workflow.
+
+          Supply your own legally obtained ROM locally. Never upload ROM bytes to GitHub.
+          Start with WINDOWS_ACCEPTANCE.md and acceptance-preflight.ps1.
+          Use acceptance-verify-artifacts.ps1 for hash-proven canonical output equality.
+          Use acceptance-record-status.ps1 only for manual/visual gate results.
+          Use acceptance-summary.ps1 to generate the final Markdown matrix.
+          "@ | Set-Content -LiteralPath (Join-Path $kitDir 'README.txt') -Encoding utf8
+
+          "path=$kitDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload Windows acceptance kit
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-punch-out-editor-windows-acceptance-kit
+          path: ${{ steps.acceptance-kit.outputs.path }}
           if-no-files-found: error
           retention-days: 7
 
