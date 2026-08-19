@@ -307,9 +307,9 @@ mod tests {
         let decoded = decoder.decode(&brr);
 
         assert_eq!(decoded.len(), 64);
-        // Verify the decoded signal follows the same pattern
-        for i in 0..decoded.len() {
-            assert!(decoded[i].abs() <= 16384);
+        // Verify the decoded signal remains within the expected BRR decoder range.
+        for sample in &decoded {
+            assert!(sample.abs() <= 16384);
         }
     }
 
