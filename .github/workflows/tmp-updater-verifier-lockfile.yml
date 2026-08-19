@@ -1,0 +1,55 @@
+name: Temporary updater verifier lockfile refresh
+
+on:
+  push:
+    branches: [agent/updater-signature-verification]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: ${{ !contains(github.event.head_commit.message, '[lockfile-generated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/updater-signature-verification
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+
+      - name: Refresh lockfile minimally
+        run: cargo check -p testing-core
+
+      - name: Prove lockfile diff is exactly the expected dependency registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- . ':(exclude)Cargo.lock'
+
+          read -r added deleted path < <(git diff --numstat -- Cargo.lock)
+          test "$path" = "Cargo.lock"
+          test "$added" = "5"
+          test "$deleted" = "0"
+
+          diff=$(git diff -- Cargo.lock)
+          grep -F 'name = "testing-core"' Cargo.lock >/dev/null
+          grep -F ' "base64 0.22.1",' <<<"$diff" >/dev/null
+          grep -F ' "minisign-verify",' <<<"$diff" >/dev/null
+          grep -F ' "serde_json",' <<<"$diff" >/dev/null
+
+          echo "$diff"
+
+      - name: Commit lockfile and remove this temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "DocDamage"
+          git config user.email "dsferraro@gmail.com"
+          git add Cargo.lock
+          git rm .github/workflows/tmp-updater-verifier-lockfile.yml
+          git commit -m "Lockfile: register updater verifier dependencies [lockfile-generated]"
+          git push origin HEAD:agent/updater-signature-verification
