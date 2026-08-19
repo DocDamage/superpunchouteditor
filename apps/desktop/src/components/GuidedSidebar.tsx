@@ -128,7 +128,7 @@ export function GuidedSidebar({
     () =>
       WORKFLOW_ORDER.filter((key) => visibleKeys.has(key)).map((key) => {
         const original = tabItems.find((item) => item.key === key)!;
-        return { ...original, ...FRIENDLY_META[key] };
+        return { ...original, ...(FRIENDLY_META[key] ?? {}) };
       }),
     [tabItems, visibleKeys]
   );
@@ -154,13 +154,26 @@ export function GuidedSidebar({
     }
   }, [showAdvanced]);
 
-  const nextAction = !romSha1
-    ? { title: "Start here", detail: "Open your own Super Punch-Out!! ROM.", label: "Open ROM", action: onOpenRom }
-    : !selectedBoxerKey
-      ? { title: "Choose what to edit", detail: "Pick a boxer, then make one small change.", label: "Go to Edit", action: () => onNavigate("editor") }
-      : pendingWritesCount === 0
-        ? { title: "Make one change", detail: "Try a palette edit first; Undo is always available.", label: "Edit Boxer", action: () => onNavigate("editor") }
-        : { title: "Review your changes", detail: "Your current revision is ready to test.", label: "Test Game", action: () => onNavigate("test") };
+  const nextAction = !selectedBoxerKey
+    ? {
+        title: "Choose what to edit",
+        detail: "Pick a boxer, then make one small change.",
+        label: "Go to Edit",
+        action: () => onNavigate("editor"),
+      }
+    : pendingWritesCount === 0
+      ? {
+          title: "Make one change",
+          detail: "Try a palette edit first; Undo is always available.",
+          label: "Edit Boxer",
+          action: () => onNavigate("editor"),
+        }
+      : {
+          title: "Review your changes",
+          detail: "Your current revision is ready to test.",
+          label: "Test Game",
+          action: () => onNavigate("test"),
+        };
 
   return (
     <aside className="sidebar guided-sidebar" aria-label="Editor navigation">
@@ -218,12 +231,14 @@ export function GuidedSidebar({
         </div>
       )}
 
-      <section className="guided-next-card" aria-label="Suggested next step">
-        <p className="eyebrow">Next step</p>
-        <strong>{nextAction.title}</strong>
-        <p>{nextAction.detail}</p>
-        <button type="button" onClick={nextAction.action}>{nextAction.label}</button>
-      </section>
+      {romSha1 && (
+        <section className="guided-next-card" aria-label="Suggested next step">
+          <p className="eyebrow">Next step</p>
+          <strong>{nextAction.title}</strong>
+          <p>{nextAction.detail}</p>
+          <button type="button" onClick={nextAction.action}>{nextAction.label}</button>
+        </section>
+      )}
 
       <nav className="guided-nav" aria-label="Main workflow">
         <div className="guided-section-title">Main workflow</div>
