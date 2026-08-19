@@ -91,7 +91,7 @@ mod tests {
         "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
     const SIGNATURE: &str = concat!(
         "untrusted comment: signature from minisign secret key\n",
-        "RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/zSrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n",
+        "RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n",
         "trusted comment: timestamp:1633700835\tfile:test\tprehashed\n",
         "wLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJAgAooBQ==\n",
     );
@@ -131,9 +131,7 @@ mod tests {
         fs::write(&artifact, contents).expect("artifact fixture must be written");
         fs::write(&signature, SIGNATURE).expect("signature fixture must be written");
 
-        let minisign_key = format!(
-            "untrusted comment: minisign public key\n{PUBLIC_KEY_BASE64}\n"
-        );
+        let minisign_key = format!("untrusted comment: minisign public key\n{PUBLIC_KEY_BASE64}\n");
         let config_json = json!({
             "plugins": {
                 "updater": {
