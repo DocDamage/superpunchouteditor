@@ -13,6 +13,8 @@ use super::{
     render_tile_strip, save_png, set_pending_write, AssetResult,
 };
 
+// Stable Tauri IPC contract: keep the frontend-visible parameters explicit.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn export_asset_to_png(
     state: State<AppState>,
