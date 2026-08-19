@@ -49,18 +49,115 @@ jobs:
       - name: Validate Windows acceptance script syntax
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          $script = (Resolve-Path 'scripts/windows/acceptance-preflight.ps1').Path
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            $script,
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | Format-List | Out-String | Write-Error
-            throw "PowerShell acceptance preflight contains syntax errors."
+          $scripts = @(Get-ChildItem -Path 'scripts/windows' -Filter 'acceptance-*.ps1' -File)
+          if ($scripts.Count -eq 0) {
+            throw 'No Windows acceptance scripts were found.'
           }
+
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell acceptance script contains syntax errors: $($script.Name)"
+            }
+          }
+
+          Write-Host "Validated $($scripts.Count) Windows acceptance script(s)."
+
+      - name: Exercise canonical acceptance artifact verifier
+        shell: pwsh
+        run: |
+          $fixtureDir = Join-Path $env:RUNNER_TEMP 'acceptance-artifact-verifier'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $fixtureDir
+          New-Item -ItemType Directory -Force -Path $fixtureDir | Out-Null
+
+          $rom = Join-Path $fixtureDir 'source.sfc'
+          $saved = Join-Path $fixtureDir 'saved.sfc'
+          $bps = Join-Path $fixtureDir 'bps.sfc'
+          $ips = Join-Path $fixtureDir 'ips.sfc'
+          $project = Join-Path $fixtureDir 'project-restored.sfc'
+          $evidencePath = Join-Path $fixtureDir 'evidence.json'
+          $verifiedPath = Join-Path $fixtureDir 'verified.json'
+
+          [byte[]]$sourceBytes = 0..255
+          [byte[]]$editedBytes = $sourceBytes.Clone()
+          $editedBytes[42] = [byte]($editedBytes[42] -bxor 0x5A)
+
+          [System.IO.File]::WriteAllBytes($rom, $sourceBytes)
+          [System.IO.File]::WriteAllBytes($saved, $editedBytes)
+          Copy-Item -LiteralPath $saved -Destination $bps
+          Copy-Item -LiteralPath $saved -Destination $ips
+          Copy-Item -LiteralPath $saved -Destination $project
+
+          $sourceHash = (Get-FileHash -LiteralPath $rom -Algorithm SHA256).Hash.ToLowerInvariant()
+          $evidence = [ordered]@{
+            schemaVersion = 1
+            generatedAtUtc = [DateTime]::UtcNow.ToString('o')
+            gitCommit = '${{ github.sha }}'
+            rom = [ordered]@{
+              fileName = 'source.sfc'
+              sizeBytes = (Get-Item -LiteralPath $rom).Length
+              sha256 = $sourceHash
+            }
+            acceptance = [ordered]@{
+              savedRomEquivalence = 'NOT_RUN'
+              ipsEquivalence = 'NOT_RUN'
+              bpsEquivalence = 'NOT_RUN'
+              projectV2RestoreEquivalence = 'NOT_RUN'
+            }
+          }
+          $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+
+          & ./scripts/windows/acceptance-verify-artifacts.ps1 `
+            -EvidencePath $evidencePath `
+            -RomPath $rom `
+            -SavedRomPath $saved `
+            -BpsPatchedRomPath $bps `
+            -IpsPatchedRomPath $ips `
+            -ProjectRestoredRomPath $project `
+            -OutputPath $verifiedPath
+
+          $verified = Get-Content -LiteralPath $verifiedPath -Raw | ConvertFrom-Json
+          foreach ($field in @('savedRomEquivalence', 'ipsEquivalence', 'bpsEquivalence', 'projectV2RestoreEquivalence')) {
+            if ($verified.acceptance.$field -ne 'PASS') {
+              throw "Artifact verifier did not record PASS for $field."
+            }
+          }
+          if (-not $verified.artifactVerification.sourceRomUnchanged) {
+            throw 'Artifact verifier did not preserve source-ROM integrity evidence.'
+          }
+
+          [byte[]]$tampered = [System.IO.File]::ReadAllBytes($bps)
+          $tampered[0] = [byte]($tampered[0] -bxor 0xFF)
+          [System.IO.File]::WriteAllBytes($bps, $tampered)
+
+          $tamperRejected = $false
+          try {
+            & ./scripts/windows/acceptance-verify-artifacts.ps1 `
+              -EvidencePath $evidencePath `
+              -RomPath $rom `
+              -SavedRomPath $saved `
+              -BpsPatchedRomPath $bps `
+              -IpsPatchedRomPath $ips `
+              -ProjectRestoredRomPath $project `
+              -OutputPath (Join-Path $fixtureDir 'tampered.json')
+          } catch {
+            $tamperRejected = $true
+            Write-Host "Expected tamper rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $tamperRejected) {
+            throw 'Artifact verifier accepted a tampered BPS output.'
+          }
+
+          "- Canonical acceptance artifact verifier: passed (equivalence + tamper rejection)" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - name: Build unsigned NSIS smoke bundle
         working-directory: apps/desktop

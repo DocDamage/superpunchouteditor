@@ -41,6 +41,8 @@ The gate verifies:
 - silent uninstall;
 - preservation of roaming and local app-data markers on default uninstall.
 
+The workflow also syntax-checks every `scripts/windows/acceptance-*.ps1` helper and exercises the canonical artifact verifier against synthetic ROM-like files. Equivalent saved/BPS/IPS/project-restored outputs must be accepted, while a deliberately tampered BPS output must be rejected.
+
 The pull-request smoke installer disables updater-artifact generation only. It is **not** evidence that release signing is configured. Tagged release artifacts must still pass the signed release workflow.
 
 ## Local acceptance prerequisites
@@ -58,6 +60,42 @@ Optional external-emulator test:
 - an emulator executable supplied locally by the tester.
 
 Before testing, record SHA-256 for the installer, ROM and optional emulator. `scripts/windows/acceptance-preflight.ps1` can generate a metadata-only evidence file.
+
+Example:
+
+```powershell
+./scripts/windows/acceptance-preflight.ps1 `
+  -RomPath 'C:\Games\Super Punch-Out!!.sfc' `
+  -InstallerPath 'C:\Builds\Super-Punch-Out-Editor-Setup.exe' `
+  -EmulatorPath 'C:\Emulators\SUPERZSNES.exe' `
+  -GitCommit '<exact-release-candidate-sha>'
+```
+
+## Automated canonical artifact evidence
+
+After steps 3–6 below produce their output ROMs, use `scripts/windows/acceptance-verify-artifacts.ps1` to prove the canonical outputs are byte-identical and that the source ROM still matches the preflight hash. The helper records filenames, sizes and SHA-256 values only; it never copies ROM bytes into the evidence file.
+
+```powershell
+./scripts/windows/acceptance-verify-artifacts.ps1 `
+  -EvidencePath '.\windows-acceptance-evidence.json' `
+  -RomPath 'C:\Games\Super Punch-Out!!.sfc' `
+  -SavedRomPath '.\outputs\edited.sfc' `
+  -BpsPatchedRomPath '.\outputs\from-bps.sfc' `
+  -IpsPatchedRomPath '.\outputs\from-ips.sfc' `
+  -ProjectRestoredRomPath '.\outputs\from-reopened-project.sfc'
+```
+
+If IPS is explicitly unsupported for the chosen edit, use `-IpsUnsupported` instead of `-IpsPatchedRomPath`.
+
+The verifier fails closed if:
+
+- the source ROM size/hash changed since preflight;
+- BPS output differs from the saved materialized ROM;
+- supplied IPS output differs from the saved materialized ROM;
+- supplied project-restored output differs from the saved materialized ROM;
+- both `-IpsPatchedRomPath` and `-IpsUnsupported` are supplied.
+
+On success it writes a sibling `*.verified.json` evidence file by default, adds an `artifactVerification` metadata section, and records `PASS` for the hash-proven equivalence fields.
 
 ## Real-ROM canonical-output acceptance
 
@@ -91,7 +129,7 @@ Choose a small, visually verifiable stable edit such as a palette/color or suppo
 - Record the saved ROM SHA-256.
 - Reopen the saved ROM in a separate editor session if supported by the tested workflow.
 
-**Pass:** the saved image contains the redone edit and the source ROM remains byte-for-byte unchanged.
+**Pass:** the saved image contains the redone edit and the source ROM remains byte-for-byte unchanged. The artifact verifier rechecks source-ROM size/hash against the preflight record.
 
 ### 4. Export IPS and BPS
 
@@ -102,7 +140,7 @@ From the same edited revision:
 - apply each patch to a fresh copy of the original ROM using the editor/test tooling;
 - hash the resulting images.
 
-**Pass:** patched output bytes equal the editor's materialized saved-ROM bytes for the same revision. If IPS is explicitly unsupported for the edit, the operation must fail clearly rather than silently produce a different image.
+**Pass:** patched output bytes equal the editor's materialized saved-ROM bytes for the same revision. If IPS is explicitly unsupported for the edit, the operation must fail clearly rather than silently produce a different image. Use the artifact verifier to prove BPS/IPS equality rather than comparing hashes manually.
 
 ### 5. Comparison/report path
 
@@ -120,7 +158,7 @@ From the same edited revision:
 - Confirm the edit journal, undo/redo cursor and dirty/saved state restore correctly.
 - Materialize/save again and hash the result.
 
-**Pass:** the reopened project produces bytes identical to the earlier materialized edited ROM.
+**Pass:** the reopened project produces bytes identical to the earlier materialized edited ROM. Supply that reopened output to `-ProjectRestoredRomPath` so the artifact verifier records the equivalence automatically.
 
 ### 7. Embedded emulator
 
