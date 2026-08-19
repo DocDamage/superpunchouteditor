@@ -1,54 +1,93 @@
 name: Community Windows Tester Kit
 
 on:
-  workflow_run:
-    workflows: ["Windows Package Smoke"]
-    types: [completed]
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: community-tester-kit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
   package:
-    name: Package shareable tester kit
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Build shareable tester kit
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
 
     steps:
-      - name: Check out exact tested revision
+      - name: Check out exact revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
-      - name: Download installer from successful package-smoke run
-        uses: actions/download-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: super-punch-out-editor-windows-nsis-smoke
-          path: input-installer
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
 
-      - name: Assemble community tester kit
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: Windows-community-kit-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: Windows-community-kit-cargo-
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: apps/desktop
+        run: npm test
+
+      - name: Typecheck and build frontend
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Build unsigned NSIS tester installer
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          # Community-test packaging never substitutes for the production signed-release workflow.
+          # Disable updater-artifact generation only so PR/test builds need no signing secrets.
+          npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Locate installer and assemble tester kit
         id: kit
         shell: pwsh
-        env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          SOURCE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $installers = @(Get-ChildItem -Path 'input-installer' -Filter '*.exe' -File -Recurse)
+          $roots = @('target', 'apps/desktop/src-tauri/target') | Where-Object { Test-Path $_ }
+          $installers = @(
+            foreach ($root in $roots) {
+              Get-ChildItem -Path $root -Filter '*.exe' -Recurse -File |
+                Where-Object { $_.FullName -match '[\\/]bundle[\\/]nsis[\\/]' }
+            }
+          ) | Sort-Object FullName -Unique
+
           if ($installers.Count -ne 1) {
-            throw "Expected exactly one Windows installer, found $($installers.Count)."
+            throw "Expected exactly one Windows NSIS installer, found $($installers.Count)."
           }
 
           $installer = $installers[0]
+          if ($installer.Length -le 0) {
+            throw "Installer is empty: $($installer.FullName)"
+          }
+
           $installerHash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
 
@@ -71,10 +110,9 @@ jobs:
           Supply your own legally obtained ROM locally.
           Never upload or share ROMs, SRAM/save states, or emulator binaries with bug reports.
 
-          Source package-smoke run: $env:SOURCE_RUN_ID
-          Source event: $env:SOURCE_EVENT
-          Source branch: $env:SOURCE_HEAD_BRANCH
-          Source commit: $env:SOURCE_HEAD_SHA
+          Source event: $env:GITHUB_EVENT_NAME
+          Source ref: $env:GITHUB_REF
+          Source commit: $env:GITHUB_SHA
           Installer: $($installer.Name)
           Installer SHA-256: $installerHash
           Installer Authenticode status: $($signature.Status)
@@ -83,17 +121,15 @@ jobs:
           Do not treat this tester kit as proof of production signing.
           "@ | Set-Content -LiteralPath (Join-Path $kitDir 'README_FIRST.txt') -Encoding utf8
 
-          @"
-          $installerHash *$($installer.Name)
-          "@ | Set-Content -LiteralPath (Join-Path $kitDir 'CHECKSUMS.txt') -Encoding ascii
+          "$installerHash *$($installer.Name)" |
+            Set-Content -LiteralPath (Join-Path $kitDir 'CHECKSUMS.txt') -Encoding ascii
 
           @{
             schemaVersion = 1
-            sourceWorkflow = 'Windows Package Smoke'
-            sourceRunId = [long]$env:SOURCE_RUN_ID
-            sourceEvent = $env:SOURCE_EVENT
-            sourceBranch = $env:SOURCE_HEAD_BRANCH
-            sourceCommit = $env:SOURCE_HEAD_SHA
+            sourceWorkflow = 'Community Windows Tester Kit'
+            sourceEvent = $env:GITHUB_EVENT_NAME
+            sourceRef = $env:GITHUB_REF
+            sourceCommit = $env:GITHUB_SHA
             installerFile = $installer.Name
             installerSizeBytes = $installer.Length
             installerSha256 = $installerHash
@@ -120,7 +156,7 @@ jobs:
           "path=$kitDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
           "## Community tester kit" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          "- Source commit: ``$env:SOURCE_HEAD_SHA``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Source commit: ``$env:GITHUB_SHA``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           "- Installer SHA-256: ``$installerHash``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           "- Authenticode: ``$($signature.Status)``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
           "- ROM/emulator/save-state boundary scan: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
