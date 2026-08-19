@@ -46,6 +46,22 @@ jobs:
         working-directory: apps/desktop
         run: npm ci
 
+      - name: Validate Windows acceptance script syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          $script = (Resolve-Path 'scripts/windows/acceptance-preflight.ps1').Path
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            $script,
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            throw "PowerShell acceptance preflight contains syntax errors."
+          }
+
       - name: Build unsigned NSIS smoke bundle
         working-directory: apps/desktop
         shell: pwsh
@@ -165,7 +181,7 @@ jobs:
           $roamingMarker = '${{ steps.lifecycle.outputs.roaming_marker }}'
           $localMarker = '${{ steps.lifecycle.outputs.local_marker }}'
 
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S', '/NS' -Wait -PassThru
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) {
             throw "Silent NSIS uninstall failed with exit code $($uninstall.ExitCode)."
           }
@@ -204,7 +220,7 @@ jobs:
           $installDir = Join-Path $env:LOCALAPPDATA 'Super Punch-Out!! Editor'
           $uninstaller = Join-Path $installDir 'uninstall.exe'
           if (Test-Path $uninstaller -PathType Leaf) {
-            Start-Process -FilePath $uninstaller -ArgumentList '/S', '/NS' -Wait -ErrorAction SilentlyContinue
+            Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -ErrorAction SilentlyContinue
           }
 
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue `
