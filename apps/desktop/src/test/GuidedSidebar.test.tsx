@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GuidedSidebar } from "../components/GuidedSidebar";
 
@@ -92,7 +92,7 @@ describe("GuidedSidebar", () => {
     expect(disclosure).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: /scripts/i })).not.toBeInTheDocument();
 
-    disclosure.click();
+    fireEvent.click(disclosure);
 
     expect(screen.getByRole("button", { name: /scripts/i })).toBeInTheDocument();
   });
