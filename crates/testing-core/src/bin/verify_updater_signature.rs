@@ -87,8 +87,7 @@ mod tests {
 
     // Public, prehashed Minisign example vector from minisign-verify's MIT-licensed
     // documentation. The production verifier still reads the application's own key.
-    const PUBLIC_KEY_BASE64: &str =
-        "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
+    const PUBLIC_KEY_BASE64: &str = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
     const SIGNATURE: &str = concat!(
         "untrusted comment: signature from minisign secret key\n",
         "RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n",
