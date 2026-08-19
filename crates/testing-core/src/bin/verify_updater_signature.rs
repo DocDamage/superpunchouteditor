@@ -61,11 +61,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     match args.as_slice() {
         [_, command, config] if command == "check-key" => check_key(Path::new(config)),
-        [_, command, artifact, signature, config] if command == "verify" => verify(
-            Path::new(artifact),
-            Path::new(signature),
-            Path::new(config),
-        ),
+        [_, command, artifact, signature, config] if command == "verify" => {
+            verify(Path::new(artifact), Path::new(signature), Path::new(config))
+        }
         _ => Err(IoError::new(ErrorKind::InvalidInput, usage()).into()),
     }
 }
