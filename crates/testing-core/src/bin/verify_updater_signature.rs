@@ -74,3 +74,100 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::{
+        path::PathBuf,
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    // Public, prehashed Minisign example vector from minisign-verify's MIT-licensed
+    // documentation. The production verifier still reads the application's own key.
+    const PUBLIC_KEY_BASE64: &str =
+        "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
+    const SIGNATURE: &str = concat!(
+        "untrusted comment: signature from minisign secret key\n",
+        "RUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/zSrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\n",
+        "trusted comment: timestamp:1633700835\tfile:test\tprehashed\n",
+        "wLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJAgAooBQ==\n",
+    );
+
+    static FIXTURE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    struct Fixture {
+        dir: PathBuf,
+        artifact: PathBuf,
+        signature: PathBuf,
+        config: PathBuf,
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn fixture(contents: &[u8]) -> Fixture {
+        let unique = format!(
+            "spo-updater-signature-{}-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time must be after Unix epoch")
+                .as_nanos(),
+            FIXTURE_COUNTER.fetch_add(1, Ordering::Relaxed)
+        );
+        let dir = env::temp_dir().join(unique);
+        fs::create_dir_all(&dir).expect("fixture directory must be created");
+
+        let artifact = dir.join("artifact.bin");
+        let signature = dir.join("artifact.bin.sig");
+        let config = dir.join("tauri.conf.json");
+
+        fs::write(&artifact, contents).expect("artifact fixture must be written");
+        fs::write(&signature, SIGNATURE).expect("signature fixture must be written");
+
+        let minisign_key = format!(
+            "untrusted comment: minisign public key\n{PUBLIC_KEY_BASE64}\n"
+        );
+        let config_json = json!({
+            "plugins": {
+                "updater": {
+                    "pubkey": STANDARD.encode(minisign_key.as_bytes())
+                }
+            }
+        });
+        fs::write(
+            &config,
+            serde_json::to_vec(&config_json).expect("config fixture must serialize"),
+        )
+        .expect("config fixture must be written");
+
+        Fixture {
+            dir,
+            artifact,
+            signature,
+            config,
+        }
+    }
+
+    #[test]
+    fn valid_prehashed_signature_is_accepted() {
+        let fixture = fixture(b"test");
+        verify(&fixture.artifact, &fixture.signature, &fixture.config)
+            .expect("known-good prehashed signature must verify");
+    }
+
+    #[test]
+    fn tampered_artifact_is_rejected() {
+        let fixture = fixture(b"tost");
+        assert!(
+            verify(&fixture.artifact, &fixture.signature, &fixture.config).is_err(),
+            "tampering must invalidate the signature"
+        );
+    }
+}
