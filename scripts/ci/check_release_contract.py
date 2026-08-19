@@ -15,6 +15,7 @@ def main() -> int:
         "Windows runner": "runs-on: windows-latest",
         "pinned Windows target": "x86_64-pc-windows-msvc",
         "NSIS-only release bundle": "--bundles nsis",
+        "pinned Tauri release action": "tauri-apps/tauri-action@v0.6.2",
         "draft release": "releaseDraft: true",
         "updater private-key gate": "TAURI_SIGNING_PRIVATE_KEY",
         "Windows certificate gate": "WINDOWS_CERTIFICATE",
@@ -31,6 +32,7 @@ def main() -> int:
     forbidden = {
         "Linux tagged release runner": "ubuntu-latest",
         "macOS tagged release runner": "macos-latest",
+        "moving Tauri v0 action alias": "tauri-apps/tauri-action@v0\n",
     }
     present_forbidden = [label for label, token in forbidden.items() if token in text]
 
@@ -39,7 +41,7 @@ def main() -> int:
         for label in missing:
             print(f"  - {label}", file=sys.stderr)
     if present_forbidden:
-        print("ERROR: deferred platforms must not block the Windows tagged release:", file=sys.stderr)
+        print("ERROR: release workflow contains forbidden/deferred configuration:", file=sys.stderr)
         for label in present_forbidden:
             print(f"  - {label}", file=sys.stderr)
 
