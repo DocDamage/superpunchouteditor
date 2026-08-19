@@ -81,7 +81,7 @@ impl Color {
     ///
     /// // White in SNES format (all 5-bit components at max)
     /// let white = Color::from_snes(0x7FFF);
-    /// assert_eq!(white.r, 248); // 31 << 3 = 248
+    /// assert_eq!(white.r, 255);
     /// ```
     pub fn from_snes(word: u16) -> Self {
         let r = (word & 0x1F) as u8;
@@ -156,7 +156,7 @@ impl Color {
         if hex.len() != 6 {
             return None;
         }
-        let r = u8::from_str_radix(&hex[0..2], 8).ok()?;
+        let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
         let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
         let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
         Some(Self { r, g, b })
@@ -181,7 +181,7 @@ impl Color {
 ///
 /// assert_eq!(palette.len(), 2);
 /// assert_eq!(palette[0], Color::new(0, 0, 0));
-/// assert_eq!(palette[1], Color::new(248, 248, 248));
+/// assert_eq!(palette[1], Color::new(255, 255, 255));
 /// ```
 pub fn decode_palette(data: &[u8]) -> Vec<Color> {
     data.chunks_exact(2)
@@ -244,9 +244,9 @@ mod tests {
 
         // White (all 5-bit components at max)
         let white = Color::from_snes(0x7FFF);
-        assert_eq!(white.r, 248); // 31 << 3 = 248
-        assert_eq!(white.g, 248);
-        assert_eq!(white.b, 248);
+        assert_eq!(white.r, 255);
+        assert_eq!(white.g, 255);
+        assert_eq!(white.b, 255);
     }
 
     #[test]
