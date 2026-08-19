@@ -74,7 +74,22 @@ jobs:
           python-version: '3.13'
       - run: python scripts/ci/check_command_contract.py
       - run: python scripts/ci/check_versions.py
+      - run: python scripts/ci/check_release_contract.py
       - run: python scripts/ci/check_repository_hygiene.py
+      - name: Generate and validate CycloneDX SBOM
+        run: |
+          python scripts/release/generate_sbom.py --output target/release-metadata/SBOM.cdx.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('target/release-metadata/SBOM.cdx.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          assert data['bomFormat'] == 'CycloneDX'
+          assert data['specVersion'] == '1.6'
+          assert data['metadata']['component']['name'] == 'Super Punch-Out!! Editor'
+          assert len(data['components']) > 25
+          print(f"Validated SBOM with {len(data['components'])} components.")
+          PY
 
   smoke-manifest-bundle:
     name: Manifest bundle path smoke test
