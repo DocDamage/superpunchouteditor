@@ -1,0 +1,94 @@
+name: Windows Package Smoke
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-package-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  nsis-smoke:
+    name: Build Windows NSIS installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: Windows-package-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: Windows-package-cargo-
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Build unsigned NSIS smoke bundle
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          # Release updater artifacts remain signed in tauri.conf.json. This smoke
+          # build disables only updater-artifact generation so installer packaging
+          # can be validated on pull requests without access to release secrets.
+          npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Verify installer and record SHA-256
+        id: installer
+        shell: pwsh
+        run: |
+          $roots = @("target", "apps/desktop/src-tauri/target") | Where-Object { Test-Path $_ }
+          $installers = @(
+            foreach ($root in $roots) {
+              Get-ChildItem -Path $root -Filter *.exe -Recurse -File |
+                Where-Object { $_.FullName -match '[\\/]bundle[\\/]nsis[\\/]' }
+            }
+          ) | Sort-Object FullName -Unique
+
+          if ($installers.Count -eq 0) {
+            throw "Tauri completed without producing an NSIS installer."
+          }
+
+          "## Windows NSIS smoke artifact" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          foreach ($installer in $installers) {
+            if ($installer.Length -le 0) {
+              throw "Installer is empty: $($installer.FullName)"
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $installer.FullName).Hash.ToLowerInvariant()
+            "- $($installer.Name) — $($installer.Length) bytes — SHA-256 ``$hash``" |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Write-Host "Installer: $($installer.FullName)"
+            Write-Host "SHA-256: $hash"
+          }
+
+      - name: Upload Windows installer smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-punch-out-editor-windows-nsis-smoke
+          path: |
+            target/**/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
