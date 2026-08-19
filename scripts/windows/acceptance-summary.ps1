@@ -63,7 +63,9 @@ function Escape-Markdown {
 $resolvedEvidence = Resolve-RequiredFile -Path $EvidencePath -Label 'Acceptance evidence'
 $evidence = Get-Content -LiteralPath $resolvedEvidence -Raw | ConvertFrom-Json
 
-if ($null -eq $evidence.acceptance -or $null -eq $evidence.rom -or $null -eq $evidence.installer) {
+if ($null -eq $evidence.PSObject.Properties['acceptance'] -or
+    $null -eq $evidence.PSObject.Properties['rom'] -or
+    $null -eq $evidence.PSObject.Properties['installer']) {
     throw 'Acceptance evidence is missing required acceptance/rom/installer sections.'
 }
 
@@ -101,7 +103,8 @@ foreach ($requirement in $requirements) {
 }
 
 $sourceRomUnchanged = $false
-if ($null -ne $evidence.PSObject.Properties['artifactVerification']) {
+if ($null -ne $evidence.PSObject.Properties['artifactVerification'] -and
+    $null -ne $evidence.artifactVerification.PSObject.Properties['sourceRomUnchanged']) {
     $sourceRomUnchanged = [bool]$evidence.artifactVerification.sourceRomUnchanged
 }
 if (-not $sourceRomUnchanged) {
@@ -117,6 +120,7 @@ $installerSigned = $signatureStatus -eq 'Valid'
 
 $localStatus = if ($localComplete) { 'PASS' } else { 'INCOMPLETE' }
 $signingStatus = if ($installerSigned) { 'PASS' } else { 'INCOMPLETE' }
+$gitCommit = if ($null -ne $evidence.PSObject.Properties['gitCommit']) { [string]$evidence.gitCommit } else { '' }
 
 $lines = @(
     '# Windows Acceptance Evidence Summary',
@@ -127,12 +131,12 @@ $lines = @(
     '',
     '## Candidate metadata',
     '',
-    "- Git commit: `$(Escape-Markdown ([string]$evidence.gitCommit))`",
-    "- Installer: $(Escape-Markdown ([string]$evidence.installer.fileName))",
-    "- Installer SHA-256: `$(Escape-Markdown ([string]$evidence.installer.sha256))`",
-    "- ROM: $(Escape-Markdown ([string]$evidence.rom.fileName))",
+    ("- Git commit: ``{0}``" -f (Escape-Markdown $gitCommit)),
+    ("- Installer: {0}" -f (Escape-Markdown ([string]$evidence.installer.fileName))),
+    ("- Installer SHA-256: ``{0}``" -f (Escape-Markdown ([string]$evidence.installer.sha256))),
+    ("- ROM: {0}" -f (Escape-Markdown ([string]$evidence.rom.fileName))),
     "- ROM size: $([int64]$evidence.rom.sizeBytes) bytes",
-    "- ROM SHA-256: `$(Escape-Markdown ([string]$evidence.rom.sha256))`",
+    ("- ROM SHA-256: ``{0}``" -f (Escape-Markdown ([string]$evidence.rom.sha256))),
     "- Source ROM unchanged since preflight: **$(if ($sourceRomUnchanged) { 'PASS' } else { 'NOT VERIFIED' })**",
     '',
     '## Acceptance matrix',
@@ -145,12 +149,12 @@ foreach ($row in $rows) {
     $lines += "| $(Escape-Markdown $row.label) | $(Escape-Markdown $row.status) | $($row.result) |"
 }
 
-if ($null -ne $evidence.emulator) {
+if ($null -ne $evidence.PSObject.Properties['emulator'] -and $null -ne $evidence.emulator) {
     $lines += ''
     $lines += '## External emulator metadata'
     $lines += ''
     $lines += "- Emulator: $(Escape-Markdown ([string]$evidence.emulator.fileName))"
-    $lines += "- Emulator SHA-256: `$(Escape-Markdown ([string]$evidence.emulator.sha256))`"
+    $lines += ("- Emulator SHA-256: ``{0}``" -f (Escape-Markdown ([string]$evidence.emulator.sha256)))
 }
 
 if ($null -ne $evidence.PSObject.Properties['manualEvidence'] -and @($evidence.manualEvidence).Count -gt 0) {
