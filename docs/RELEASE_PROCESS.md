@@ -23,7 +23,7 @@ Windows is the active release-priority platform for this milestone. A Windows re
 6. Synthetic canonical-output integration evidence: journal materialization = IPS result = BPS result = project-v2 restoration.
 7. The automated Windows NSIS install/launch/uninstall lifecycle gate.
 8. Opt-in local real-ROM acceptance using a user-owned ROM and metadata/hashes only.
-9. Production Windows code signing and Tauri updater signing.
+9. Production Windows code signing and Tauri updater signing, including cryptographic verification that the generated updater signature matches the public key committed in `tauri.conf.json`.
 10. Published CycloneDX SBOM and SHA-256 release checksums.
 11. Updater staging from the previous supported stable release once such a release exists.
 12. Final feature-maturity matrix and known-limitations review.
@@ -53,30 +53,32 @@ Required GitHub Actions secrets for the currently implemented PFX certificate pa
 - `WINDOWS_CERTIFICATE_PASSWORD` — optional PFX export password.
 - `WINDOWS_TIMESTAMP_URL` — timestamp authority URL supplied by the certificate provider.
 
-The workflow imports the PFX into the current-user certificate store, creates a temporary Tauri signing override, builds only the Windows x64 NSIS bundle, and then requires Windows Authenticode validation to report `Valid` for both the application executable and installer. It also requires the Tauri updater `.sig` artifact.
+The workflow imports the PFX into the current-user certificate store, creates a temporary Tauri signing override, builds only the Windows x64 NSIS bundle, and then requires Windows Authenticode validation to report `Valid` for both the application executable and installer.
+
+Updater signing is verified independently from Windows Authenticode. `testing-core` contains the `verify_updater_signature` release utility. Before a tag build it parses the updater public key from `tauri.conf.json` with the same locked minisign-verification dependency used by the updater stack. After Tauri creates the updater `.sig`, the workflow verifies the installer bytes against that signature and the committed public key with legacy signatures disabled. A missing signature, malformed public key, wrong updater private key, or invalid signature therefore fails the production release before release metadata is accepted.
 
 The repository never stores private signing material. If the selected modern code-signing provider uses a hardware/cloud identity that cannot be exported as a PFX, adapt the release workflow to that provider through Tauri's supported `bundle.windows.signCommand` mechanism before creating a production tag. Do not weaken the signature checks to accommodate a different provider.
 
-Tauri updater configuration remains in `tauri.conf.json`: updater artifact generation must stay enabled, the public key must be a syntactically valid minisign public key, and the canonical static feed remains the repository `latest.json` release asset. The private key is supplied only to the production release environment.
+Tauri updater configuration remains in `tauri.conf.json`: updater artifact generation must stay enabled, the public key must be a valid minisign public key, and the canonical static feed remains the repository `latest.json` release asset. The private key is supplied only to the production release environment.
 
 ## Release metadata
 
 Every production Windows draft release must contain at least:
 
 - the Authenticode-signed x64 NSIS installer;
-- the corresponding Tauri updater `.sig` file;
+- the corresponding cryptographically verified Tauri updater `.sig` file;
 - `latest.json` for the static updater feed;
 - `SBOM.cdx.json` generated from committed Rust/npm dependency state;
 - `SHA256SUMS-windows.txt` covering the installer, updater signature and SBOM.
 
-CI runs `scripts/ci/check_release_contract.py` so these controls cannot be removed silently. `scripts/release/generate_sbom.py` is exercised before merge rather than being first-run on a production tag.
+CI runs `scripts/ci/check_release_contract.py` so these controls cannot be removed silently. `scripts/release/generate_sbom.py` and the updater public-key parser are exercised before merge rather than being first-run on a production tag.
 
 ## Updater acceptance still required before stable publication
 
-The signed-build workflow proves production artifacts exist and are signed; it does not replace an end-to-end updater staging test. Before publishing a stable release, verify with an installed prior release that:
+Cryptographically verifying the generated signature closes the private-key/public-key mismatch failure mode, but it does not replace an end-to-end updater staging test. Before publishing a stable release, verify with an installed prior release that:
 
-- the configured updater public key accepts the newly produced updater signature;
-- a tampered/invalid signature is rejected;
+- a normal signed update is accepted and installed through the application updater;
+- a tampered/invalid signature is rejected by the installed application;
 - normal version comparison does not downgrade users unexpectedly;
 - missing or interrupted update assets fail without damaging the installed application;
 - project and application-data directories survive failed update/recovery paths.
