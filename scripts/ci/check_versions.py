@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Fail when application version consumers drift apart."""
+"""Fail when application version and updater consumers drift apart."""
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import sys
 import tomllib
@@ -12,6 +14,22 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_updater_pubkey(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return "updater public key must be a non-empty base64 string"
+    try:
+        decoded = base64.b64decode(value, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError):
+        return "updater public key must decode to UTF-8 minisign public-key text"
+
+    lines = [line.strip() for line in decoded.splitlines() if line.strip()]
+    if len(lines) < 2 or not lines[0].startswith("untrusted comment: minisign public key:"):
+        return "updater public key is missing the expected minisign comment"
+    if not lines[1].startswith("RW"):
+        return "updater public key is missing the expected minisign key line"
+    return None
 
 
 def main() -> int:
@@ -45,6 +63,11 @@ def main() -> int:
 
     if tauri.get("bundle", {}).get("createUpdaterArtifacts") is not True:
         print("ERROR: updater artifact generation must remain enabled", file=sys.stderr)
+        return 1
+
+    key_error = validate_updater_pubkey(updater.get("pubkey"))
+    if key_error:
+        print(f"ERROR: {key_error}", file=sys.stderr)
         return 1
 
     print("Application versions and updater configuration are consistent.")
