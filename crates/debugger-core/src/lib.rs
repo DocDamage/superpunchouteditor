@@ -23,6 +23,9 @@
 //! debugger.add_breakpoint(bp);
 //! ```
 
+// Test fixtures intentionally build defaults and then vary only the fields under test.
+#![cfg_attr(test, allow(clippy::field_reassign_with_default))]
+
 pub mod cpu;
 pub mod memory;
 pub mod spc700;
