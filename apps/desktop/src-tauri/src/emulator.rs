@@ -471,12 +471,12 @@ impl EmulatorLauncher {
         #[cfg(target_os = "windows")]
         {
             // Common Windows installation directories
-            if let Some(program_files) = std::env::var("ProgramFiles").ok() {
+            if let Ok(program_files) = std::env::var("ProgramFiles") {
                 paths.push(PathBuf::from(&program_files).join("Snes9x"));
                 paths.push(PathBuf::from(&program_files).join("bsnes"));
                 paths.push(PathBuf::from(&program_files).join("Mesen-S"));
             }
-            if let Some(program_files_x86) = std::env::var("ProgramFiles(x86)").ok() {
+            if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
                 paths.push(PathBuf::from(&program_files_x86).join("Snes9x"));
                 paths.push(PathBuf::from(&program_files_x86).join("bsnes"));
                 paths.push(PathBuf::from(&program_files_x86).join("Mesen-S"));
