@@ -13,21 +13,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build Release (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
+  windows-release:
+    name: Build signed Windows release
+    runs-on: windows-latest
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v4
@@ -38,33 +27,119 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
-          targets: ${{ matrix.target }}
-
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libasound2-dev \
-            patchelf
+          targets: x86_64-pc-windows-msvc
 
       - name: Install frontend dependencies
         working-directory: apps/desktop
         run: npm ci
 
-      - name: Verify release source
-        run: cargo check --workspace
+      - name: Verify release version and updater configuration
+        shell: pwsh
+        run: |
+          python scripts/ci/check_versions.py
+          if ($LASTEXITCODE -ne 0) {
+            throw "Version/updater configuration validation failed."
+          }
 
-      - name: Build and attach Tauri bundles
-        uses: tauri-apps/tauri-action@v0
+          $version = python -c "import tomllib; print(tomllib.load(open('Cargo.toml','rb'))['workspace']['package']['version'])"
+          $expectedTag = "v$version"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag $env:GITHUB_REF_NAME does not match application version $expectedTag."
+          }
+
+      - name: Require release signing material
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          $required = @{
+            TAURI_SIGNING_PRIVATE_KEY = $env:TAURI_SIGNING_PRIVATE_KEY
+            WINDOWS_CERTIFICATE = $env:WINDOWS_CERTIFICATE
+            WINDOWS_TIMESTAMP_URL = $env:WINDOWS_TIMESTAMP_URL
+          }
+          $missing = @($required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | ForEach-Object Key)
+          if ($missing.Count -gt 0) {
+            throw "Required Windows release signing secret(s) are not configured: $($missing -join ', ')"
+          }
+
+          $timestamp = $null
+          if (-not [Uri]::TryCreate($env:WINDOWS_TIMESTAMP_URL, [UriKind]::Absolute, [ref]$timestamp)) {
+            throw "WINDOWS_TIMESTAMP_URL must be an absolute URL."
+          }
+          if ($timestamp.Scheme -notin @('http', 'https')) {
+            throw "WINDOWS_TIMESTAMP_URL must use http or https."
+          }
+
+      - name: Import Windows code-signing certificate
+        id: codesign
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          $encodedPath = Join-Path $env:RUNNER_TEMP 'windows-codesign.b64'
+          $pfxPath = Join-Path $env:RUNNER_TEMP 'windows-codesign.pfx'
+          Set-Content -Path $encodedPath -Value $env:WINDOWS_CERTIFICATE -Encoding ascii
+          certutil -f -decode $encodedPath $pfxPath | Out-Null
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $pfxPath -PathType Leaf)) {
+            throw "Failed to decode WINDOWS_CERTIFICATE as a PFX payload."
+          }
+
+          if ([string]::IsNullOrEmpty($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            $imported = @(Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My)
+          } else {
+            $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+            $imported = @(Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password)
+          }
+
+          $codeSigningOid = '1.3.6.1.5.5.7.3.3'
+          $candidates = @($imported | Where-Object {
+            $_.HasPrivateKey -and
+            $_.NotAfter -gt (Get-Date) -and
+            @($_.EnhancedKeyUsageList | ForEach-Object { $_.ObjectId.Value }) -contains $codeSigningOid
+          })
+          if ($candidates.Count -ne 1) {
+            throw "Expected exactly one valid code-signing certificate with a private key; found $($candidates.Count)."
+          }
+
+          $cert = $candidates[0]
+          $override = @{
+            bundle = @{
+              windows = @{
+                certificateThumbprint = $cert.Thumbprint
+                digestAlgorithm = 'sha256'
+                timestampUrl = $env:WINDOWS_TIMESTAMP_URL
+              }
+            }
+          }
+          $configPath = Join-Path $env:RUNNER_TEMP 'tauri-release-windows.json'
+          $override | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding utf8
+
+          "config_path=$configPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "Imported code-signing certificate: $($cert.Subject)"
+          "Certificate expires: $($cert.NotAfter.ToUniversalTime().ToString('u'))"
+
+          Remove-Item -Force $encodedPath, $pfxPath
+
+      - name: Generate CycloneDX SBOM
+        id: sbom
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'SBOM.cdx.json'
+          python scripts/release/generate_sbom.py --output $path
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $path -PathType Leaf)) {
+            throw "SBOM generation failed."
+          }
+          "path=$path" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build and attach signed Windows bundles
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -74,11 +149,92 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Super Punch-Out!! Editor ${{ github.ref_name }}'
           releaseBody: |
-            Super Punch-Out!! Editor ${{ github.ref_name }}.
+            Windows x64 release of Super Punch-Out!! Editor ${{ github.ref_name }}.
 
-            The application does not include copyrighted game ROMs or third-party emulator binaries.
-            Embedded emulation requires a compatible user-supplied Snes9x libretro core; external
-            emulator testing can be configured in Settings.
+            This release does not include copyrighted game ROMs or third-party emulator binaries.
+            macOS and Linux packaging are intentionally deferred while Windows is the active release-priority platform.
           releaseDraft: true
           prerelease: false
-          args: --target ${{ matrix.target }}
+          args: --target x86_64-pc-windows-msvc --bundles nsis --config ${{ steps.codesign.outputs.config_path }}
+
+      - name: Verify Windows and updater signatures
+        id: artifacts
+        shell: pwsh
+        run: |
+          $installers = @(
+            Get-ChildItem -Path target -Filter '*-setup.exe' -Recurse -File |
+              Where-Object { $_.FullName -match '[\\/]bundle[\\/]nsis[\\/]' }
+          ) | Sort-Object FullName -Unique
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
+          }
+          $installer = $installers[0]
+          $updaterSig = "$($installer.FullName).sig"
+          if (-not (Test-Path $updaterSig -PathType Leaf)) {
+            throw "Signed updater artifact is missing: $updaterSig"
+          }
+
+          $appExes = @(
+            Get-ChildItem -Path target -Filter 'tauri-appsuper-punch-out-editor.exe' -Recurse -File |
+              Where-Object { $_.FullName -notmatch '[\\/]bundle[\\/]' }
+          ) | Sort-Object FullName -Unique
+          if ($appExes.Count -ne 1) {
+            throw "Expected exactly one built application executable, found $($appExes.Count)."
+          }
+
+          foreach ($file in @($appExes[0].FullName, $installer.FullName)) {
+            $signature = Get-AuthenticodeSignature -FilePath $file
+            if ($signature.Status -ne 'Valid') {
+              throw "Authenticode validation failed for $file: $($signature.Status) $($signature.StatusMessage)"
+            }
+          }
+
+          "installer=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "updater_sig=$updaterSig" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "- Application Authenticode: valid" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- NSIS installer Authenticode: valid" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Tauri updater signature: present" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Publish SBOM and SHA-256 checksums
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $releaseDir = Join-Path $env:RUNNER_TEMP 'release-metadata'
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+
+          $sbom = Join-Path $releaseDir 'SBOM.cdx.json'
+          Copy-Item '${{ steps.sbom.outputs.path }}' $sbom
+
+          $installer = '${{ steps.artifacts.outputs.installer }}'
+          $updaterSig = '${{ steps.artifacts.outputs.updater_sig }}'
+          $checksumFile = Join-Path $releaseDir 'SHA256SUMS-windows.txt'
+          $checksumInputs = @($installer, $updaterSig, $sbom)
+          $lines = foreach ($file in $checksumInputs) {
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $file).Hash.ToLowerInvariant()
+            "$hash *$(Split-Path $file -Leaf)"
+          }
+          $lines | Set-Content -Path $checksumFile -Encoding ascii
+
+          gh release upload $env:GITHUB_REF_NAME $sbom $checksumFile --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to attach SBOM/checksum metadata to the draft release."
+          }
+
+          $assetNames = @(gh release view $env:GITHUB_REF_NAME --json assets --jq '.assets[].name')
+          $expected = @(
+            (Split-Path $installer -Leaf),
+            (Split-Path $updaterSig -Leaf),
+            'latest.json',
+            'SBOM.cdx.json',
+            'SHA256SUMS-windows.txt'
+          )
+          $missing = @($expected | Where-Object { $_ -notin $assetNames })
+          if ($missing.Count -gt 0) {
+            throw "Draft release is missing required asset(s): $($missing -join ', ')"
+          }
+
+          "## Windows release metadata" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- CycloneDX SBOM: published" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- SHA-256 checksums: published" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- latest.json updater feed: published" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append

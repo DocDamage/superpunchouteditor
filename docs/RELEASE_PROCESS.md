@@ -9,45 +9,79 @@
 
 ## Version authority
 
-The workspace package version is authoritative. CI verifies that the frontend package and Tauri bundle version match it. Project schema versions are independent of application versions.
+The workspace package version is authoritative. CI verifies that the frontend package and Tauri bundle version match it. Project schema versions are independent of application versions. A production tag must be exactly `v<workspace-version>`; the release workflow rejects version/tag drift before building.
 
-## Required pre-release gates
+## Windows release gates
+
+Windows is the active release-priority platform for this milestone. A Windows release candidate requires:
 
 1. Clean checkout/dependency install using committed lockfiles.
-2. Rust format/check/Clippy/tests on supported platform matrix.
-3. Frontend `npm ci`, type check, production build and tests.
-4. IPC contract, repository hygiene and version-consistency checks.
-5. RustSec and npm high-severity audits.
-6. Synthetic canonical-output integration test: journal materialization = IPS result = BPS result = project-v2 restoration.
-7. Installed application smoke tests on each supported platform.
-8. Opt-in local real-ROM RC suite using user-owned files and known hashes only; no ROM data uploaded.
-9. Updater staging test from the previous supported stable release.
-10. Final feature-maturity matrix and known-limitations review.
+2. Windows Rust format/check/strict-Clippy/tests on the exact candidate revision.
+3. Frontend `npm ci`, type check, production build, tests and high-severity npm audit.
+4. IPC contract, repository hygiene, release-contract and version/updater checks.
+5. RustSec audit.
+6. Synthetic canonical-output integration evidence: journal materialization = IPS result = BPS result = project-v2 restoration.
+7. The automated Windows NSIS install/launch/uninstall lifecycle gate.
+8. Opt-in local real-ROM acceptance using a user-owned ROM and metadata/hashes only.
+9. Production Windows code signing and Tauri updater signing.
+10. Published CycloneDX SBOM and SHA-256 release checksums.
+11. Updater staging from the previous supported stable release once such a release exists.
+12. Final feature-maturity matrix and known-limitations review.
+
+macOS and Linux certification is intentionally separate while Windows is the active milestone. Those platforms may continue to run in source CI as useful shared-code signals, but they are not part of the tagged production release job and do not block a Windows-only release claim.
 
 ## Windows-first acceptance
 
-Windows is the active release-priority platform for the current milestone. The Windows gate is defined in [WINDOWS_ACCEPTANCE.md](WINDOWS_ACCEPTANCE.md) and has two required evidence layers before a Windows release candidate can be promoted:
+The detailed Windows gate is defined in [WINDOWS_ACCEPTANCE.md](WINDOWS_ACCEPTANCE.md). It has two evidence layers before release promotion:
 
 - automated source/package/install/launch/uninstall certification on the exact candidate revision;
 - local, metadata-only real-ROM acceptance using a user-owned ROM.
 
-The automated package gate must build a real x64 NSIS installer, verify its hash, install it on a clean Windows runner, launch the installed application, reject accidentally bundled ROM/emulator content, uninstall it, and verify default uninstall preserves application-data markers.
+The automated package gate builds a real x64 NSIS installer, verifies its hash, installs it on a clean Windows runner, launches the installed application, rejects accidentally bundled ROM/emulator content, uninstalls it, and verifies default uninstall preserves application-data markers.
 
 The local real-ROM gate must demonstrate that edit → undo/redo → saved ROM → IPS/BPS → comparison → project-v2 reopen → embedded emulator → optional external emulator all consume the same canonical edited revision. `scripts/windows/acceptance-preflight.ps1` records installer/ROM/emulator hashes and Windows metadata without copying ROM bytes.
 
-macOS and Linux can be certified on their own schedule while Windows is the active milestone. Shared-code defects discovered on those platforms still require triage before a stable multi-platform claim.
+## Production signing and updater
 
-## Signing and updater
+`.github/workflows/release.yml` is the production, tag-triggered Windows release path. It is fail-closed: no unsigned stable fallback exists.
 
-Release installers and updater artifacts must be signed. The updater feed is a signed static `latest.json` release asset under the official repository. Private signing keys/certificates are never stored in source control. Release automation consumes protected signing material only in the release environment.
+Required GitHub Actions secrets for the currently implemented PFX certificate path:
 
-Before stable publication verify:
+- `TAURI_SIGNING_PRIVATE_KEY` — Tauri updater private key content or path.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — optional updater key password.
+- `WINDOWS_CERTIFICATE` — base64-encoded PFX code-signing certificate payload.
+- `WINDOWS_CERTIFICATE_PASSWORD` — optional PFX export password.
+- `WINDOWS_TIMESTAMP_URL` — timestamp authority URL supplied by the certificate provider.
 
-- updater public key matches the signing key used for artifacts;
-- invalid signatures are rejected;
-- downgrade policy behaves as documented;
-- missing/interrupted assets fail without damaging the installed application;
-- checksums and SBOM are published with the release.
+The workflow imports the PFX into the current-user certificate store, creates a temporary Tauri signing override, builds only the Windows x64 NSIS bundle, and then requires Windows Authenticode validation to report `Valid` for both the application executable and installer. It also requires the Tauri updater `.sig` artifact.
+
+The repository never stores private signing material. If the selected modern code-signing provider uses a hardware/cloud identity that cannot be exported as a PFX, adapt the release workflow to that provider through Tauri's supported `bundle.windows.signCommand` mechanism before creating a production tag. Do not weaken the signature checks to accommodate a different provider.
+
+Tauri updater configuration remains in `tauri.conf.json`: updater artifact generation must stay enabled, the public key must be a syntactically valid minisign public key, and the canonical static feed remains the repository `latest.json` release asset. The private key is supplied only to the production release environment.
+
+## Release metadata
+
+Every production Windows draft release must contain at least:
+
+- the Authenticode-signed x64 NSIS installer;
+- the corresponding Tauri updater `.sig` file;
+- `latest.json` for the static updater feed;
+- `SBOM.cdx.json` generated from committed Rust/npm dependency state;
+- `SHA256SUMS-windows.txt` covering the installer, updater signature and SBOM.
+
+CI runs `scripts/ci/check_release_contract.py` so these controls cannot be removed silently. `scripts/release/generate_sbom.py` is exercised before merge rather than being first-run on a production tag.
+
+## Updater acceptance still required before stable publication
+
+The signed-build workflow proves production artifacts exist and are signed; it does not replace an end-to-end updater staging test. Before publishing a stable release, verify with an installed prior release that:
+
+- the configured updater public key accepts the newly produced updater signature;
+- a tampered/invalid signature is rejected;
+- normal version comparison does not downgrade users unexpectedly;
+- missing or interrupted update assets fail without damaging the installed application;
+- project and application-data directories survive failed update/recovery paths.
+
+If there is no previous stable release yet, record updater staging as **blocked by missing predecessor** rather than claiming it passed.
 
 ## Rollback
 

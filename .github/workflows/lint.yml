@@ -63,7 +63,9 @@ jobs:
           python-version: '3.13'
       - name: IPC command contract
         run: python scripts/ci/check_command_contract.py
-      - name: Version consistency
+      - name: Version and updater consistency
         run: python scripts/ci/check_versions.py
+      - name: Windows release contract
+        run: python scripts/ci/check_release_contract.py
       - name: Repository hygiene
         run: python scripts/ci/check_repository_hygiene.py
