@@ -59,10 +59,10 @@ function Get-FileEvidence {
 function Assert-SameArtifact {
     param(
         [Parameter(Mandatory = $true)]
-        [hashtable]$Expected,
+        [System.Collections.IDictionary]$Expected,
 
         [Parameter(Mandatory = $true)]
-        [hashtable]$Actual,
+        [System.Collections.IDictionary]$Actual,
 
         [Parameter(Mandatory = $true)]
         [string]$Label
