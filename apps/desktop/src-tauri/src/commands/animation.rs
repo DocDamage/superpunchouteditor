@@ -211,13 +211,14 @@ fn animation_to_frames(anim: &Animation) -> Vec<AnimationFrameData> {
 }
 
 fn frontend_to_frame(frame: &AnimationFrameData) -> AnimationFrame {
-    let mut rom_frame = AnimationFrame::default();
-    rom_frame.pose_id = frame.pose_id;
-    rom_frame.duration = frame.duration;
-    rom_frame.tileset_id = frame.tileset_id;
-    rom_frame.hitboxes = frame.hitboxes.iter().map(frontend_to_hitbox).collect();
-    rom_frame.hurtboxes = frame.hurtboxes.iter().map(frontend_to_hurtbox).collect();
-    rom_frame
+    AnimationFrame {
+        pose_id: frame.pose_id,
+        duration: frame.duration,
+        tileset_id: frame.tileset_id,
+        hitboxes: frame.hitboxes.iter().map(frontend_to_hitbox).collect(),
+        hurtboxes: frame.hurtboxes.iter().map(frontend_to_hurtbox).collect(),
+        ..Default::default()
+    }
 }
 
 /// Parse a boxer key (fighter name or numeric ID) to a fighter ID
