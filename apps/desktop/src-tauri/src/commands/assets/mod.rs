@@ -162,68 +162,19 @@ pub fn is_compressed_category(category: &str) -> bool {
 }
 
 pub fn analyze_hal8_pass(input: &[u8]) -> AssetResult<CompressionPassInfo> {
-    let mut pos = 0usize;
-    let mut written = 0usize;
-
-    while pos < input.len() {
-        let ctrl = input[pos];
-        pos += 1;
-
-        if ctrl == END_OF_STREAM {
-            return Ok(CompressionPassInfo {
-                consumed: pos,
-                written,
-            });
-        }
-
-        let cmd = ctrl >> 5;
-        let len = ((ctrl & 0x1F) as usize) + 1;
-
-        match cmd {
-            0 => {
-                pos += len;
-                written += len;
-            }
-            1 => {
-                pos += 1;
-                written += len;
-            }
-            2 => {
-                pos += 2;
-                written += len * 2;
-            }
-            3 => {
-                pos += 1;
-                written += len;
-            }
-            4 => {
-                pos += 2;
-                written += len;
-            }
-            _ => {
-                return Err(format!(
-                    "Unsupported HAL8 command {} at byte {}",
-                    cmd,
-                    pos - 1
-                ));
-            }
-        }
-
-        if pos > input.len() {
-            return Err("Compressed stream ends mid-command".to_string());
-        }
-    }
-
-    Err("Compressed stream is missing end-of-stream marker".to_string())
+    let mut decompressor = Decompressor::new(input);
+    let bytes = decompressor.decompress_sprite_graphics_exact()?;
+    Ok(CompressionPassInfo {
+        consumed: decompressor.position(),
+        written: bytes.len(),
+    })
 }
 
 pub fn decompress_interleaved_exact(bytes: &[u8]) -> AssetResult<Vec<u8>> {
-    let pass1 = analyze_hal8_pass(bytes)?;
-    let pass2 = analyze_hal8_pass(&bytes[pass1.consumed..])?;
-    let expected_size = pass1.written.max(pass2.written) * 2;
-
     let mut decompressor = Decompressor::new(bytes);
-    Ok(decompressor.decompress_interleaved(expected_size))
+    decompressor
+        .decompress_interleaved_exact()
+        .map_err(|error| format!("SPO graphics decompression failed: {error}"))
 }
 
 fn byte_rle_len(data: &[u8], start: usize) -> usize {
@@ -315,22 +266,7 @@ pub fn compress_hal8_pass(data: &[u8]) -> Vec<u8> {
 }
 
 pub fn compress_interleaved(bytes: &[u8]) -> Vec<u8> {
-    let even = bytes
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| idx % 2 == 0)
-        .map(|(_, byte)| *byte)
-        .collect::<Vec<_>>();
-    let odd = bytes
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| idx % 2 == 1)
-        .map(|(_, byte)| *byte)
-        .collect::<Vec<_>>();
-
-    let mut compressed = compress_hal8_pass(&even);
-    compressed.extend(compress_hal8_pass(&odd));
-    compressed
+    asset_core::compress_sprite_graphics(bytes)
 }
 
 pub fn decode_asset_tiles(bytes: &[u8], compressed: bool) -> AssetResult<Vec<Tile>> {
@@ -469,7 +405,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hal8_roundtrip_preserves_data() {
+    fn sprite_graphics_roundtrip_preserves_data() {
         let data = (0..512)
             .map(|idx| ((idx * 7) & 0xFF) as u8)
             .collect::<Vec<_>>();

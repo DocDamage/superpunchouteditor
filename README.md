@@ -25,6 +25,12 @@ The stable Windows UI is intentionally organized around a small guided path:
 
 The first-run screen and left sidebar are designed to make the next safe action obvious. Development builds may expose additional experimental tools behind **Advanced tools**; stable builds do not expose research-blocked surfaces as normal release features.
 
+### Boxer graphics preview
+
+The boxer editor includes an **Assembled Pose Preview**. It reconstructs a complete in-game pose from the ROM's pose/OAM data, compressed graphics streams, VRAM tile destinations, and palette. Use the pose selector or **Prev/Next** controls to inspect the available poses.
+
+The **Raw Tile Banks** section below it is an editing reference: it shows individual 8×8 tiles in ROM/bank order. Those tiles are expected to look chopped or out of sequence when viewed by themselves. See [`docs/SPRITE_PREVIEW.md`](docs/SPRITE_PREVIEW.md) for the data flow, limitations, and troubleshooting guidance.
+
 ## Community Windows testing
 
 A dedicated GitHub Actions workflow builds:

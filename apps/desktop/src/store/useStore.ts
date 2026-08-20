@@ -464,6 +464,7 @@ interface AppStore {
   removePendingWrite: (pcOffset: string) => void;
   clearPendingWrites: () => void;
   refreshPendingWrites: () => Promise<void>;
+  refreshCurrentPalette: () => Promise<void>;
 
   loadFighterList: () => Promise<void>;
   selectFighter: (id: number) => Promise<void>;
@@ -991,6 +992,26 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
+  refreshCurrentPalette: async () => {
+    const { selectedBoxer, currentPaletteOffset } = get();
+    if (!selectedBoxer || !currentPaletteOffset) return;
+
+    const paletteFile = selectedBoxer.palette_files.find(
+      (palette) => palette.start_pc === currentPaletteOffset
+    );
+    if (!paletteFile) return;
+
+    try {
+      const palette = await invoke<Color[]>('get_palette', {
+        pcOffset: currentPaletteOffset,
+        size: paletteFile.size,
+      });
+      set({ currentPalette: palette });
+    } catch (e) {
+      console.error('Failed to refresh current palette:', e);
+    }
+  },
+
   loadFighterList: async () => {
     try {
       const fighters = await invoke<FighterMetadata[]>('get_fighter_list');
@@ -1238,7 +1259,11 @@ export const useStore = create<AppStore>((set, get) => ({
   undo: async () => {
     try {
       await invoke('undo');
-      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
+      await Promise.all([
+        get().refreshUndoState(),
+        get().refreshPendingWrites(),
+        get().refreshCurrentPalette(),
+      ]);
     } catch (e) {
       console.error('Undo failed:', e);
       set({ error: (e as Error).toString() });
@@ -1248,7 +1273,11 @@ export const useStore = create<AppStore>((set, get) => ({
   redo: async () => {
     try {
       await invoke('redo');
-      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
+      await Promise.all([
+        get().refreshUndoState(),
+        get().refreshPendingWrites(),
+        get().refreshCurrentPalette(),
+      ]);
     } catch (e) {
       console.error('Redo failed:', e);
       set({ error: (e as Error).toString() });

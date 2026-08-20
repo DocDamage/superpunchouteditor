@@ -2,6 +2,21 @@
   width: 336px;
   padding: 16px;
   gap: 12px;
+  /* Keep fixed-position dialogs (for example Tester Checklist) viewport-bound. */
+  backdrop-filter: none;
+}
+
+/*
+ * The authentic skin has a full menu-sheet texture for legacy surfaces. The
+ * guided shell is intentionally information-dense and needs a quiet,
+ * predictable background so its labels and controls remain readable.
+ */
+.app-container.menu-sheet-enabled .guided-sidebar {
+  background-image: none;
+}
+
+.app-container.menu-sheet-enabled .guided-sidebar::before {
+  display: none;
 }
 
 .guided-sidebar button {
@@ -210,6 +225,7 @@ body.theme-authentic .guided-next-card {
 }
 
 .guided-boxer-section {
+  flex: 0 0 auto;
   min-height: 0;
 }
 

@@ -544,13 +544,39 @@ impl<'a> FrameManager<'a> {
 
     fn resolve_asset(&self, index: u8) -> Option<&manifest_core::AssetFile> {
         let hex_id = format!("{:02X}", index);
-        let pattern = format!("Index {}", hex_id);
+        let patterns = [format!("Index{}", hex_id), format!("Index {}", hex_id)];
 
         self.boxer
             .shared_sprite_bins
             .iter()
             .chain(self.boxer.unique_sprite_bins.iter())
-            .find(|a| a.filename.contains(&pattern))
+            .find(|asset| {
+                if patterns
+                    .iter()
+                    .any(|pattern| asset.filename.contains(pattern))
+                {
+                    return true;
+                }
+
+                if asset.subtype != "compressed_sprite_bin" {
+                    return false;
+                }
+
+                let stem = asset
+                    .filename
+                    .strip_suffix(".bin")
+                    .unwrap_or(asset.filename.as_str());
+                let trailing_digits: String = stem
+                    .chars()
+                    .rev()
+                    .take_while(|character| character.is_ascii_digit())
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect();
+
+                !trailing_digits.is_empty() && trailing_digits.parse::<u8>().ok() == Some(index)
+            })
     }
 
     fn load_asset_tiles(&self, asset: &manifest_core::AssetFile) -> Result<Vec<Tile>, String> {
@@ -559,7 +585,7 @@ impl<'a> FrameManager<'a> {
 
         let gfx_data = if asset.category.contains("Compressed") {
             let mut decomp = Decompressor::new(data);
-            decomp.decompress_interleaved(32 * 1024)
+            decomp.decompress_sprite_graphics_exact()?
         } else {
             data.to_vec()
         };

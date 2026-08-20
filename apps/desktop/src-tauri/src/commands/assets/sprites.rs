@@ -19,12 +19,38 @@ use super::{
 
 fn resolve_tileset_asset(boxer: &BoxerRecord, tileset_id: u8) -> Option<&AssetFile> {
     let hex_id = format!("{:02X}", tileset_id);
-    let pattern = format!("Index {}", hex_id);
+    let patterns = [format!("Index{}", hex_id), format!("Index {}", hex_id)];
     boxer
         .shared_sprite_bins
         .iter()
         .chain(boxer.unique_sprite_bins.iter())
-        .find(|asset| asset.filename.contains(&pattern))
+        .find(|asset| {
+            if patterns
+                .iter()
+                .any(|pattern| asset.filename.contains(pattern))
+            {
+                return true;
+            }
+
+            if asset.subtype != "compressed_sprite_bin" {
+                return false;
+            }
+
+            let stem = asset
+                .filename
+                .strip_suffix(".bin")
+                .unwrap_or(asset.filename.as_str());
+            let trailing_digits: String = stem
+                .chars()
+                .rev()
+                .take_while(|character| character.is_ascii_digit())
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect();
+
+            !trailing_digits.is_empty() && trailing_digits.parse::<u8>().ok() == Some(tileset_id)
+        })
 }
 
 fn combined_sheet_png(bin_images: &[ImageBuffer<Rgba<u8>, Vec<u8>>]) -> AssetResult<Vec<u8>> {

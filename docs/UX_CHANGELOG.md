@@ -14,3 +14,6 @@ Key changes:
 - automated Windows community tester kit with checksum/provenance metadata;
 - fail-closed tester-kit scan for ROM, SRAM/save-state, and SuperZSNES content;
 - documentation corrected to identify `master` as authoritative and Windows x64 as the active release target.
+- complete assembled boxer-pose preview with pose navigation;
+- raw tile-bank view relabeled as an individual-8×8-tile editing reference so chopped bank sheets are not mistaken for missing sprites;
+- user, architecture, troubleshooting, and Windows acceptance guidance added for the two preview modes.

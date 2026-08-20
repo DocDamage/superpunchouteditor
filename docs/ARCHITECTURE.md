@@ -24,6 +24,21 @@ Complex legacy writers migrate through `commit_rom_transform`: a writer executes
 - Project v2 serializes the complete journal and expected current hash.
 - The stable embedded-emulator path loads the materialized bytes in memory and returns the loaded revision/hash.
 
+## Boxer pose preview pipeline
+
+The boxer editor has two intentionally different graphics views:
+
+- **Assembled Pose Preview** is the game-facing view. It reconstructs a complete pose from the loaded ROM's fighter tables and pose data.
+- **Raw Tile Banks** is an editing/reference view. It displays individual 8×8 tiles in bank order and is not expected to resemble a complete boxer by itself.
+
+The assembled renderer follows the game's runtime layout rather than guessing from filenames:
+
+`pose IDs -> source/bank/size tables -> exact SPO graphics decompression -> fixed WRAM windows -> configured OBJ/VRAM slots -> compact OAM/pose commands -> palette -> PNG`
+
+Compressed sprite streams are mapped to the same fixed decompressed windows used by the game: stream 1 to `$7E:8000`, stream 2 to `$7F:0000`, and stream 3 to `$7F:8000`. This order is independent of the order in which a particular fighter's source table lists those windows. The renderer then applies the fighter-specific VRAM destination table before resolving OAM tile numbers, including 16×16 object layout and flip attributes.
+
+The preview is read-only. It consumes the backend's loaded ROM revision and does not create a second graphics model or bypass the canonical `BaseRom -> EditJournal -> MaterializedRom` flow. The frontend requests fighter metadata, pose metadata, and PNG bytes through the registered Tauri commands `get_fighter_list`, `get_fighter_poses`, and `render_fighter_pose`.
+
 ## IPC
 
 Tauri commands are thin adapters. Stable literal frontend invokes are mechanically compared with the registered handler. Unregistered calls are permitted only when explicitly listed as gated experimental/research-blocked commands with a reviewed reason.

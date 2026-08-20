@@ -164,6 +164,15 @@ Use a fresh temporary working directory. Do not modify the source ROM in place.
 
 **Pass:** the ROM loads without mutation and the editor reports a usable session.
 
+### 1a. Verify assembled boxer graphics
+
+- Open a boxer in the stable editor workflow.
+- Confirm **Assembled Pose Preview** shows a complete pose.
+- Optionally use the pose selector or **Prev/Next** controls to inspect another pose.
+- Confirm the separate **Raw Tile Banks** view is labeled as an individual-tile reference; it may look chopped or out of order by design.
+
+**Pass:** the assembled preview is complete and the UI makes the distinction between a game-facing pose and raw tile-bank editing clear. Record the boxer, pose index, and error text if rendering fails.
+
 ### 2. Make one obvious reversible edit
 
 Choose a small, visually verifiable stable edit such as a palette/color or supported roster/text value.

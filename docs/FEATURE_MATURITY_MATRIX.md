@@ -8,12 +8,12 @@ The runtime registry in `apps/desktop/src/featureMaturity.ts` is the mechanicall
 | Feature | Status | Stable-build decision | Persistence / backend authority |
 | --- | --- | --- | --- |
 | Editor | stable | Visible | Asset and palette writes must commit to `RomSession` / `EditJournal` immediately. |
-| Viewer | stable | Visible | Read-only projection of the current materialized revision. |
+| Viewer | stable | Visible | Read-only projection of the current materialized revision. Boxer editing includes a complete Assembled Pose Preview plus an explicitly labeled Raw Tile Banks reference view. |
 | Project | stable | Visible | Project format v2 stores the complete edit journal and source identity, never the base ROM bytes. |
 | Test / embedded emulator | stable | Visible | Loads the exact materialized editor revision in memory and reports revision + SHA-1. |
 | Settings | stable | Visible | Preferences/update settings only; no ROM-derived state persisted in browser storage. |
 | Roster / creator | experimental | Hidden by default | Proven name/circuit/unlock/intro writes are journal-backed. Champion toggle and reset-to-defaults remain explicitly unsupported. |
-| Compare | experimental | Hidden by default | Binary/palette/sprite comparison reads immutable base vs materialized current image. Visual renderer remains incomplete. |
+| Compare | experimental | Hidden by default | Binary/palette/sprite comparison reads immutable base vs materialized current image. The comparison-specific visual renderer remains incomplete; this is separate from the stable assembled boxer-pose preview. |
 | Scripts | experimental | Hidden by default | Developer/research tooling; not part of stable release claims. |
 | Layout packs | experimental | Hidden by default | Import/list/install/delete are hardened. Apply is disabled until pack payload semantics are real. |
 | AI behavior | experimental | Hidden by default | Hidden until every mutation is journal-backed and validated. |

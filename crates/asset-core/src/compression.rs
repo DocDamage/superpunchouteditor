@@ -1,18 +1,27 @@
-//! HAL8-style compression/decompression for Super Punch-Out!! assets.
+//! Compression/decompression helpers for Super Punch-Out!! assets.
 //!
-//! Super Punch-Out!! uses a variant of HAL Laboratory's compression format
-//! (HAL8) for its graphics data. This format uses bitplane-interleaved LZ
-//! compression with multiple command types.
+//! Fighter graphics in Super Punch-Out!! use a small base/flag codec. The
+//! first byte is a continuation mask, followed by groups containing a base
+//! byte and one or more eight-bit flag masks. A clear flag bit copies the base
+//! byte and a set flag bit reads a literal byte. The game's decompressor uses
+//! the output address, masked by the continuation mask, to decide when to
+//! start a new base group.
+//!
+//! The older command-based HAL helpers below are retained for compatibility
+//! with legacy synthetic fixtures and non-fighter tooling. They are not the
+//! codec used by the compressed fighter sprite banks.
 //!
 //! ## Compression Commands
 //! - `0`: Literals - Copy bytes directly from input
 //! - `1`: Byte RLE - Repeat a single byte
 //! - `2`: Word RLE - Repeat a 2-byte pattern
 //! - `3`: Incremental RLE - Repeat with incrementing values
-//! - `4`: LZ Copy - Copy from previously decompressed data
-//! - `5-7`: Reserved/End
+//! - `4`: Backreference - Copy previously decompressed bytes
+//! - `5`: Rotated backreference - Copy with each byte bit-reversed
+//! - `6`: Reversed backreference - Copy bytes in reverse order
+//! - `7`: Backreference alias used by the original decompressor
 //!
-//! ## Format
+//! ## Legacy command format
 //! Each control byte is structured as:
 //! - Bits 5-7: Command type (0-7)
 //! - Bits 0-4: Length - 1 (0-31 means 1-32 bytes)
@@ -28,8 +37,21 @@
 //! let result = decompressor.decompress_interleaved(256);
 //! ```
 
-/// Maximum length for a single command (32 bytes)
+/// Maximum length for a short command (32 bytes).
 pub const MAX_COMMAND_LENGTH: usize = 32;
+
+/// Maximum length for a long command (1024 bytes/items).
+pub const MAX_LONG_COMMAND_LENGTH: usize = 1024;
+
+/// Maximum output size accepted by the original HAL decompressor.
+pub const MAX_DECOMPRESSED_SIZE: usize = 64 * 1024;
+
+/// Continuation mask used by the game's compressed fighter graphics banks.
+///
+/// The original game normally stores two eight-byte flag chunks per base
+/// group, which corresponds to a mask of `0x0F` while the decompressor's
+/// output offset starts at `$8000`.
+pub const SPO_GRAPHICS_CONTINUATION_MASK: u8 = 0x0F;
 
 /// End-of-stream marker
 pub const END_OF_STREAM: u8 = 0xFF;
@@ -43,11 +65,11 @@ pub const LENGTH_MASK: u8 = 0x1F;
 /// Shift for command type
 pub const COMMAND_SHIFT: u8 = 5;
 
-/// Super Punch-Out!! Decompressor (HAL8-style bitplane-interleaved LZ)
+/// Decompressor for legacy command streams and SPO fighter graphics.
 ///
-/// This decompressor handles the custom compression format used by
-/// Super Punch-Out!! for graphics data. Assets are typically stored
-/// in two compressed blocks: one for bitplanes 0/1 and one for bitplanes 2/3.
+/// The command-based methods are kept for older callers. Use
+/// [`Decompressor::decompress_sprite_graphics_exact`] for compressed fighter
+/// sprite banks.
 ///
 /// # Example
 /// ```
@@ -81,23 +103,68 @@ impl<'a> Decompressor<'a> {
         Self { input, pos: 0 }
     }
 
-    /// Reads a single byte from the input.
-    ///
-    /// Returns 0 if at end of input.
-    fn read_byte(&mut self) -> u8 {
-        if self.pos >= self.input.len() {
-            return 0;
-        }
-        let b = self.input[self.pos];
+    fn read_byte_checked(&mut self) -> Result<u8, String> {
+        let byte = self
+            .input
+            .get(self.pos)
+            .copied()
+            .ok_or_else(|| "Compressed stream ends unexpectedly".to_string())?;
         self.pos += 1;
-        b
+        Ok(byte)
     }
 
-    /// Reads a 16-bit little-endian value from the input.
-    fn read_u16(&mut self) -> u16 {
-        let l = self.read_byte() as u16;
-        let h = self.read_byte() as u16;
-        (h << 8) | l
+    fn read_bytes_checked(&mut self, len: usize) -> Result<&'a [u8], String> {
+        let end = self
+            .pos
+            .checked_add(len)
+            .ok_or_else(|| "Compressed command length overflowed".to_string())?;
+        let bytes = self
+            .input
+            .get(self.pos..end)
+            .ok_or_else(|| "Compressed stream ends mid-command".to_string())?;
+        self.pos = end;
+        Ok(bytes)
+    }
+
+    /// Reads one HAL command and returns its command number and item count.
+    ///
+    /// Values with the high three bits set are long commands. Their command
+    /// number is stored in bits 2-4 and their ten-bit length uses bits 0-1
+    /// plus the following byte. `0xFF` is the stream terminator.
+    fn read_command(&mut self) -> Result<Option<(u8, usize)>, String> {
+        let control = self.read_byte_checked()?;
+        if control == END_OF_STREAM {
+            return Ok(None);
+        }
+
+        if (control & COMMAND_MASK) == COMMAND_MASK {
+            let low = self.read_byte_checked()? as usize;
+            let command = (control >> 2) & 0x07;
+            let length = (((control & 0x03) as usize) << 8) | low;
+            Ok(Some((command, length + 1)))
+        } else {
+            let command = control >> COMMAND_SHIFT;
+            let length = ((control & LENGTH_MASK) as usize) + 1;
+            Ok(Some((command, length)))
+        }
+    }
+
+    fn ensure_output_capacity(output: &[u8], additional: usize) -> Result<(), String> {
+        let new_len = output
+            .len()
+            .checked_add(additional)
+            .ok_or_else(|| "Decompressed output length overflowed".to_string())?;
+        if new_len > MAX_DECOMPRESSED_SIZE {
+            return Err(format!(
+                "Decompressed stream exceeds the {} byte HAL limit",
+                MAX_DECOMPRESSED_SIZE
+            ));
+        }
+        Ok(())
+    }
+
+    fn rotate_bits(byte: u8) -> u8 {
+        byte.reverse_bits()
     }
 
     /// Decompresses a single pass (e.g., either bitplanes 0/1 or 2/3).
@@ -120,76 +187,98 @@ impl<'a> Decompressor<'a> {
     /// decompressor.decompress_pass(&mut output, 0, 2); // Even bytes
     /// ```
     pub fn decompress_pass(&mut self, output: &mut [u8], start_offset: usize, step: usize) {
-        let mut out_idx = start_offset;
+        if step == 0 {
+            return;
+        }
 
-        while self.pos < self.input.len() {
-            let ctrl = self.read_byte();
-            if ctrl == END_OF_STREAM {
+        let Ok(pass) = self.decompress_pass_exact() else {
+            return;
+        };
+
+        for (index, byte) in pass.into_iter().enumerate() {
+            let Some(output_index) = start_offset.checked_add(index.saturating_mul(step)) else {
+                break;
+            };
+            if output_index >= output.len() {
                 break;
             }
+            output[output_index] = byte;
+        }
+    }
 
-            let cmd = ctrl >> COMMAND_SHIFT;
-            let len = ((ctrl & LENGTH_MASK) as usize) + 1;
+    /// Decompresses exactly one HAL stream, stopping after its `0xFF` marker.
+    ///
+    /// The returned bytes are a single bitplane pass. The decompressor's
+    /// position is left immediately after the terminator so a second pass can
+    /// be decoded from a concatenated asset.
+    pub fn decompress_pass_exact(&mut self) -> Result<Vec<u8>, String> {
+        let mut output = Vec::new();
 
-            match cmd {
+        loop {
+            let Some((command, length)) = self.read_command()? else {
+                return Ok(output);
+            };
+
+            match command {
                 0 => {
-                    // Literals - copy bytes directly
-                    for _ in 0..len {
-                        if out_idx < output.len() {
-                            output[out_idx] = self.read_byte();
-                            out_idx += step;
-                        }
-                    }
+                    Self::ensure_output_capacity(&output, length)?;
+                    output.extend_from_slice(self.read_bytes_checked(length)?);
                 }
                 1 => {
-                    // Byte RLE - repeat a single byte
-                    let val = self.read_byte();
-                    for _ in 0..len {
-                        if out_idx < output.len() {
-                            output[out_idx] = val;
-                            out_idx += step;
-                        }
-                    }
+                    Self::ensure_output_capacity(&output, length)?;
+                    let value = self.read_byte_checked()?;
+                    output.extend(std::iter::repeat_n(value, length));
                 }
                 2 => {
-                    // Word RLE - repeat a 2-byte pattern
-                    let b1 = self.read_byte();
-                    let b2 = self.read_byte();
-                    for _ in 0..len {
-                        if out_idx < output.len() {
-                            output[out_idx] = b1;
-                            out_idx += step;
-                        }
-                        if out_idx < output.len() {
-                            output[out_idx] = b2;
-                            out_idx += step;
-                        }
+                    let output_length = length
+                        .checked_mul(2)
+                        .ok_or_else(|| "Word RLE length overflowed".to_string())?;
+                    Self::ensure_output_capacity(&output, output_length)?;
+                    let value = [self.read_byte_checked()?, self.read_byte_checked()?];
+                    for _ in 0..length {
+                        output.extend_from_slice(&value);
                     }
                 }
                 3 => {
-                    // Incremental RLE - repeat with incrementing values
-                    let mut val = self.read_byte();
-                    for _ in 0..len {
-                        if out_idx < output.len() {
-                            output[out_idx] = val;
-                            out_idx += step;
-                            val = val.wrapping_add(1);
+                    Self::ensure_output_capacity(&output, length)?;
+                    let start = self.read_byte_checked()?;
+                    output.extend((0..length).map(|index| start.wrapping_add(index as u8)));
+                }
+                4..=7 => {
+                    Self::ensure_output_capacity(&output, length)?;
+                    let offset = ((self.read_byte_checked()? as usize) << 8)
+                        | self.read_byte_checked()? as usize;
+
+                    for index in 0..length {
+                        let source_index = match command {
+                            6 => offset.checked_sub(index),
+                            _ => offset.checked_add(index),
                         }
+                        .ok_or_else(|| {
+                            format!(
+                                "HAL backreference at output byte {} points before the stream",
+                                output.len()
+                            )
+                        })?;
+
+                        let source = *output.get(source_index).ok_or_else(|| {
+                            format!(
+                                "HAL backreference at output byte {} points to unavailable byte {}",
+                                output.len(),
+                                source_index
+                            )
+                        })?;
+
+                        output.push(if command == 5 {
+                            Self::rotate_bits(source)
+                        } else {
+                            source
+                        });
                     }
                 }
-                4 => {
-                    // LZ Copy from already decompressed data
-                    let lz_offset = self.read_u16() as usize;
-                    // Copy from the same bitplane stream
-                    for j in 0..len {
-                        let src_idx = lz_offset + j * step;
-                        if out_idx < output.len() && src_idx < out_idx {
-                            output[out_idx] = output[src_idx];
-                            out_idx += step;
-                        }
-                    }
+                _ => {
+                    return Err(format!("Unsupported HAL command {}", command));
                 }
-                _ => break, // Unknown command - stop decompression
             }
         }
     }
@@ -217,15 +306,79 @@ impl<'a> Decompressor<'a> {
     /// ```
     pub fn decompress_interleaved(&mut self, expected_size: usize) -> Vec<u8> {
         let mut output = vec![0u8; expected_size];
+        let Ok(pass1) = self.decompress_pass_exact() else {
+            return output;
+        };
+        let Ok(pass2) = self.decompress_pass_exact() else {
+            return output;
+        };
 
-        // Pass 1: Bitplanes 0/1 (Even bytes)
-        self.decompress_pass(&mut output, 0, 2);
-
-        // Pass 2: Bitplanes 2/3 (Odd bytes)
-        // The second pass usually follows immediately in the input stream
-        self.decompress_pass(&mut output, 1, 2);
-
+        for (index, byte) in pass1.into_iter().enumerate() {
+            let output_index = index.saturating_mul(2);
+            if output_index >= output.len() {
+                break;
+            }
+            output[output_index] = byte;
+        }
+        for (index, byte) in pass2.into_iter().enumerate() {
+            let output_index = index.saturating_mul(2).saturating_add(1);
+            if output_index >= output.len() {
+                break;
+            }
+            output[output_index] = byte;
+        }
         output
+    }
+
+    /// Decompresses one Super Punch-Out!! compressed fighter graphics bank.
+    ///
+    /// The manifest points at the byte after the bank's two-byte end offset,
+    /// so the input begins with the continuation mask. The output is the
+    /// game's native SNES 4bpp tile byte stream.
+    pub fn decompress_sprite_graphics_exact(&mut self) -> Result<Vec<u8>, String> {
+        let mask = self.read_byte_checked()?;
+        let mut output = Vec::new();
+        let mut output_offset = 0x8000usize;
+
+        while self.pos < self.input.len() {
+            let base = self.read_byte_checked()?;
+
+            loop {
+                let flags = self.read_byte_checked()?;
+                for bit in (0..8).rev() {
+                    let byte = if flags & (1 << bit) != 0 {
+                        self.read_byte_checked()?
+                    } else {
+                        base
+                    };
+                    Self::ensure_output_capacity(&output, 1)?;
+                    output.push(byte);
+                }
+
+                output_offset = output_offset
+                    .checked_add(8)
+                    .ok_or_else(|| "Sprite graphics output offset overflowed".to_string())?;
+
+                // The original routine tests the updated output address,
+                // not the last byte written. When the masked address is
+                // non-zero it consumes another flag byte using the same base.
+                if output_offset & usize::from(mask) == 0 {
+                    break;
+                }
+            }
+        }
+
+        Ok(output)
+    }
+
+    /// Decompresses one fighter graphics bank.
+    ///
+    /// This name is retained for callers that previously assumed the game
+    /// stored two interleaved HAL passes. In the actual fighter format there
+    /// is one base/flag stream and it already expands to the final 4bpp byte
+    /// order.
+    pub fn decompress_interleaved_exact(&mut self) -> Result<Vec<u8>, String> {
+        self.decompress_sprite_graphics_exact()
     }
 
     /// Returns the current position in the input stream.
@@ -246,6 +399,61 @@ impl<'a> Decompressor<'a> {
     }
 }
 
+/// Compresses a fighter graphics byte stream using the game's base/flag
+/// format.
+///
+/// Tile data is normally a multiple of 32 bytes, so the encoder uses the
+/// game's usual `0x0F` mask and emits two eight-byte chunks per base group.
+/// A shorter valid multiple of eight uses a zero mask and one chunk per base
+/// group.
+pub fn compress_sprite_graphics_exact(data: &[u8]) -> Result<Vec<u8>, String> {
+    if data.len() % 8 != 0 {
+        return Err(format!(
+            "Sprite graphics data must be aligned to eight-byte flag chunks ({} bytes)",
+            data.len()
+        ));
+    }
+
+    let mask = if data.len() % 16 == 0 {
+        SPO_GRAPHICS_CONTINUATION_MASK
+    } else {
+        0
+    };
+    let chunks_per_group = if mask == 0 { 1 } else { 2 };
+    let mut output = vec![mask];
+    let mut cursor = 0usize;
+
+    while cursor < data.len() {
+        let base = data[cursor];
+        output.push(base);
+
+        for _ in 0..chunks_per_group {
+            let chunk = &data[cursor..cursor + 8];
+            let mut flags = 0u8;
+            let mut literals = Vec::new();
+
+            for (index, &byte) in chunk.iter().enumerate() {
+                if byte != base {
+                    flags |= 1 << (7 - index);
+                    literals.push(byte);
+                }
+            }
+
+            output.push(flags);
+            output.extend(literals);
+            cursor += 8;
+        }
+    }
+
+    Ok(output)
+}
+
+/// Convenience wrapper for callers that already know their tile data is
+/// correctly aligned.
+pub fn compress_sprite_graphics(data: &[u8]) -> Vec<u8> {
+    compress_sprite_graphics_exact(data).unwrap_or_default()
+}
+
 /// Compression command types
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CommandType {
@@ -259,6 +467,10 @@ pub enum CommandType {
     IncrementalRle = 3,
     /// Copy from previously decompressed data
     LzCopy = 4,
+    /// Copy from previously decompressed data with each byte bit-reversed.
+    RotatedLzCopy = 5,
+    /// Copy from previously decompressed data in reverse order.
+    ReversedLzCopy = 6,
 }
 
 impl CommandType {
@@ -272,6 +484,9 @@ impl CommandType {
             2 => Some(Self::WordRle),
             3 => Some(Self::IncrementalRle),
             4 => Some(Self::LzCopy),
+            5 => Some(Self::RotatedLzCopy),
+            6 => Some(Self::ReversedLzCopy),
+            7 => Some(Self::LzCopy),
             _ => None,
         }
     }
@@ -284,6 +499,8 @@ impl CommandType {
             Self::WordRle => "Word RLE",
             Self::IncrementalRle => "Incremental RLE",
             Self::LzCopy => "LZ Copy",
+            Self::RotatedLzCopy => "Rotated LZ Copy",
+            Self::ReversedLzCopy => "Reversed LZ Copy",
         }
     }
 }
@@ -325,20 +542,30 @@ pub fn analyze_compression(data: &[u8]) -> DecompressionStats {
             break;
         }
 
-        let cmd = ctrl >> COMMAND_SHIFT;
-        let len = ((ctrl & LENGTH_MASK) as usize) + 1;
+        let (cmd, len) = if (ctrl & COMMAND_MASK) == COMMAND_MASK {
+            if pos >= data.len() {
+                break;
+            }
+            let command = (ctrl >> 2) & 0x07;
+            let length = (((ctrl & 0x03) as usize) << 8) | data[pos] as usize;
+            pos += 1;
+            stats.bytes_read += 1;
+            (command, length + 1)
+        } else {
+            (ctrl >> COMMAND_SHIFT, ((ctrl & LENGTH_MASK) as usize) + 1)
+        };
 
         *stats.commands_by_type.entry(cmd).or_insert(0) += 1;
         stats.command_count += 1;
-        stats.bytes_written += len;
+        stats.bytes_written += if cmd == 2 { len * 2 } else { len };
 
         // Skip command data
         match cmd {
-            0 => pos += len, // Literals
-            1 => pos += 1,   // Byte RLE
-            2 => pos += 2,   // Word RLE
-            3 => pos += 1,   // Incremental RLE
-            4 => pos += 2,   // LZ Copy
+            0 => pos += len,   // Literals
+            1 => pos += 1,     // Byte RLE
+            2 => pos += 2,     // Word RLE
+            3 => pos += 1,     // Incremental RLE
+            4..=7 => pos += 2, // Backreferences
             _ => break,
         }
     }
@@ -395,11 +622,90 @@ mod tests {
     }
 
     #[test]
+    fn test_decompress_rotated_and_reversed_backrefs() {
+        // Literals: [0x01, 0x02, 0x04, 0x08]
+        // Rotated backref of length 4 from offset 0.
+        // Reversed backref of length 4 from offset 7.
+        let data = vec![
+            0x03, 0x01, 0x02, 0x04, 0x08, 0xA3, 0x00, 0x00, 0xC3, 0x00, 0x07, 0xFF,
+        ];
+        let mut decompressor = Decompressor::new(&data);
+        let output = decompressor.decompress_pass_exact().unwrap();
+
+        assert_eq!(&output[..4], &[0x01, 0x02, 0x04, 0x08]);
+        assert_eq!(&output[4..8], &[0x80, 0x40, 0x20, 0x10]);
+        assert_eq!(&output[8..12], &[0x10, 0x20, 0x40, 0x80]);
+    }
+
+    #[test]
+    fn test_decompress_long_literal_command() {
+        let mut data = vec![0xE0, 0x20]; // Long literal: 0x21 bytes.
+        data.extend((0..=0x20).map(|value| value as u8));
+        data.push(END_OF_STREAM);
+
+        let mut decompressor = Decompressor::new(&data);
+        let output = decompressor.decompress_pass_exact().unwrap();
+        assert_eq!(output.len(), 0x21);
+        assert_eq!(output[0], 0);
+        assert_eq!(output[0x20], 0x20);
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_roundtrip() {
+        let data = (0..64)
+            .map(|index| match index % 8 {
+                0 | 1 | 7 => 0x30,
+                2 => 0x63,
+                3 => 0x67,
+                4 => 0x64,
+                5 => 0xAC,
+                _ => 0xEB,
+            })
+            .collect::<Vec<_>>();
+
+        let compressed = compress_sprite_graphics_exact(&data).unwrap();
+        assert_eq!(compressed[0], SPO_GRAPHICS_CONTINUATION_MASK);
+
+        let mut decompressor = Decompressor::new(&compressed);
+        let decompressed = decompressor.decompress_sprite_graphics_exact().unwrap();
+
+        assert_eq!(decompressed, data);
+        assert_eq!(decompressor.position(), compressed.len());
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_continuation_uses_output_offset() {
+        let compressed = vec![
+            0x0F, 0x30, 0x3F, 0x63, 0x63, 0x67, 0x64, 0xAC, 0xEB, 0xFF, 0xB8, 0xF7, 0xBF, 0xF3,
+            0xBF, 0xE4, 0x5F, 0x7B,
+        ];
+        let expected = vec![
+            0x30, 0x30, 0x63, 0x63, 0x67, 0x64, 0xAC, 0xEB, 0xB8, 0xF7, 0xBF, 0xF3, 0xBF, 0xE4,
+            0x5F, 0x7B,
+        ];
+
+        let mut decompressor = Decompressor::new(&compressed);
+        assert_eq!(
+            decompressor.decompress_sprite_graphics_exact().unwrap(),
+            expected
+        );
+        assert_eq!(decompressor.position(), compressed.len());
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_rejects_partial_flag_chunk() {
+        let error = compress_sprite_graphics_exact(&[0x00; 7]).unwrap_err();
+        assert!(error.contains("eight-byte"));
+    }
+
+    #[test]
     fn test_command_type() {
         assert_eq!(CommandType::from_u8(0), Some(CommandType::Literals));
         assert_eq!(CommandType::from_u8(1), Some(CommandType::ByteRle));
         assert_eq!(CommandType::from_u8(4), Some(CommandType::LzCopy));
-        assert_eq!(CommandType::from_u8(7), None);
+        assert_eq!(CommandType::from_u8(5), Some(CommandType::RotatedLzCopy));
+        assert_eq!(CommandType::from_u8(6), Some(CommandType::ReversedLzCopy));
+        assert_eq!(CommandType::from_u8(7), Some(CommandType::LzCopy));
     }
 
     #[test]

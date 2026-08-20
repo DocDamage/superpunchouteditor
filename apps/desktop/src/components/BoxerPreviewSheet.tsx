@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { useStore, BoxerRecord } from '../store/useStore';
 import { SharedBankSummary } from './SharedBankIndicator';
+import { AssembledPosePreview } from './AssembledPosePreview';
 import { LayoutPackInfo } from '../types/layoutPack';
 import { showToast } from './ToastContainer';
 
@@ -34,7 +35,9 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
   const [layout, setLayout] = useState<BoxerLayout | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [includeShared, setIncludeShared] = useState(false);
+  // Shared bins are part of the fighter's visible sprite set. Keep them on by
+  // default so fighters whose graphics are entirely shared do not appear empty.
+  const [includeShared, setIncludeShared] = useState(true);
   const [zoom, setZoom] = useState(2);
   const [sharedPairs, setSharedPairs] = useState<SharedBankPair[]>([]);
   const [availablePacks, setAvailablePacks] = useState<LayoutPackInfo[]>([]);
@@ -44,6 +47,8 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
 
   const uniqueSpriteBins = boxer.unique_sprite_bins ?? [];
   const sharedSpriteBins = boxer.shared_sprite_bins ?? [];
+  const hasSpriteBins = uniqueSpriteBins.length + sharedSpriteBins.length > 0;
+  const hasRenderableBins = uniqueSpriteBins.length > 0 || (includeShared && sharedSpriteBins.length > 0);
   const totalBins = uniqueSpriteBins.length + (includeShared ? sharedSpriteBins.length : 0);
   
   // Close pack menu when clicking outside
@@ -115,12 +120,12 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
 
   // Auto-render when boxer changes and ROM is loaded
   useEffect(() => {
-    if (romSha1 && uniqueSpriteBins.length > 0) {
+    if (romSha1 && hasRenderableBins) {
       renderSheet();
     } else {
       setImageSrc(null);
     }
-  }, [boxer.key, romSha1, uniqueSpriteBins.length, renderSheet]);
+  }, [boxer.key, romSha1, hasRenderableBins, renderSheet]);
 
   const handleExportSheet = async () => {
     if (!imageSrc) return;
@@ -241,12 +246,14 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
 
   return (
     <div className="boxer-preview-sheet">
+      <AssembledPosePreview boxer={boxer} />
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
-          <h3 style={{ margin: 0 }}>Reference Sheet</h3>
+          <h3 style={{ margin: 0 }}>Raw Tile Banks</h3>
           <p style={{ margin: '4px 0 0', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-            Assembled tile view · {boxer.unique_sprite_bins.length} unique
+            Individual 8×8 tiles in ROM bank order · {boxer.unique_sprite_bins.length} unique
             {boxer.shared_sprite_bins.length > 0 && ` + ${boxer.shared_sprite_bins.length} shared`} bins
           </p>
         </div>
@@ -481,7 +488,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         {!imageSrc && !loading && !error && (
           <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.875rem' }}>
             {!romSha1 ? 'Load a ROM to render the sprite sheet.' :
-             boxer.unique_sprite_bins.length === 0 ? 'No unique sprite bins for this fighter.' :
+             !hasSpriteBins ? 'No sprite bins for this fighter.' : !hasRenderableBins ? 'Enable shared bins to render this fighter.' :
              'Click "Render Sheet" to decode and display all sprite bins.'}
           </div>
         )}

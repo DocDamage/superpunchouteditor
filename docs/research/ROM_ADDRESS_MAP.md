@@ -167,6 +167,22 @@ Sprite data is distributed across multiple banks. Key compressed sprite banks:
 
 ---
 
+## Runtime sprite decompression windows
+
+The compressed fighter streams are not rendered directly from their ROM addresses. During the game's graphics setup they are decompressed into fixed WRAM windows, and the fighter source tables refer to those windows:
+
+| Stream in fighter graphics header | Decompressed WRAM window | Runtime role |
+| --- | --- | --- |
+| Stream 1 | `$7E:8000` | First compressed graphics stream |
+| Stream 2 | `$7F:0000` | Second compressed graphics stream |
+| Stream 3 | `$7F:8000` | Third compressed graphics stream |
+
+The order of these windows in a fighter's source table is not guaranteed to match the order of the compressed filenames or the numeric order of the source addresses. For example, the Bear Hugger/Mad Clown header lists ROM banks `$39`, `$38`, `$37` for streams 1–3, while the source table can reference `$7F:0000`, `$7E:8000`, and `$7F:8000` in a different order. A renderer must map the selected source address to its fixed WRAM window, apply the byte/tile offset within that window, and then apply the fighter-specific OBJ/VRAM destination table.
+
+The assembled preview also decodes the compact pose/OAM command stream. It uses the resulting tile numbers, small/large object layout, coordinates, flip attributes, and fighter palette to produce a complete pose. The raw tile-bank view intentionally stops before this runtime composition step and therefore is not a complete character sheet.
+
+---
+
 ## AI Behavior Tables
 
 ### AI Script Locations (Bank $09)

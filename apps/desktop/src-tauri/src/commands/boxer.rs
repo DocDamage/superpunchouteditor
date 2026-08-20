@@ -5,14 +5,13 @@
 use tauri::State;
 
 use crate::app_state::AppState;
-use crate::commands::assets::{read_current_asset_bytes, set_pending_write};
 use crate::utils::parse_offset;
 use asset_core::fighter::{BoxerManager, BoxerMetadata, PoseInfo};
 use manifest_core::{
     comparison::{find_similar_boxers, BoxerComparison, BoxerSimilarity, FighterStats, StatField},
     AssetFile, BoxerRecord, Manifest,
 };
-use rom_core::Rom;
+use rom_core::{MaterializedRom, Rom};
 use script_core::ScriptReader;
 
 fn format_manifest_snes_address(rom: &Rom, pc_offset: usize) -> String {
@@ -101,27 +100,39 @@ fn make_unique_asset_owner_key(
     format!("{}_copy", base)
 }
 
-fn clone_asset_list_into_rom(
-    state: &AppState,
-    rom: &mut Rom,
-    owner_key: &str,
+fn read_materialized_asset_payloads(
+    materialized: &MaterializedRom,
     source_assets: &[AssetFile],
-) -> Result<Vec<AssetFile>, String> {
-    let payloads = source_assets
+) -> Result<Vec<Vec<u8>>, String> {
+    source_assets
         .iter()
         .map(|asset| {
             let source_offset = parse_offset(&asset.start_pc)?;
-            let bytes = read_current_asset_bytes(state, source_offset, asset.size)?;
-            Ok((asset.clone(), bytes))
+            let range =
+                rom_core::validate_range(source_offset, asset.size, materialized.bytes.len())
+                    .map_err(|error| error.to_string())?;
+            Ok(materialized.bytes[range].to_vec())
         })
-        .collect::<Result<Vec<_>, String>>()?;
+        .collect()
+}
+
+fn clone_asset_list_into_rom(
+    rom: &mut Rom,
+    owner_key: &str,
+    source_assets: &[AssetFile],
+    payloads: &[Vec<u8>],
+) -> Result<Vec<AssetFile>, String> {
+    if source_assets.len() != payloads.len() {
+        return Err("Asset metadata and payload counts do not match".to_string());
+    }
 
     payloads
-        .into_iter()
+        .iter()
         .enumerate()
-        .map(|(index, (asset, bytes))| {
+        .map(|(index, bytes)| {
+            let asset = &source_assets[index];
             let allocation = rom
-                .find_or_expand_free_space(bytes.len(), asset_alignment(&asset))
+                .find_or_expand_free_space(bytes.len(), asset_alignment(asset))
                 .ok_or_else(|| {
                     format!(
                         "Failed to allocate {} bytes for cloned {} asset '{}'",
@@ -131,17 +142,32 @@ fn clone_asset_list_into_rom(
                     )
                 })?;
 
-            rom.write_bytes(allocation.offset, &bytes)
+            rom.write_bytes(allocation.offset, bytes)
                 .map_err(|e| e.to_string())?;
-            set_pending_write(state, allocation.offset, bytes.clone())?;
 
             let end_pc = allocation.offset + bytes.len();
-            let generated_name = format!("{}_{}_{}", owner_key, asset.subtype, index + 1);
+            let generated_name = if asset.subtype == "sprite_bin" {
+                let source_name = asset
+                    .filename
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .unwrap_or(&asset.filename);
+                // Keep the original IndexXX token so pose/tile-set lookup can
+                // connect the cloned bin to the game's tile-set id.
+                format!("{}_{}", owner_key, source_name)
+            } else {
+                format!("{}_{}_{}", owner_key, asset.subtype, index + 1)
+            };
+            let generated_filename = if asset.subtype == "sprite_bin" {
+                generated_name.clone()
+            } else {
+                format!("{}.bin", generated_name)
+            };
             Ok(AssetFile {
-                file: format!("Generated/{}.bin", generated_name),
-                filename: format!("{}.bin", generated_name),
-                category: asset.category,
-                subtype: asset.subtype,
+                file: format!("Generated/{}", generated_filename),
+                filename: generated_filename,
+                category: asset.category.clone(),
+                subtype: asset.subtype.clone(),
                 size: bytes.len(),
                 start_snes: format_manifest_snes_address(rom, allocation.offset),
                 end_snes: format_manifest_snes_address(rom, end_pc),
@@ -182,17 +208,59 @@ fn create_boxer_asset_owner_inner(
         (template_boxer, owner_name, owner_key)
     };
 
-    let mut rom_guard = state.rom.lock();
-    let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
+    let materialized = state.materialize_current_rom()?;
+    let palette_payloads =
+        read_materialized_asset_payloads(&materialized, &template_boxer.palette_files)?;
+    let icon_payloads =
+        read_materialized_asset_payloads(&materialized, &template_boxer.icon_files)?;
+    let portrait_payloads =
+        read_materialized_asset_payloads(&materialized, &template_boxer.portrait_files)?;
+    let large_portrait_payloads =
+        read_materialized_asset_payloads(&materialized, &template_boxer.large_portrait_files)?;
+    let source_sprite_bins = template_boxer
+        .unique_sprite_bins
+        .iter()
+        .chain(template_boxer.shared_sprite_bins.iter())
+        .cloned()
+        .collect::<Vec<_>>();
+    let sprite_payloads = read_materialized_asset_payloads(&materialized, &source_sprite_bins)?;
 
-    let palette_files =
-        clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.palette_files)?;
-    let icon_files = clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.icon_files)?;
-    let portrait_files =
-        clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.portrait_files)?;
-    let large_portrait_files =
-        clone_asset_list_into_rom(state, rom, &owner_key, &template_boxer.large_portrait_files)?;
-    drop(rom_guard);
+    let ((palette_files, icon_files, portrait_files, large_portrait_files, unique_sprite_bins), _) =
+        state.commit_rom_transform("Create dedicated boxer asset owner", |rom| {
+            let palette_files = clone_asset_list_into_rom(
+                rom,
+                &owner_key,
+                &template_boxer.palette_files,
+                &palette_payloads,
+            )?;
+            let icon_files = clone_asset_list_into_rom(
+                rom,
+                &owner_key,
+                &template_boxer.icon_files,
+                &icon_payloads,
+            )?;
+            let portrait_files = clone_asset_list_into_rom(
+                rom,
+                &owner_key,
+                &template_boxer.portrait_files,
+                &portrait_payloads,
+            )?;
+            let large_portrait_files = clone_asset_list_into_rom(
+                rom,
+                &owner_key,
+                &template_boxer.large_portrait_files,
+                &large_portrait_payloads,
+            )?;
+            let unique_sprite_bins =
+                clone_asset_list_into_rom(rom, &owner_key, &source_sprite_bins, &sprite_payloads)?;
+            Ok((
+                palette_files,
+                icon_files,
+                portrait_files,
+                large_portrait_files,
+                unique_sprite_bins,
+            ))
+        })?;
 
     let created = BoxerRecord {
         name: owner_name.clone(),
@@ -202,7 +270,7 @@ fn create_boxer_asset_owner_inner(
         icon_files,
         portrait_files,
         large_portrait_files,
-        unique_sprite_bins: Vec::new(),
+        unique_sprite_bins,
         shared_sprite_bins: Vec::new(),
         other_files: Vec::new(),
     };
@@ -214,6 +282,7 @@ fn create_boxer_asset_owner_inner(
         .chain(created.icon_files.iter())
         .chain(created.portrait_files.iter())
         .chain(created.large_portrait_files.iter())
+        .chain(created.unique_sprite_bins.iter())
     {
         *manifest
             .asset_counts
@@ -249,7 +318,7 @@ pub fn get_boxer(state: State<AppState>, key: String) -> Option<BoxerRecord> {
 
 /// Create a dedicated manifest boxer that owns cloned graphic assets for a new roster slot.
 ///
-/// The new owner is inserted into the in-memory manifest and its palette/icon/portrait assets
+/// The new owner is inserted into the in-memory manifest and its graphic assets
 /// are copied into fresh ROM space so later PNG imports no longer mutate a donor boxer.
 #[tauri::command]
 pub fn create_boxer_asset_owner(
@@ -660,8 +729,20 @@ mod tests {
                     "large_portrait",
                     "LargePortrait.bin",
                 )],
-                unique_sprite_bins: Vec::new(),
-                shared_sprite_bins: Vec::new(),
+                unique_sprite_bins: vec![test_asset(
+                    0x5000,
+                    128,
+                    "Graphics",
+                    "sprite_bin",
+                    "GFX_Sprite_TemplateIndex04.bin",
+                )],
+                shared_sprite_bins: vec![test_asset(
+                    0x6000,
+                    160,
+                    "Graphics",
+                    "sprite_bin",
+                    "GFX_Sprite_SharedIndex05.bin",
+                )],
                 other_files: Vec::new(),
             },
         );
@@ -672,7 +753,9 @@ mod tests {
         rom.write_bytes(0x2000, &[0xAA; 32]).unwrap();
         rom.write_bytes(0x3000, &[0xBB; 64]).unwrap();
         rom.write_bytes(0x4000, &[0xCC; 96]).unwrap();
-        *state.rom.lock() = Some(rom);
+        rom.write_bytes(0x5000, &[0xDD; 128]).unwrap();
+        rom.write_bytes(0x6000, &[0xEE; 160]).unwrap();
+        state.install_rom_session(rom, "synthetic.sfc".to_string());
 
         let created = create_boxer_asset_owner_inner(
             &state,
@@ -688,14 +771,35 @@ mod tests {
         assert_eq!(created.icon_files.len(), 1);
         assert_eq!(created.portrait_files.len(), 1);
         assert_eq!(created.large_portrait_files.len(), 1);
+        assert_eq!(created.unique_sprite_bins.len(), 2);
+        assert!(created.shared_sprite_bins.is_empty());
+        assert!(created.unique_sprite_bins[0].filename.contains("Index04"));
         assert_ne!(created.icon_files[0].start_pc, "0x2000");
 
-        let pending = state.pending_writes.lock();
-        assert!(pending.contains_key(&created.palette_files[0].start_pc));
-        assert!(pending.contains_key(&created.icon_files[0].start_pc));
-        assert!(pending.contains_key(&created.portrait_files[0].start_pc));
-        assert!(pending.contains_key(&created.large_portrait_files[0].start_pc));
-        drop(pending);
+        let projection = state
+            .rom_session
+            .lock()
+            .as_ref()
+            .expect("canonical ROM session should remain loaded")
+            .state_projection()
+            .unwrap();
+        assert_eq!(projection.active_transaction_count, 1);
+        assert!(projection.dirty);
+        assert!(state.pending_writes.lock().is_empty());
+
+        let materialized = state.materialize_current_rom().unwrap();
+        for asset in created
+            .palette_files
+            .iter()
+            .chain(created.icon_files.iter())
+            .chain(created.portrait_files.iter())
+            .chain(created.large_portrait_files.iter())
+            .chain(created.unique_sprite_bins.iter())
+        {
+            let start = parse_offset(&asset.start_pc).unwrap();
+            let end = start + asset.size;
+            assert!(materialized.bytes[start..end].iter().any(|byte| *byte != 0));
+        }
 
         let manifest = state.manifest.lock();
         assert!(manifest.fighters.contains_key("New Challenger (Assets)"));

@@ -8,6 +8,12 @@ Use the committed toolchain/lockfiles. Rust uses the pinned `rust-toolchain.toml
 
 Run `python scripts/ci/check_command_contract.py`. Stable/unclassified invokes must be registered in the Tauri handler. Experimental/research-only calls require an explicit reason in `scripts/ci/experimental_frontend_commands.json` and must remain hidden from stable navigation.
 
+## Boxer tiles look chopped
+
+The **Raw Tile Banks** panel shows individual 8×8 tiles in ROM/bank order. It is an editing/reference view, not a complete character sheet, so disconnected strips and out-of-order pieces are expected there.
+
+Use **Assembled Pose Preview** above the raw banks. It applies the game's compressed graphics mapping, configured VRAM destinations, pose/OAM commands, large-object layout, flips, and palette. If the assembled view fails, verify that a supported ROM and matching manifest are loaded; the renderer should show an explicit error rather than silently displaying a partial boxer. See [`SPRITE_PREVIEW.md`](SPRITE_PREVIEW.md).
+
 ## An edit appears in the UI but not in output
 
 This is a correctness defect. Stable mutations must create a canonical journal transaction. Save, patch, project, comparison and embedded-emulator paths must not reconstruct state from a frontend cache or `pending_writes`. Record the exact command/action and current revision, then verify the mutation response changed the backend journal.

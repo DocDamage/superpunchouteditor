@@ -45,7 +45,13 @@ Choose your local `.sfc` or `.smc` file and confirm the detected region.
 
 **Pass:** the editor recognizes the supported ROM and lands on a stable editing screen. A stable tester build must not unexpectedly drop you into a hidden experimental tool.
 
-### 4. Make one obvious reversible edit
+### 4. Check the boxer pose preview
+
+Open a boxer in the stable editor workflow and inspect **Assembled Pose Preview**. Use **Prev/Next** or the pose selector to view another pose if available.
+
+**Pass:** the preview shows a complete boxer pose. The **Raw Tile Banks** panel below it is an editing reference and may look chopped or out of order; that is expected. If the assembled preview reports an error, record the boxer name, pose index, and visible error text.
+
+### 5. Make one obvious reversible edit
 
 Pick a boxer and make a small visual change, preferably a palette/color edit.
 
@@ -56,7 +62,7 @@ Pick a boxer and make a small visual change, preferably a palette/color edit.
 
 **Pass:** Undo restores the original value and Redo restores the edit.
 
-### 5. Test the current revision
+### 6. Test the current revision
 
 Choose **Test Game** from the main workflow.
 
@@ -64,25 +70,25 @@ Choose **Test Game** from the main workflow.
 
 If embedded emulation cannot run because a compatible local core is not configured, record that clearly. Do not claim it passed.
 
-### 6. Save without touching the original ROM
+### 7. Save without touching the original ROM
 
 Save/export the edited ROM to a **new filename**. Never choose your original source ROM as the output for this test.
 
 **Pass:** the new output contains the edit and the original file remains unchanged.
 
-### 7. Save and reopen a project
+### 8. Save and reopen a project
 
 Use **Projects** to save the editing session. Close the editor, reopen the project, and confirm the same logical edit is present.
 
 **Pass:** the project restores the edit journal and produces the same edited revision.
 
-### 8. Try one safe-cancel path
+### 9. Try one safe-cancel path
 
 Start a save/export operation and cancel it once, or exercise overwrite protection without approving the overwrite.
 
 **Pass:** cancellation is non-destructive and the UI makes it clear that no file was changed.
 
-### 9. Fill out the Tester Checklist
+### 10. Fill out the Tester Checklist
 
 Open **Tester Checklist** from the bottom of the left sidebar.
 

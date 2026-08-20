@@ -4,6 +4,12 @@
 
 Keep your original ROM separately. The editor treats the loaded source as an immutable base and records supported changes in an edit journal. Stable Save As, patch export, project persistence, comparison and embedded-emulator testing are designed to reference that same current journal materialization.
 
+## View a complete boxer sprite
+
+When a boxer is selected, the editor shows **Assembled Pose Preview** above **Raw Tile Banks**. Use the pose selector or **Prev/Next** buttons to inspect complete in-game poses.
+
+Raw Tile Banks are intentionally different: they show individual 8×8 graphics tiles in ROM/bank order for editing and inspection. Because the game places those tiles into object VRAM and composes them with pose/OAM data, a raw bank can look chopped or out of sequence. That does not mean the ROM is missing a sprite. See [`SPRITE_PREVIEW.md`](SPRITE_PREVIEW.md) for the renderer details and troubleshooting steps.
+
 ## Projects
 
 Use project format v2 for current work. A project stores source-ROM identity and your edit journal; it does **not** contain the base ROM itself. When reopening a project, load/select the matching base ROM. If the base hash/size does not match, the project is rejected before the active session is replaced.

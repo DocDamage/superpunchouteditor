@@ -75,6 +75,9 @@ const runtimeStatusLabel = (status: number): string => {
   }
 };
 
+const EMBEDDED_CORE_SETUP_MESSAGE =
+  'A compatible user-supplied Snes9x libretro core is required. Configure it in Settings, then retry Test Game.';
+
 const circuitTypeToByte = (circuit: CircuitType): number => {
   switch (circuit) {
     case 'Minor':
@@ -163,7 +166,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
   creatorSessionContext = null,
   onOpenAssetOwner,
 }) => {
-  const { boxers } = useStore((state) => ({ boxers: state.boxers }));
+  const boxers = useStore((state) => state.boxers);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastAutoEnterTokenRef = useRef<number | null>(null);
   const lastHandledCreatorActionRef = useRef<string | null>(null);
@@ -184,22 +187,30 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
   const [creatorSessionStatusOverride, setCreatorSessionStatusOverride] = useState<number | null>(null);
   const [creatorSessionErrorCodeOverride, setCreatorSessionErrorCodeOverride] = useState<number | null>(null);
   const [portraitOwnerKey, setPortraitOwnerKey] = useState<string>(creatorSessionContext?.assetOwnerKey ?? '');
+  const [emulatorInitError, setEmulatorInitError] = useState<string | null>(null);
+
+  const handleEmulatorFrame = useCallback((_imageData: ImageData) => {}, []);
+  const handleEmulatorError = useCallback((error: Error) => {
+    console.error('Emulator error:', error);
+    setEmulatorInitError(EMBEDDED_CORE_SETUP_MESSAGE);
+  }, []);
 
   // Initialize emulator hook with Tauri backend integration
   const emulator = useEmulator({
     canvasRef,
-    onFrame: (imageData) => {
-      // Handle frame data if needed
-    },
-    onError: (error) => {
-      console.error('Emulator error:', error);
-    },
+    onFrame: handleEmulatorFrame,
+    onError: handleEmulatorError,
   });
 
   // Initialize emulator on mount
   useEffect(() => {
     const init = async () => {
-      await emulator.initialize();
+      const initialized = await emulator.initialize();
+      if (initialized) {
+        setEmulatorInitError(null);
+      } else {
+        setEmulatorInitError(EMBEDDED_CORE_SETUP_MESSAGE);
+      }
     };
     init();
     
@@ -208,6 +219,12 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
       emulator.shutdown();
     };
   }, []);
+
+  useEffect(() => {
+    if (emulator.isInitialized) {
+      setEmulatorInitError(null);
+    }
+  }, [emulator.isInitialized]);
 
   // Load ROM when data changes
   useEffect(() => {
@@ -306,7 +323,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
       setCurrentRomSource('edited');
       await emulator.loadRomFromPath(romPath);
     }
-  }, [editedRomData, romPath, romName, emulator]);
+  }, [editedRomData, emulator.loadRom, emulator.loadRomFromPath, romName, romPath]);
 
   // Load original ROM
   const handleLoadOriginalRom = useCallback(async () => {
@@ -314,7 +331,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
       setCurrentRomSource('original');
       await emulator.loadRom(originalRomData, `${romName} (Original)`);
     }
-  }, [originalRomData, romName, emulator]);
+  }, [emulator.loadRom, originalRomData, romName]);
 
   // Swap between edited and original
   const handleSwapRom = useCallback(async () => {
@@ -330,7 +347,15 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     } else if (newSource === 'original' && originalRomData) {
       await emulator.loadRom(originalRomData, `${romName} (Original)`);
     }
-  }, [currentRomSource, editedRomData, originalRomData, romPath, romName, emulator]);
+  }, [
+    currentRomSource,
+    editedRomData,
+    emulator.loadRom,
+    emulator.loadRomFromPath,
+    originalRomData,
+    romName,
+    romPath,
+  ]);
 
   // Take screenshot
   const handleScreenshot = useCallback(() => {
@@ -344,7 +369,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
       link.href = screenshot;
       link.click();
     }
-  }, [emulator]);
+  }, [emulator.takeScreenshot]);
 
   // Record GIF (simulated - actual implementation would use gif.js or similar)
   const handleRecordGif = useCallback(() => {
@@ -376,7 +401,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
   // Handle fullscreen
   const handleFullscreen = useCallback(() => {
     emulator.toggleFullscreen();
-  }, [emulator]);
+  }, [emulator.toggleFullscreen]);
 
   // Get status indicator color
   const getStatusColor = (): string => {
@@ -521,7 +546,12 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     }
   }, [
     creatorActionBusy,
-    emulator,
+    emulator.frameAdvance,
+    emulator.getCreatorRuntimeState,
+    emulator.setInput,
+    emulator.start,
+    emulator.state,
+    emulator.status.romLoaded,
   ]);
 
   const buildCreatorCommitSession = useCallback((): CreatorSessionState | null => {
@@ -612,7 +642,17 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     } finally {
       setCreatorDraftBusy(false);
     }
-  }, [buildCreatorCommitSession, creatorDraft, emulator, refreshCreatorDraft, romName]);
+  }, [
+    buildCreatorCommitSession,
+    creatorDraft,
+    emulator.getCreatorRuntimeState,
+    emulator.loadRom,
+    emulator.setInput,
+    emulator.start,
+    emulator.stop,
+    refreshCreatorDraft,
+    romName,
+  ]);
 
   const cancelCreatorDraft = useCallback(async () => {
     if (!creatorDraft) {
@@ -650,7 +690,12 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     } finally {
       setCreatorDraftBusy(false);
     }
-  }, [creatorDraft, emulator, loadCreatorDraftFromRom]);
+  }, [
+    creatorDraft,
+    emulator.getCreatorRuntimeState,
+    emulator.setCreatorSessionState,
+    loadCreatorDraftFromRom,
+  ]);
 
   const resolveCreatorRuntimeAction = useCallback(async () => {
     try {
@@ -682,7 +727,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     } finally {
       setCreatorDraftBusy(false);
     }
-  }, [emulator, refreshCreatorDraft]);
+  }, [emulator.resolveCreatorRuntimeAction, refreshCreatorDraft]);
 
   const creatorTargetBoxerId = creatorState?.session_present
     ? creatorState.session_boxer_id
@@ -1169,7 +1214,9 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
     creatorSessionErrorCodeOverride,
     creatorSessionStatusOverride,
     creatorSessionContext,
-    emulator,
+    emulator.isInitialized,
+    emulator.setCreatorSessionState,
+    emulator.status.romLoaded,
   ]);
 
   useEffect(() => {
@@ -1214,7 +1261,10 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
             }}
           />
           {!emulator.isInitialized && (
-            <span style={{ marginLeft: 8, color: 'var(--warning, #f59e0b)', fontSize: 12 }}>
+            <span
+              title={emulatorInitError ?? EMBEDDED_CORE_SETUP_MESSAGE}
+              style={{ marginLeft: 8, color: 'var(--warning, #f59e0b)', fontSize: 12 }}
+            >
               (Not Initialized)
             </span>
           )}
@@ -1257,6 +1307,26 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
 
       {/* Display Area */}
       <div className="emulator-display">
+        {emulatorInitError && !emulator.isInitialized && (
+          <div
+            role="alert"
+            style={{
+              margin: '0.75rem',
+              padding: '0.75rem 1rem',
+              border: '1px solid rgba(245, 158, 11, 0.55)',
+              borderRadius: 8,
+              background: 'rgba(120, 74, 0, 0.22)',
+              color: 'var(--text-main)',
+              lineHeight: 1.45,
+              fontSize: '0.85rem',
+            }}
+          >
+            <strong style={{ display: 'block', marginBottom: '0.25rem' }}>
+              Embedded emulator is not ready
+            </strong>
+            <span>{emulatorInitError}</span>
+          </div>
+        )}
         {emulator.status.romLoaded ? (
           <>
             <div className="emulator-display-content">
