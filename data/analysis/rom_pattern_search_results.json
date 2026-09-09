@@ -1,0 +1,600 @@
+[
+  {
+    "rom_type": "USA",
+    "rom_size": 2097152,
+    "matches": [
+      {
+        "rom_type": "USA",
+        "address": "0x0681FF",
+        "snes_address": "$8D:81FF",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (16 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000182603001c012608001cff260300",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x068271",
+        "snes_address": "$8D:8271",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (12 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a0a00030b98236200e041c",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x0682C8",
+        "snes_address": "$8D:82C8",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (11 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a1a10030da8236200c0404",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x068384",
+        "snes_address": "$8D:8384",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000362800000000004e2002e0060220",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x068388",
+        "snes_address": "$8D:8388",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "00000000004e2002e0060220680c8084",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x068389",
+        "snes_address": "$8D:8389",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (13 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000000004e2002e0060220680c808420",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x06838A",
+        "snes_address": "$8D:838A",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000004e2002e0060220680c80842066",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x100F26",
+        "snes_address": "$A0:8F26",
+        "pattern_type": "text_marker",
+        "description": "Win text",
+        "confidence": "LOW",
+        "data_preview": "57494e40262011110202fe00be00be00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x0A3AFF",
+        "snes_address": "$94:BAFF",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4f7f41f571be43bcbebefec01fe00f",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x0C1FF6",
+        "snes_address": "$98:9FF6",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4f4f4f2727276767e751519f90eec8",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048000",
+        "snes_address": "$89:8000",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "7fbd5dbeccbe3ab0ae8066814ac3798c",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048020",
+        "snes_address": "$89:8020",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "86bb50bcb5bca8a794c440c532c27acd",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048040",
+        "snes_address": "$89:8040",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "7fbd5dbeccbe139a21ce0ccf02c102d9",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048060",
+        "snes_address": "$89:8060",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (10 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "86bb50bcb5bcfa8c62d984daaabf8fe7",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048156",
+        "snes_address": "$89:8156",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (8 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "2d2028202b00204000202c202b202a00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048014",
+        "snes_address": "$89:8014",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "0000000000000000003c3b0086bb50bc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048015",
+        "snes_address": "$89:8015",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "00000000000000003c3b0086bb50bcb5",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "USA",
+        "address": "0x048016",
+        "snes_address": "$89:8016",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "000000000000003c3b0086bb50bcb5bc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      }
+    ]
+  },
+  {
+    "rom_type": "EU",
+    "rom_size": 2097152,
+    "matches": [
+      {
+        "rom_type": "EU",
+        "address": "0x068204",
+        "snes_address": "$8D:8204",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (16 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000182603001c012607001cff260200",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x068276",
+        "snes_address": "$8D:8276",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (12 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a0a00030be8236200e031c",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x0682CD",
+        "snes_address": "$8D:82CD",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (11 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a1a10030df8236200c0304",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x068389",
+        "snes_address": "$8D:8389",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000362800000000004e2002e0060220",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x06838D",
+        "snes_address": "$8D:838D",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "00000000004e2002e0060220680a8084",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x06838E",
+        "snes_address": "$8D:838E",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (13 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000000004e2002e0060220680a808420",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x06838F",
+        "snes_address": "$8D:838F",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000004e2002e0060220680a80842066",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x100F26",
+        "snes_address": "$A0:8F26",
+        "pattern_type": "text_marker",
+        "description": "Win text",
+        "confidence": "LOW",
+        "data_preview": "57494e40262011110202fe00be00be00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x0A3AFF",
+        "snes_address": "$94:BAFF",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4f7f41f571be43bcbebefec01fe00f",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x0C1FF6",
+        "snes_address": "$98:9FF6",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4f4f4f2727276767e751519f90eec8",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048000",
+        "snes_address": "$89:8000",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "a3bd81bef0be5eb0ae8066816ec39d8c",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048020",
+        "snes_address": "$89:8020",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "aabb74bcd9bccca7b8c464c556c299cd",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048040",
+        "snes_address": "$89:8040",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "a3bd81bef0be379a40ce2bcf26c129d9",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048060",
+        "snes_address": "$89:8060",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (10 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "aabb74bcd9bc1e8d89d9abdacebf1be8",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048156",
+        "snes_address": "$89:8156",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (8 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "2d2028202b00204000202c202b202a00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048014",
+        "snes_address": "$89:8014",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "0000000000000000003c3b00aabb74bc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048015",
+        "snes_address": "$89:8015",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "00000000000000003c3b00aabb74bcd9",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x048016",
+        "snes_address": "$89:8016",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "000000000000003c3b00aabb74bcd9bc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x04EA00",
+        "snes_address": "$89:EA00",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "ffffffffffffffffffffffffffffffff",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x04EA01",
+        "snes_address": "$89:EA01",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "ffffffffffffffffffffffffffffffff",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "EU",
+        "address": "0x04EA02",
+        "snes_address": "$89:EA02",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "ffffffffffffffffffffffffffffffff",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      }
+    ]
+  },
+  {
+    "rom_type": "JPN",
+    "rom_size": 2097152,
+    "matches": [
+      {
+        "rom_type": "JPN",
+        "address": "0x068204",
+        "snes_address": "$8D:8204",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (16 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000182603001c012608001cff260300",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x068276",
+        "snes_address": "$8D:8276",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (12 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a0a00030be8236200e041c",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x0682CD",
+        "snes_address": "$8D:82CD",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (11 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000028a1a1a1a10030df8236200c0404",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x068389",
+        "snes_address": "$8D:8389",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000362800000000004e2002e0060220",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x06838D",
+        "snes_address": "$8D:838D",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "00000000004e2002e0060220680c8084",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x06838E",
+        "snes_address": "$8D:838E",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (13 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "000000004e2002e0060220680c808420",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x06838F",
+        "snes_address": "$8D:838F",
+        "pattern_type": "palette_data",
+        "description": "Potential palette data (14 valid colors in preview)",
+        "confidence": "MEDIUM",
+        "data_preview": "0000004e2002e0060220680c80842066",
+        "usa_comparison": "USA Gabby Jay palette at 0x06B9DA"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x100F26",
+        "snes_address": "$A0:8F26",
+        "pattern_type": "text_marker",
+        "description": "Win text",
+        "confidence": "LOW",
+        "data_preview": "57494e40262011110202fe00be00be00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x0166E1",
+        "snes_address": "$82:E6E1",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4fa4c3dd2a0293a12e40a415c6f24f",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x0A3AFF",
+        "snes_address": "$94:BAFF",
+        "pattern_type": "text_marker",
+        "description": "KO text",
+        "confidence": "LOW",
+        "data_preview": "4b4f7f41f571be43bcbebefec01fe00f",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048000",
+        "snes_address": "$89:8000",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "8dbd6bbedabe48b0ae80668158c3878c",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048020",
+        "snes_address": "$89:8020",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "94bb5ebcc3bcb6a7a2c44ec540c284cd",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048040",
+        "snes_address": "$89:8040",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (9 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "8dbd6bbedabe219a2bce16cf10c11ad9",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048060",
+        "snes_address": "$89:8060",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (10 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "94bb5ebcc3bc088d7ad99cdab8bfa7e7",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048156",
+        "snes_address": "$89:8156",
+        "pattern_type": "pointer_table",
+        "description": "Potential pointer table (8 valid pointers)",
+        "confidence": "MEDIUM",
+        "data_preview": "2d2028202b00204000202c202b202a00",
+        "usa_comparison": "N/A"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048014",
+        "snes_address": "$89:8014",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "0000000000000000003c3b0094bb5ebc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048015",
+        "snes_address": "$89:8015",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "00000000000000003c3b0094bb5ebcc3",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048016",
+        "snes_address": "$89:8016",
+        "pattern_type": "ai_script_marker",
+        "description": "Potential AI script marker",
+        "confidence": "LOW",
+        "data_preview": "000000000000003c3b0094bb5ebcc3bc",
+        "usa_comparison": "USA AI scripts at 0x048800"
+      },
+      {
+        "rom_type": "JPN",
+        "address": "0x048000",
+        "snes_address": "$89:8000",
+        "pattern_type": "similar_to_usa",
+        "description": "Fighter Header Table similar to USA (81.2%)",
+        "confidence": "MEDIUM",
+        "data_preview": "8dbd6bbedabe48b0ae80668158c3878c",
+        "usa_comparison": "USA at 0x048000"
+      }
+    ]
+  }
+]

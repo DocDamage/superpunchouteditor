@@ -1,0 +1,79 @@
+name: Consolidation Verification
+
+on:
+  push:
+    branches: [reconcile/main-2026-09-09, main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  history:
+    name: Verify preserved branch histories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable source snapshots and history coverage
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          snapshots = [
+              ('main', 'd4ee3531f87e2550d701aa7dfb7e7079c73099ff', None),
+              ('master', '8d1d7db1ed5fcd1adfee316845d6e2b713a90215', None),
+              ('agent/project-remediation-modernization', '9b357bfacda9125ccd80808af7b85c4e23a9b17b', 'a5783608ae695a349d91c73a126b71aa2329641c'),
+              ('agent/windows-release-readiness', '00709fe2166d3ef65f7c0be5eb1fbd8f2e6ebe03', '49d68693ec2ed80efb431e407cfb1bb6e6aa6db9'),
+              ('agent/windows-install-lifecycle', '7d757437670635125fa1c1e811754cecba39ab28', 'e6be676bd68356d762e4f11284e1a7d20747c7af'),
+              ('agent/windows-release-pipeline', 'b1429cf4840a7531754db23911d352de2229ce38', 'e61f553a4cc2250d687789998790bce0d82f9211'),
+              ('agent/updater-signature-verification', '9680d055ab36982a328c32a95e24b2b6cbe7d5b7', '6afd505706ed45928c87414ba815329e5d6b9330'),
+              ('agent/updater-verifier-test-vectors', '753fe69ea2a1e818d3d10b731bf38b42aabe9a7b', '1439f57d24837f049bc703b7d567699ff267f306'),
+              ('agent/windows-real-rom-evidence-automation', 'fcd5e6ea3c3580b73cd9d863f6774788630a2a75', '964a2c8670d07b08bb1b99b8e842dabbb6907d3d'),
+              ('agent/windows-acceptance-kit', 'c28f82e7c0fa80386aa35abeeb0b943b286d83ea', 'e8461c42b0995cbf9392114e13f32c3136aac900'),
+              ('agent/usability-community-testing', '27c9eddd8e24928be28bbdda17086432fa07330d', 'cea811f630e88c0769878f6cd0b194fee8203b61'),
+              ('codex/project-audit-cleanup-plan', '3338eeaf2fd68888af59b9e7c77bb19471becfee', None),
+              ('agent/codex-handoff-export', 'b2e79f8dc1d078f5300867201d5c3830a99f4842', None),
+          ]
+          rows = ['# Branch consolidation verification', '', '| Original branch | History | Original merge tree |', '| --- | --- | --- |']
+          for name, sha, merged in snapshots:
+              subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'HEAD'], check=True)
+              result = 'Preserved'
+              if merged:
+                  assert git('rev-parse', sha + '^{tree}') == git('rev-parse', merged + '^{tree}'), f'Original squash merge tree mismatch: {name}'
+                  result = 'Identical to merged milestone'
+              rows.append(f'| `{name}` | PASS | {result} |')
+          old_main = snapshots[0][1]
+          for name in git('ls-tree', '-r', '--name-only', old_main).splitlines():
+              archived = 'docs/archive/main-before-2026-09-09/' + name
+              assert git('rev-parse', f'{old_main}:{name}') == git('rev-parse', f'HEAD:{archived}'), f'Archive mismatch: {name}'
+          baseline = snapshots[1][1]
+          audit = '3338eeaf2fd68888af59b9e7c77bb19471becfee'
+          for path in ['docs/plans/PROJECT_REMEDIATION_AND_MODERNIZATION_PLAN.md', 'docs/archive/legacy-project-documentation-2026-08-18.zip']:
+              assert git('rev-parse', f'{baseline}:{path}') == git('rev-parse', f'{audit}:{path}'), f'Audit payload differs: {path}'
+          base = '5795b3f703fa1a3c79ed15fe067171d91316b154'
+          for record in git('diff', '--name-status', base, audit).splitlines():
+              status, path = record.split('\t', 1)
+              if status == 'D':
+                  assert not git('ls-tree', baseline, '--', path), f'Cleanup deletion not retained: {path}'
+              elif path in ['.gitignore', 'README.md', 'docs/archive/README.md']:
+                  print(f'::group::Audit document evolution: {path}')
+                  print(git('diff', audit, baseline, '--', path))
+                  print('::endgroup::')
+          export = 'b2e79f8dc1d078f5300867201d5c3830a99f4842'
+          export_files = git('diff-tree', '--no-commit-id', '--name-only', '-r', export).splitlines()
+          assert len(export_files) == 1 and export_files[0].startswith('.github/workflows/'), export_files
+          assert not git('ls-tree', 'HEAD', '--', export_files[0]), 'Retired export workflow must not be activated'
+          rows += ['', 'PASS: all 13 pre-consolidation branch tips remain reachable.', 'PASS: all nine feature branch trees match their original merged milestones.', 'PASS: original main files are archived byte-for-byte.', 'PASS: audit roadmap/archive and cleanup deletions are retained.', 'PASS: temporary source-export workflow is not active.']
+          summary = '\n'.join(rows) + '\n'
+          print(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+              output.write(summary)
+          PY

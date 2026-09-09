@@ -1,0 +1,18 @@
+     Locking 1 package to latest compatible version
+      Adding script-core v0.1.0 (C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\script-core)
+    Checking script-core v0.1.0 (C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\script-core)
+error[E0505]: cannot move out of `raw` because it is borrowed
+   --> C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\script-core\src\lib.rs:376:24
+    |
+365 |         let get_u8 = |i: usize| raw.get(i).copied().unwrap_or(0);
+    |                      ---------- --- borrow occurs due to use in closure
+    |                      |
+    |                      borrow of `raw` occurs here
+...
+376 |             raw_bytes: raw,
+    |                        ^^^ move out of `raw` occurs here
+377 |             palette_id: get_u8(0),
+    |                         ------ borrow later used here
+
+For more information about this error, try `rustc --explain E0505`.
+error: could not compile `script-core` (lib) due to 1 previous error
