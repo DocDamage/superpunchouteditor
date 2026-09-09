@@ -23,7 +23,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.97.1
-          components: rustfmt
+          components: rustfmt, clippy
       - name: Archive tracked source only
         run: |
           mkdir -p /tmp/dev-snapshot
@@ -33,12 +33,13 @@ jobs:
         working-directory: apps/desktop
       - name: Archive locked frontend test dependencies separately
         run: tar -czf /tmp/dev-snapshot/frontend-test-deps.tar.gz -C apps/desktop node_modules
-      - name: Preserve pinned formatter for offline verification
+      - name: Prepare locked core test dependencies
+        run: cargo test --locked -p rom-core --no-run
+      - name: Preserve pinned offline Rust tools and dependency cache
         run: |
           root=$(rustc --print sysroot)
-          ldd "$root/bin/rustfmt" > /tmp/dev-snapshot/formatter-dependencies.txt
-          cd "$root"
-          tar -czf /tmp/dev-snapshot/formatter.tar.gz bin/rustfmt lib/*.so*
+          tar -czf /tmp/dev-snapshot/rust-tools.tar.gz -C "$root" bin/rustc bin/rustdoc bin/cargo bin/rustfmt bin/clippy-driver bin/cargo-clippy lib
+          tar -czf /tmp/dev-snapshot/rust-registry.tar.gz -C "$CARGO_HOME" registry
       - uses: actions/upload-artifact@v4
         with:
           name: development-snapshot-not-release
