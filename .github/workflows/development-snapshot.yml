@@ -20,6 +20,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          components: rustfmt
       - name: Archive tracked source only
         run: |
           mkdir -p /tmp/dev-snapshot
@@ -29,6 +33,12 @@ jobs:
         working-directory: apps/desktop
       - name: Archive locked frontend test dependencies separately
         run: tar -czf /tmp/dev-snapshot/frontend-test-deps.tar.gz -C apps/desktop node_modules
+      - name: Preserve pinned formatter for offline verification
+        run: |
+          root=$(rustc --print sysroot)
+          ldd "$root/bin/rustfmt" > /tmp/dev-snapshot/formatter-dependencies.txt
+          cd "$root"
+          tar -czf /tmp/dev-snapshot/formatter.tar.gz bin/rustfmt lib/*.so*
       - uses: actions/upload-artifact@v4
         with:
           name: development-snapshot-not-release
