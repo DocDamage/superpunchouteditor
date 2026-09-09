@@ -1,31 +1,13 @@
-import {
-  Component,
-  CSSProperties,
-  ErrorInfo,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { isTauri } from "@tauri-apps/api/core";
 import { useStore } from "./store/useStore";
 import { featureLabel, isFeatureVisible } from "./featureMaturity";
-import { ThemeProvider, useTheme } from "./context/ThemeProvider";
+import { ThemeProvider } from "./context/ThemeProvider";
 import "./App.css";
-
-import { RegionSelector, RegionDetectionResult } from "./components/RegionSelector";
-import { PaletteEditor } from "./components/PaletteEditor";
-import { AssetManager } from "./components/AssetManager";
 import { FighterViewer } from "./components/FighterViewer";
-import { SpriteBinEditor } from "./components/SpriteBinEditor";
-import { ExportPanel } from "./components/ExportPanel";
-import { BoxerPreviewSheet } from "./components/BoxerPreviewSheet";
 import { ScriptViewer } from "./components/ScriptViewer";
 import { ProjectManager } from "./components/ProjectManager";
 import { FrameReconstructor } from "./components/FrameReconstructor";
-import { PatchNotesGenerator } from "./components/PatchNotesGenerator";
 import { EmulatorSettings } from "./components/EmulatorSettings";
 import { AnimationEditor } from "./components/AnimationEditor";
 import { ComparisonView } from "./components/ComparisonView";
@@ -38,778 +20,181 @@ import { BankVisualization } from "./components/BankVisualization";
 import { AnimationPlayer } from "./components/AnimationPlayer";
 import { AudioEditor } from "./components/AudioEditor";
 import { TextEditor } from "./components/TextEditor";
-import { GuidedSidebar, GuidedTabKey } from "./components/GuidedSidebar";
+import { GuidedSidebar, type GuidedTabKey } from "./components/GuidedSidebar";
 import { WelcomeWorkspace } from "./components/WelcomeWorkspace";
-
+import { EditorWorkspace } from "./components/EditorWorkspace";
+import { BoxerPicker } from "./components/BoxerPicker";
+import { PanelBoundary } from "./components/PanelBoundary";
+import { RomOpenDialog } from "./components/RomOpenDialog";
 import { KeyboardShortcutsHelp, HelpSystem } from "./components/help";
 import { ToastContainer } from "./components/ToastContainer";
 import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateChecker } from "./components/UpdateChecker";
 import { EmbeddedEmulator } from "./components/EmbeddedEmulator";
+import { useAppShortcuts } from "./hooks/useAppShortcuts";
+import { useRomOpening } from "./hooks/useRomOpening";
+import { useTestRomImage } from "./hooks/useTestRomImage";
+import { useRuntimeArtwork } from "./hooks/useRuntimeArtwork";
 import menuSheetUrl from "./assets/menu-fonts.png";
 import "./styles/emulator.css";
+import "./styles/clubhouse.css";
 
 type TabKey = GuidedTabKey;
-
 const MODAL_STYLE_TABS = new Set<TabKey>(["plugins", "packs", "test", "settings"]);
-
+const ROM_OPTIONAL_TABS = new Set<TabKey>(["editor", "project", "settings"]);
 const ALL_TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
-  { key: "roster", label: "Characters" },
-  { key: "editor", label: "Edit" },
-  { key: "viewer", label: "Inspect" },
-  { key: "compare", label: "Compare" },
-  { key: "test", label: "Test Game" },
-  { key: "project", label: "Projects" },
-  { key: "scripts", label: "Scripts" },
-  { key: "animations", label: "Animations" },
-  { key: "frames", label: "Frames" },
-  { key: "packs", label: "Packs" },
-  { key: "ai", label: "AI" },
-  { key: "plugins", label: "Plugins" },
-  { key: "banks", label: "Banks" },
-  { key: "animation-player", label: "Animation Player" },
-  { key: "audio", label: "Audio" },
-  { key: "text", label: "Text" },
-  { key: "settings", label: "Settings" },
+  { key: "roster", label: "Characters" }, { key: "editor", label: "Edit" },
+  { key: "viewer", label: "Inspect" }, { key: "compare", label: "Compare" },
+  { key: "test", label: "Test Game" }, { key: "project", label: "Projects" },
+  { key: "scripts", label: "Scripts" }, { key: "animations", label: "Animations" },
+  { key: "frames", label: "Frames" }, { key: "packs", label: "Packs" },
+  { key: "ai", label: "AI" }, { key: "plugins", label: "Plugins" },
+  { key: "banks", label: "Banks" }, { key: "animation-player", label: "Animation Player" },
+  { key: "audio", label: "Audio" }, { key: "text", label: "Text" }, { key: "settings", label: "Settings" },
 ];
-
-const TAB_ITEMS: Array<{ key: TabKey; label: string }> = ALL_TAB_ITEMS
-  .filter(({ key }) => isFeatureVisible(key))
+const TAB_ITEMS = ALL_TAB_ITEMS.filter(({ key }) => isFeatureVisible(key))
   .map(({ key, label }) => ({ key, label: featureLabel(label, key) }));
-
-const RUNTIME_ERROR =
-  "Desktop runtime not detected. Start this app with `npm run tauri dev` from apps/desktop.";
-
-const bytesToDataUrl = (bytes: number[] | null | undefined): string | null => {
-  if (!bytes || bytes.length === 0) return null;
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return `data:image/png;base64,${btoa(binary)}`;
-};
-
-interface AppRenderBoundaryProps {
-  children: ReactNode;
-}
-
-interface AppRenderBoundaryState {
-  hasError: boolean;
-  message: string | null;
-}
-
-class AppRenderBoundary extends Component<AppRenderBoundaryProps, AppRenderBoundaryState> {
-  state: AppRenderBoundaryState = {
-    hasError: false,
-    message: null,
-  };
-
-  static getDerivedStateFromError(error: Error): AppRenderBoundaryState {
-    return {
-      hasError: true,
-      message: error.message,
-    };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Main content render failed:", error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="empty-state" style={{ padding: "2rem", flexDirection: "column" }}>
-          <h2 style={{ marginTop: 0 }}>This panel could not be displayed</h2>
-          <p style={{ color: "var(--text-muted)" }}>
-            Your ROM and project data were not changed by this display error. Switch panels or restart the editor, then include this message in a tester report if it repeats.
-          </p>
-          {this.state.message && (
-            <pre
-              style={{
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                backgroundColor: "var(--bg-panel)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                padding: "1rem",
-                maxWidth: "100%",
-              }}
-            >
-              {this.state.message}
-            </pre>
-          )}
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
+const RUNTIME_ERROR = "Desktop runtime not detected. Open the installed app, or run `npm run tauri dev` from apps/desktop.";
+interface CreatorContext {
+  boxerId?: number; boxerName?: string; circuit?: "Minor" | "Major" | "World" | "Special";
+  unlockOrder?: number; introTextId?: number; assetOwnerKey?: string;
 }
 
 function App() {
-  const {
-    romSha1,
-    boxers,
-    selectedBoxer,
-    currentProject,
-    canUndo,
-    canRedo,
-    undoStack,
-    pendingWrites,
-    loadBoxers,
-    openRom,
-    selectBoxer,
-    getCurrentProject,
-    undo,
-    redo,
-    setError,
-    error,
-  } = useStore();
-  const { runtimeSkin, setRuntimeSkin } = useTheme();
-
-  const isDesktopRuntime = useMemo(() => isTauri(), []);
-
-  const [showEmulatorSettings, setShowEmulatorSettings] = useState(false);
-  const [showExternalTools, setShowExternalTools] = useState(false);
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [helpContext, setHelpContext] = useState<string | undefined>(undefined);
-  const [showRegionSelector, setShowRegionSelector] = useState(false);
-  const [detectedRegion, setDetectedRegion] = useState<RegionDetectionResult | null>(null);
-  const [romPath, setRomPath] = useState("");
+  const { romSha1, boxers, selectedBoxer, currentProject, isProjectModified, canUndo, canRedo,
+    undoStack, pendingWrites, loadBoxers, selectBoxer, getCurrentProject, undo, redo, setError, error } = useStore();
+  const desktop = useMemo(() => isTauri(), []);
+  const [dialog, setDialog] = useState<"emulator" | "external" | "shortcuts" | "help" | null>(null);
+  const [helpContext, setHelpContext] = useState<string | undefined>();
   const [currentTab, setCurrentTab] = useState<TabKey>("editor");
   const [lastNonModalTab, setLastNonModalTab] = useState<TabKey>("editor");
-  const [boxerPortraits, setBoxerPortraits] = useState<Record<string, string>>({});
-  const [creatorAutoEnterToken, setCreatorAutoEnterToken] = useState(0);
-  const [testRomData, setTestRomData] = useState<Uint8Array | null>(null);
-  const [creatorSessionContext, setCreatorSessionContext] = useState<{
-    boxerId?: number;
-    boxerName?: string;
-    circuit?: "Minor" | "Major" | "World" | "Special";
-    unlockOrder?: number;
-    introTextId?: number;
-    assetOwnerKey?: string;
-  } | null>(null);
-  const menuSheetStyle = useMemo(
-    () =>
-      ({
-        "--menu-sheet-image": `url("${menuSheetUrl}")`,
-      }) as CSSProperties,
-    []
-  );
+  const [creatorToken, setCreatorToken] = useState(0);
+  const [creatorContext, setCreatorContext] = useState<CreatorContext | null>(null);
+  const [selectingBoxer, setSelectingBoxer] = useState(false);
+  const selectionLock = useRef(false);
+  const menuStyle = useMemo(() => ({ "--menu-sheet-image": `url("${menuSheetUrl}")` }) as CSSProperties, []);
+  const { runtimeSkin, portraits } = useRuntimeArtwork(desktop, romSha1, selectedBoxer?.key ?? null, boxers);
+  const onRomOpened = useCallback(() => { setCurrentTab("editor"); setLastNonModalTab("editor"); }, []);
+  const romOpening = useRomOpening(desktop, onRomOpened);
+  const testImage = useTestRomImage({ enabled: desktop && currentTab === "test", romSha1, pendingWrites, undoStack });
+  const navigate = useCallback((tab: TabKey) => {
+    if (!selectionLock.current && isFeatureVisible(tab) && (romSha1 || ROM_OPTIONAL_TABS.has(tab))) setCurrentTab(tab);
+  }, [romSha1]);
+  const openHelp = useCallback(() => {
+    setHelpContext(currentTab === "editor" ? "palette-editor" : currentTab);
+    setDialog("help");
+  }, [currentTab]);
+  const undoEdit = useCallback(() => { void undo(); }, [undo]);
+  const redoEdit = useCallback(() => { void redo(); }, [redo]);
+  useAppShortcuts({ enabled: !dialog && !romOpening.candidate && !romOpening.busy && currentTab !== "test",
+    canUndo, canRedo, onUndo: undoEdit, onRedo: redoEdit, onNavigate: navigate, onHelp: openHelp });
 
   useEffect(() => {
-    if (!isDesktopRuntime) {
-      setError(RUNTIME_ERROR);
-      return;
-    }
-
+    if (!desktop) return;
     void loadBoxers();
     void getCurrentProject();
-  }, [isDesktopRuntime, loadBoxers, getCurrentProject, setError]);
-
+  }, [desktop, loadBoxers, getCurrentProject]);
   useEffect(() => {
-    if (!MODAL_STYLE_TABS.has(currentTab)) {
-      setLastNonModalTab(currentTab);
-    }
+    if (!MODAL_STYLE_TABS.has(currentTab)) setLastNonModalTab(currentTab);
   }, [currentTab]);
+  useEffect(() => { setCreatorContext(null); }, [romSha1]);
 
-  useEffect(() => {
-    setCreatorSessionContext(null);
-    setTestRomData(null);
-  }, [romSha1]);
-
-  const refreshTestRomData = useCallback(async () => {
-    if (!isDesktopRuntime || !romSha1) {
-      setTestRomData(null);
-      return;
-    }
-
+  const chooseBoxer = useCallback(async (key: string) => {
+    if (selectionLock.current) return;
+    selectionLock.current = true;
+    setSelectingBoxer(true);
+    setCurrentTab("editor");
+    setError(null);
     try {
-      const romImage = await invoke<number[]>("get_loaded_rom_image");
-      setTestRomData(new Uint8Array(romImage));
-    } catch (refreshError) {
-      console.error("Failed to load current ROM image for embedded emulator:", refreshError);
-    }
-  }, [isDesktopRuntime, romSha1]);
-
-  useEffect(() => {
-    if (currentTab !== "test") return;
-    void refreshTestRomData();
-  }, [currentTab, refreshTestRomData, pendingWrites.size]);
-
-  useEffect(() => {
-    if (!isDesktopRuntime || !romSha1) {
-      setRuntimeSkin(null);
-      return;
-    }
-
-    let isCancelled = false;
-
-    void (async () => {
-      try {
-        const themeAssets = await invoke<{
-          boxer_key: string;
-          boxer_name: string;
-          palette: Array<{ r: number; g: number; b: number }>;
-          icon_png: number[] | null;
-          portrait_png: number[] | null;
-        }>("get_runtime_theme_assets", {
-          boxerKey: selectedBoxer?.key ?? null,
-        });
-
-        if (isCancelled) return;
-
-        setRuntimeSkin({
-          boxerKey: themeAssets.boxer_key,
-          boxerName: themeAssets.boxer_name,
-          palette: themeAssets.palette,
-          iconDataUrl: bytesToDataUrl(themeAssets.icon_png),
-          portraitDataUrl: bytesToDataUrl(themeAssets.portrait_png),
-        });
-      } catch (themeError) {
-        console.error("Failed to load runtime theme assets:", themeError);
-        if (!isCancelled) {
-          setRuntimeSkin(null);
-        }
-      }
-    })();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isDesktopRuntime, romSha1, selectedBoxer?.key, setRuntimeSkin]);
-
-  useEffect(() => {
-    if (!isDesktopRuntime || !romSha1 || boxers.length === 0) {
-      setBoxerPortraits({});
-      return;
-    }
-
-    let isCancelled = false;
-
-    void (async () => {
-      const entries = await Promise.all(
-        boxers.map(async (boxer) => {
-          try {
-            const assets = await invoke<{
-              portrait_png: number[] | null;
-              icon_png: number[] | null;
-            }>("get_runtime_theme_assets", {
-              boxerKey: boxer.key,
-            });
-            const imageUrl = bytesToDataUrl(assets.portrait_png) ?? bytesToDataUrl(assets.icon_png);
-            return [boxer.key, imageUrl] as const;
-          } catch (thumbnailError) {
-            console.error(`Failed to load portrait for ${boxer.key}:`, thumbnailError);
-            return [boxer.key, null] as const;
-          }
-        })
-      );
-
-      if (isCancelled) return;
-
-      const portraitMap = entries.reduce<Record<string, string>>((acc, [key, url]) => {
-        if (url) {
-          acc[key] = url;
-        }
-        return acc;
-      }, {});
-
-      setBoxerPortraits(portraitMap);
-    })();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isDesktopRuntime, romSha1, boxers]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "z" && !event.shiftKey) {
-        event.preventDefault();
-        if (canUndo) void undo();
-        return;
-      }
-
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        ((event.shiftKey && event.key === "z") || event.key === "y")
-      ) {
-        event.preventDefault();
-        if (canRedo) void redo();
-        return;
-      }
-
-      if (event.key === "F1") {
-        event.preventDefault();
-        setShowHelp(true);
-        setHelpContext(currentTab === "editor" ? "palette-editor" : currentTab);
-        return;
-      }
-
-      if (!(event.ctrlKey || event.metaKey)) return;
-
-      const quickTabs: Record<string, TabKey> = {
-        "1": "editor",
-        "2": "viewer",
-        "3": "project",
-        "4": "test",
-        "5": "compare",
-        "0": "settings",
-      };
-
-      const targetTab = quickTabs[event.key];
-      if (targetTab && isFeatureVisible(targetTab)) {
-        event.preventDefault();
-        setCurrentTab(targetTab);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canUndo, canRedo, undo, redo, currentTab]);
-
-  const handleOpenRom = async () => {
-    if (!isDesktopRuntime) {
-      setError(RUNTIME_ERROR);
-      return;
-    }
-
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [
-          {
-            name: "SNES ROM",
-            extensions: ["sfc", "smc"],
-          },
-        ],
-      });
-
-      if (typeof selected === "string") {
-        setRomPath(selected);
-        setShowRegionSelector(true);
-      }
-    } catch (openError) {
-      console.error(openError);
-      setError(String(openError));
-    }
-  };
-
-  const handleRegionDetected = useCallback((result: RegionDetectionResult) => {
-    setDetectedRegion(result);
-  }, []);
-
-  const handleRegionSelected = useCallback(async () => {
-    if (!romPath) return;
-    await openRom(romPath);
-
-    // Stable builds must never land inside a hidden experimental surface.
-    const landingTab: TabKey = isFeatureVisible("roster") ? "roster" : "editor";
-    setCurrentTab(landingTab);
-    setLastNonModalTab(landingTab);
-    setShowRegionSelector(false);
-  }, [openRom, romPath]);
-
-  const handleCloseModalStyleTab = useCallback(() => {
-    setCurrentTab(lastNonModalTab);
-  }, [lastNonModalTab]);
-
-  const handleLaunchCreatorTest = useCallback((context?: {
-    boxerId?: number;
-    boxerName?: string;
-    circuit?: "Minor" | "Major" | "World" | "Special";
-    unlockOrder?: number;
-    introTextId?: number;
-    assetOwnerKey?: string;
-  }) => {
-    setCreatorSessionContext(context ?? null);
-    setCreatorAutoEnterToken((current) => current + 1);
+      await selectBoxer(key);
+      if (useStore.getState().selectedBoxer?.key !== key) setError("That boxer could not be loaded. Choose another boxer or reopen your ROM.");
+    } catch (selectError) { setError(String(selectError)); }
+    finally { selectionLock.current = false; setSelectingBoxer(false); }
+  }, [selectBoxer, setError]);
+  const closePanel = useCallback(() => navigate(lastNonModalTab), [lastNonModalTab, navigate]);
+  const launchCreator = useCallback((context?: CreatorContext) => {
+    setCreatorContext(context ?? null);
+    setCreatorToken((value) => value + 1);
     setCurrentTab("test");
   }, []);
 
-  const handleOpenCreatorAssetOwner = useCallback(
-    (boxerKey: string) => {
-      void selectBoxer(boxerKey);
-      setCurrentTab("editor");
-      setLastNonModalTab("editor");
-    },
-    [selectBoxer]
-  );
-
-  const renderEditorContent = () => {
-    if (!romSha1) {
-      return <WelcomeWorkspace isDesktopRuntime={isDesktopRuntime} onOpenRom={() => void handleOpenRom()} />;
-    }
-
-    if (!selectedBoxer) {
-      return (
-        <div className="empty-state" style={{ flexDirection: "column", textAlign: "center", padding: "2rem" }}>
-          <h2>Choose a boxer to edit</h2>
-          <p>Pick a boxer from the left sidebar. A palette change is a good first test because it is obvious and reversible.</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="boxer-detail">
-        <h2 style={{ fontSize: "2rem", marginBottom: "0.35rem" }}>{selectedBoxer.name}</h2>
-        <p style={{ marginBottom: "1.5rem", color: "var(--text-muted)" }}>
-          Make one change at a time. Use Undo/Redo in the sidebar, then Test Game before saving or exporting.
-        </p>
-
-        <section
-          style={{
-            backgroundColor: "var(--bg-panel)",
-            padding: "2rem",
-            borderRadius: "12px",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <h3>Asset Summary</h3>
-          <p style={{ color: "var(--text-muted)" }}>ID: {selectedBoxer.key}</p>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: "1rem",
-            }}
-          >
-            <div style={{ padding: "1rem", backgroundColor: "var(--glass)", borderRadius: "8px" }}>
-              <strong>Palettes:</strong> {selectedBoxer.palette_files.length}
-            </div>
-            <div style={{ padding: "1rem", backgroundColor: "var(--glass)", borderRadius: "8px" }}>
-              <strong>Icons:</strong> {selectedBoxer.icon_files.length}
-            </div>
-            <div style={{ padding: "1rem", backgroundColor: "var(--glass)", borderRadius: "8px" }}>
-              <strong>Unique Sprite Bins:</strong> {selectedBoxer.unique_sprite_bins.length}
-            </div>
-            <div style={{ padding: "1rem", backgroundColor: "var(--glass)", borderRadius: "8px" }}>
-              <strong>Shared Sprite Bins:</strong> {selectedBoxer.shared_sprite_bins.length}
-            </div>
-          </div>
-        </section>
-
-        <section style={{ marginTop: "2rem" }}>
-          <PaletteEditor />
-        </section>
-
-        <section
-          style={{
-            marginTop: "2rem",
-            backgroundColor: "var(--bg-panel)",
-            padding: "2rem",
-            borderRadius: "12px",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <BoxerPreviewSheet boxer={selectedBoxer} />
-        </section>
-
-        <section style={{ marginTop: "2rem" }}>
-          <AssetManager boxer={selectedBoxer} />
-        </section>
-
-        <section
-          style={{
-            marginTop: "2rem",
-            backgroundColor: "var(--bg-panel)",
-            padding: "2rem",
-            borderRadius: "12px",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <SpriteBinEditor boxer={selectedBoxer} />
-        </section>
-
-        <section style={{ marginTop: "2rem" }}>
-          <ExportPanel />
-        </section>
-
-        <section style={{ marginTop: "2rem" }}>
-          <PatchNotesGenerator />
-        </section>
-      </div>
-    );
+  const welcome = () => <WelcomeWorkspace isDesktopRuntime={desktop} busy={romOpening.busy}
+    onOpenRom={() => void romOpening.chooseRom()} onOpenProject={() => navigate("project")} onHelp={openHelp} />;
+  const renderEditor = () => {
+    if (!romSha1) return welcome();
+    if (selectingBoxer) return <div className="club-empty-panel" role="status"><h2>Getting your corner ready…</h2><p>Loading the boxer and palette.</p></div>;
+    if (!selectedBoxer) return <section className="club-choose-workspace">
+      <p className="eyebrow">Round one · Choose your boxer</p><h1>Who is getting a new look?</h1>
+      <p>Choose a character below. Colors are a great place to start.</p>
+      <BoxerPicker boxers={boxers} portraits={portraits} onSelect={(key) => void chooseBoxer(key)} />
+    </section>;
+    return <EditorWorkspace key={selectedBoxer.key} boxer={selectedBoxer} portrait={portraits[selectedBoxer.key]}
+      editCount={undoStack.length} projectName={currentProject?.metadata?.name ?? null} projectModified={isProjectModified}
+      canUndo={canUndo} canRedo={canRedo} onUndo={undoEdit} onRedo={redoEdit}
+      onTest={() => navigate("test")} onProject={() => navigate("project")} />;
   };
 
   const renderMainContent = () => {
+    if (!romSha1 && !ROM_OPTIONAL_TABS.has(currentTab)) return welcome();
     switch (currentTab) {
-      case "viewer":
-        return <FighterViewer />;
-      case "scripts":
-        return <ScriptViewer />;
-      case "animations":
-        return <AnimationEditor />;
-      case "compare":
-        return <ComparisonView />;
-      case "frames":
-        return <FrameReconstructor />;
-      case "packs":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <LayoutPackBrowser onClose={handleCloseModalStyleTab} />
-          </div>
-        );
-      case "roster":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <RosterEditor mode="game" onLaunchCreatorTest={handleLaunchCreatorTest} />
-          </div>
-        );
-      case "ai":
-        return (
-          <div
-            style={{
-              padding: "1.5rem",
-              maxWidth: "1400px",
-              margin: "0 auto",
-              height: "calc(100vh - 200px)",
-            }}
-          >
-            <AIEditor />
-          </div>
-        );
-      case "settings":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <div className="tab-close-header">
-              <h2 style={{ marginBottom: 0 }}>Settings</h2>
-              <button className="tab-close-button" onClick={handleCloseModalStyleTab}>
-                Close
-              </button>
-            </div>
-            <UpdateSettings />
-          </div>
-        );
-      case "test":
-        return (
-          <div
-            style={{
-              height: "calc(100vh - 100px)",
-              padding: "1rem",
-              display: "flex",
-              flexDirection: "column",
-              minHeight: 0,
-            }}
-          >
-            <div className="tab-close-header">
-              <div>
-                <h2 style={{ marginBottom: "0.2rem" }}>Test Current Revision</h2>
-                <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                  This uses the editor's current materialized ROM, including unsaved journal edits.
-                </p>
-              </div>
-              <button className="tab-close-button" onClick={handleCloseModalStyleTab}>
-                Close
-              </button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <EmbeddedEmulator
-                layout="tab"
-                editedRomData={testRomData}
-                originalRomData={undefined}
-                romPath={romPath || null}
-                romName={currentProject?.metadata?.name || "Super Punch-Out!!"}
-                autoEnterCreatorToken={creatorAutoEnterToken}
-                creatorSessionContext={creatorSessionContext}
-                onOpenAssetOwner={handleOpenCreatorAssetOwner}
-              />
-            </div>
-          </div>
-        );
-      case "plugins":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <PluginManager isOpen={true} onClose={handleCloseModalStyleTab} />
-          </div>
-        );
-      case "banks":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <BankVisualization />
-          </div>
-        );
-      case "animation-player":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <AnimationPlayer />
-          </div>
-        );
-      case "project":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <ProjectManager />
-          </div>
-        );
-      case "audio":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <AudioEditor />
-          </div>
-        );
-      case "text":
-        return (
-          <div style={{ padding: "1.5rem", maxWidth: "1200px", margin: "0 auto" }}>
-            <TextEditor />
-          </div>
-        );
-      case "editor":
-      default:
-        return renderEditorContent();
+      case "viewer": return <FighterViewer />;
+      case "scripts": return <ScriptViewer />;
+      case "animations": return <AnimationEditor />;
+      case "compare": return <ComparisonView />;
+      case "frames": return <FrameReconstructor />;
+      case "packs": return <div className="club-legacy-panel"><LayoutPackBrowser onClose={closePanel} /></div>;
+      case "roster": return <div className="club-legacy-panel"><RosterEditor mode="game" onLaunchCreatorTest={launchCreator} /></div>;
+      case "ai": return <div className="club-legacy-panel club-tall-panel"><AIEditor /></div>;
+      case "settings": return <div className="club-legacy-panel"><div className="tab-close-header">
+        <h2>Settings</h2><button className="tab-close-button" onClick={closePanel}>Back to editing</button></div><UpdateSettings /></div>;
+      case "test": return <div className="club-test-workspace">
+        <div className="tab-close-header"><div><p className="eyebrow">Take it to the ring</p><h2>Test Current Revision</h2>
+          <p>Your current working ROM, including journal edits not yet exported.</p></div>
+          <button className="tab-close-button" onClick={closePanel}>Back to editing</button></div>
+        {testImage.status === "loading" && <div className="club-empty-panel" role="status"><h3>Preparing your latest changes…</h3><p>The game starts only after the current ROM is ready.</p></div>}
+        {testImage.status === "error" && <div className="club-empty-panel" role="alert"><h3>The test ROM could not be prepared</h3><p>{testImage.error}</p>
+          <p>No older revision has been substituted.</p><button type="button" onClick={testImage.retry}>Try again</button></div>}
+        {testImage.status === "ready" && testImage.data && <div className="club-test-content"><EmbeddedEmulator layout="tab"
+          editedRomData={testImage.data} originalRomData={undefined} romPath={romOpening.active?.path ?? null}
+          romName={currentProject?.metadata?.name || "Super Punch-Out!!"} autoEnterCreatorToken={creatorToken}
+          creatorSessionContext={creatorContext} onOpenAssetOwner={(key) => void chooseBoxer(key)} /></div>}
+      </div>;
+      case "plugins": return <div className="club-legacy-panel"><PluginManager isOpen onClose={closePanel} /></div>;
+      case "banks": return <div className="club-legacy-panel"><BankVisualization /></div>;
+      case "animation-player": return <div className="club-legacy-panel"><AnimationPlayer /></div>;
+      case "project": return <div className="club-legacy-panel"><ProjectManager /></div>;
+      case "audio": return <div className="club-legacy-panel"><AudioEditor /></div>;
+      case "text": return <div className="club-legacy-panel"><TextEditor /></div>;
+      default: return renderEditor();
     }
   };
 
-  return (
-    <div className={`app-container ${romSha1 ? "menu-sheet-enabled" : ""}`} style={menuSheetStyle}>
-      <GuidedSidebar
-        tabItems={TAB_ITEMS}
-        currentTab={currentTab}
-        romSha1={romSha1}
-        detectedRegionLabel={detectedRegion?.display_name ?? null}
-        detectedRegionSupported={detectedRegion?.is_supported}
-        currentProjectName={currentProject?.metadata?.name ?? null}
-        runtimeIconUrl={runtimeSkin?.iconDataUrl ?? null}
-        runtimeBoxerName={runtimeSkin?.boxerName ?? null}
-        boxers={boxers}
-        selectedBoxerKey={selectedBoxer?.key ?? null}
-        boxerPortraits={boxerPortraits}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        editCount={undoStack.length}
-        pendingWritesCount={pendingWrites.size}
-        isDesktopRuntime={isDesktopRuntime}
-        runtimeError={RUNTIME_ERROR}
-        error={error}
-        onOpenRom={() => void handleOpenRom()}
-        onUndo={() => void undo()}
-        onRedo={() => void redo()}
-        onNavigate={setCurrentTab}
-        onSelectBoxer={(boxerKey) => void selectBoxer(boxerKey)}
-        onOpenHelp={() => {
-          setHelpContext(currentTab === "editor" ? "palette-editor" : currentTab);
-          setShowHelp(true);
-        }}
-        onOpenKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
-        onOpenEmulatorSettings={() => setShowEmulatorSettings(true)}
-        onOpenExternalTools={() => setShowExternalTools(true)}
-      />
-
-      <main className="main-content">
-        <AppRenderBoundary key={`${currentTab}:${selectedBoxer?.key ?? "none"}`}>
-          {renderMainContent()}
-        </AppRenderBoundary>
-      </main>
-
-      <EmulatorSettings
-        isOpen={showEmulatorSettings}
-        onClose={() => setShowEmulatorSettings(false)}
-        onSave={() => {}}
-      />
-
-      <ExternalToolsManager isOpen={showExternalTools} onClose={() => setShowExternalTools(false)} />
-
-      <KeyboardShortcutsHelp isOpen={showKeyboardShortcuts} onClose={() => setShowKeyboardShortcuts(false)} />
-
-      <HelpSystem
-        isOpen={showHelp}
-        onClose={() => {
-          setShowHelp(false);
-          setHelpContext(undefined);
-        }}
-        initialContext={helpContext}
-      />
-
-      {showRegionSelector && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.72)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "2rem",
-          }}
-          role="presentation"
-        >
-          <div
-            style={{
-              backgroundColor: "var(--bg-panel)",
-              borderRadius: "12px",
-              maxWidth: "540px",
-              width: "100%",
-              maxHeight: "90vh",
-              overflow: "auto",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-              border: "1px solid var(--border)",
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="confirm-rom-title"
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "1rem 1.5rem",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <div>
-                <p className="eyebrow">One quick check</p>
-                <h2 id="confirm-rom-title" style={{ margin: 0, fontSize: "1.25rem" }}>Confirm ROM Region</h2>
-              </div>
-              <button
-                onClick={() => setShowRegionSelector(false)}
-                aria-label="Cancel ROM selection"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  minWidth: "42px",
-                  minHeight: "42px",
-                  padding: "0.25rem",
-                  fontSize: "1.25rem",
-                  cursor: "pointer",
-                  color: "var(--text-muted)",
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ padding: "1rem" }}>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                The editor checks the selected file before opening it. Your original ROM is treated as the immutable base for this editing session.
-              </p>
-              <RegionSelector
-                romPath={romPath}
-                onRegionDetected={handleRegionDetected}
-                onRegionSelected={handleRegionSelected}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <div className={`app-container clubhouse-shell ${romSha1 ? "menu-sheet-enabled" : ""}`} style={menuStyle}>
+    <a className="club-skip-link" href="#editor-workspace">Skip to workspace</a>
+    <GuidedSidebar tabItems={TAB_ITEMS} currentTab={currentTab} romSha1={romSha1}
+      detectedRegionLabel={romSha1 ? romOpening.active?.region?.display_name ?? null : null}
+      detectedRegionSupported={romOpening.active?.region?.is_supported}
+      currentProjectName={currentProject?.metadata?.name ?? null} runtimeIconUrl={runtimeSkin?.iconDataUrl ?? null}
+      runtimeBoxerName={runtimeSkin?.boxerName ?? null} boxers={boxers} selectedBoxerKey={selectedBoxer?.key ?? null}
+      boxerPortraits={portraits} canUndo={canUndo} canRedo={canRedo} editCount={undoStack.length}
+      pendingWritesCount={pendingWrites.size} isDesktopRuntime={desktop} runtimeError={RUNTIME_ERROR} error={error}
+      openingRom={romOpening.busy || Boolean(romOpening.candidate)} selectingBoxer={selectingBoxer}
+      onDismissError={() => setError(null)} onOpenRom={() => void romOpening.chooseRom()} onUndo={undoEdit} onRedo={redoEdit}
+      onNavigate={navigate} onSelectBoxer={(key) => void chooseBoxer(key)} onOpenHelp={openHelp}
+      onOpenKeyboardShortcuts={() => setDialog("shortcuts")} onOpenEmulatorSettings={() => setDialog("emulator")}
+      onOpenExternalTools={() => setDialog("external")} />
+    <main className="main-content" id="editor-workspace" tabIndex={-1}>
+      <PanelBoundary key={`${currentTab}:${selectedBoxer?.key ?? "none"}`}>{renderMainContent()}</PanelBoundary>
+    </main>
+    <EmulatorSettings isOpen={dialog === "emulator"} onClose={() => setDialog(null)} onSave={() => {}} />
+    <ExternalToolsManager isOpen={dialog === "external"} onClose={() => setDialog(null)} />
+    <KeyboardShortcutsHelp isOpen={dialog === "shortcuts"} onClose={() => setDialog(null)} />
+    <HelpSystem isOpen={dialog === "help"} onClose={() => { setDialog(null); setHelpContext(undefined); }} initialContext={helpContext} />
+    {romOpening.candidate && <RomOpenDialog path={romOpening.candidate.path} busy={romOpening.busy}
+      error={romOpening.openingError} onCancel={romOpening.cancel} onDetected={romOpening.regionDetected} onConfirm={romOpening.confirmSelection} />}
+  </div>;
 }
 
-function AppWithTheme(): React.ReactElement {
-  return (
-    <ThemeProvider>
-      <UpdateChecker>
-        <App />
-        <ToastContainer />
-      </UpdateChecker>
-    </ThemeProvider>
-  );
+export default function AppWithTheme() {
+  return <ThemeProvider><UpdateChecker><App /><ToastContainer /></UpdateChecker></ThemeProvider>;
 }
-
-export default AppWithTheme;
