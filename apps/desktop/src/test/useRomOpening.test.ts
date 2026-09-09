@@ -68,4 +68,15 @@ describe("provisional ROM selection", () => {
     const { result } = renderHook(() => useRomOpening(false, vi.fn()));
     await act(async () => result.current.chooseRom()); expect(mocks.open).not.toHaveBeenCalled(); expect(mocks.setError).toHaveBeenCalledOnce();
   });
+  it("restores the original opener after the asynchronous picker and region cancellation", async () => {
+    const button = document.createElement("button"); document.body.appendChild(button); button.focus();
+    mocks.open.mockResolvedValue("C:/first.sfc");
+    const { result } = renderHook(() => useRomOpening(true, vi.fn()));
+    await act(async () => result.current.chooseRom());
+    button.blur();
+    expect(document.activeElement).not.toBe(button);
+    act(() => result.current.cancel());
+    expect(button).toHaveFocus(); button.remove();
+  });
+
 });

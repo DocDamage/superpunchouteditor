@@ -46,7 +46,7 @@ export function EditorWorkspace(props: Props) {
         </div>
       </div>
       <EditorSections panels={{
-        colors: <><div className="club-tool-intro"><h2>Give your boxer a new look</h2><p>Choose a palette, then a color. Try a small change first; Undo brings you back.</p></div><PaletteEditor /></>,
+        colors: <><div className="club-tool-intro"><h2>Give your boxer a new look</h2><p>Choose a color, then adjust Red, Green, and Blue. Try a small change first; Undo brings you back.</p></div><PaletteEditor /></>,
         sprites: <><div className="club-tool-intro"><h2>See the fighter, then edit the pixels</h2><p>The preview helps you find your artwork. Shared sprite data can affect more than one boxer.</p></div><div className="club-content-card"><BoxerPreviewSheet boxer={boxer} /></div><div className="club-content-card"><SpriteBinEditor boxer={boxer} /></div></>,
         assets: <><div className="club-tool-intro"><h2>Your artwork toolbox</h2><p>Move artwork between the ROM and your image editor. Check shared-asset warnings before importing.</p></div><AssetManager boxer={boxer} /></>,
         export: <><div className="club-tool-intro"><h2>Take your changes into the ring</h2><p>Test your revision, then export a new ROM file. A project file is for continuing your work; an edited ROM is for playing it.</p></div><ExportPanel /><details className="club-details"><summary>Write patch notes</summary><PatchNotesGenerator /></details></>,

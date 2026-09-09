@@ -1,0 +1,16 @@
+.app-container.clubhouse-shell .club-palette h3 { margin: 0 0 8px; }
+.app-container.clubhouse-shell .club-palette-hint { color: var(--text-secondary); font-size: 0.85rem; margin: 8px 0 16px; }
+.app-container.clubhouse-shell .club-palette .palette-grid { grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: 10px; }
+.app-container.clubhouse-shell .club-palette .palette-swatch { position: relative; width: 100%; min-height: 64px; aspect-ratio: 1; padding: 7px; background-image: none; border: 2px solid var(--border); border-radius: 14px; display: flex; align-items: flex-end; justify-content: flex-start; transform: none; }
+.app-container.clubhouse-shell .club-palette .palette-swatch[aria-pressed="true"] { outline: 3px solid var(--text-primary); outline-offset: 2px; border-color: var(--bg-primary); }
+.app-container.clubhouse-shell .club-palette .palette-swatch:focus-visible { outline: 3px dashed var(--text-primary); outline-offset: 4px; }
+.app-container.clubhouse-shell .club-swatch-label { padding: 3px 7px; border-radius: 7px; color: #171717; background: #fff; border: 1px solid #171717; font-size: 0.74rem; font-weight: 800; text-shadow: none; }
+.app-container.clubhouse-shell .club-palette .color-picker-panel { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-panel); padding: 20px; }
+.app-container.clubhouse-shell .club-selected-color { flex: 0 0 120px; }
+.app-container.clubhouse-shell .club-selected-color h4 { margin: 8px 0 4px; }
+.app-container.clubhouse-shell .club-palette .color-preview-large { width: 120px; height: 110px; border-radius: 14px; border: 2px solid var(--border); }
+.app-container.clubhouse-shell .club-palette .slider-group { flex: 1 1 230px; min-width: 0; }
+.app-container.clubhouse-shell .club-palette .slider-row { display: grid; grid-template-columns: 50px minmax(0, 1fr) 34px; align-items: center; gap: 10px; }
+.app-container.clubhouse-shell .club-palette .slider-row label { width: auto; color: var(--text-primary); font-weight: 700; }
+.app-container.clubhouse-shell .club-palette .slider-row input { width: 100%; min-width: 0; height: 44px; accent-color: var(--accent); }
+.app-container.clubhouse-shell .club-palette .slider-row output { color: var(--text-secondary); font-variant-numeric: tabular-nums; }

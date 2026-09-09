@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { confirm, open } from "@tauri-apps/plugin-dialog";
 import { useStore } from "../store/useStore";
 import type { RegionDetectionResult } from "../components/RegionSelector";
@@ -13,6 +13,16 @@ export function useRomOpening(isDesktopRuntime: boolean, onOpened: () => void) {
   const [openingError, setOpeningError] = useState<string | null>(null);
   const locked = useRef(false);
   const candidateRef = useRef<RomSelection | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
+
+  // Capture focus before disabling the opener for the asynchronous native picker.
+  // Restore only after React has re-enabled controls and removed any modal.
+  useEffect(() => {
+    if (busy || candidate || !opener.current) return;
+    const element = opener.current;
+    opener.current = null;
+    if (element.isConnected) element.focus();
+  }, [busy, candidate]);
 
   const changeCandidate = useCallback((value: RomSelection | null) => {
     candidateRef.current = value;
@@ -25,6 +35,7 @@ export function useRomOpening(isDesktopRuntime: boolean, onOpened: () => void) {
       useStore.getState().setError("Open the desktop app to choose a local ROM.");
       return;
     }
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     locked.current = true;
     setBusy(true);
     try {
