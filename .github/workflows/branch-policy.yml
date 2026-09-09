@@ -1,0 +1,63 @@
+name: Branch Policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main, reconcile/main-2026-09-09]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    name: Enforce main branch policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate pull-request target and CI branch filters
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          if 'pull_request' in event:
+              assert event['pull_request']['base']['ref'] == 'main', 'Open pull requests against main, not a retired branch.'
+          for name in ['ci.yml', 'lint.yml', 'windows-package-smoke.yml', 'community-tester-kit.yml']:
+              text = (Path('.github/workflows') / name).read_text()
+              header = text.split('\njobs:', 1)[0]
+              filters = re.findall(r'branches:\s*\[([^\]]+)\]', header)
+              assert filters and all('main' in [v.strip() for v in f.split(',')] for f in filters), name
+              assert all('master' not in [v.strip() for v in f.split(',')] for f in filters), name
+          assert Path('AGENTS.md').is_file()
+          assert 'authoritative development and default branch is **`main`**' in Path('README.md').read_text()
+          print('PASS: main is the documented development target and normal CI target.')
+          PY
+      - name: Prove consolidation changes no application or release logic
+        if: github.head_ref == 'reconcile/main-2026-09-09' || github.ref == 'refs/heads/reconcile/main-2026-09-09'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          baseline = '8d1d7db1ed5fcd1adfee316845d6e2b713a90215'
+          protected = ['apps', 'crates', 'assets', 'data', 'scripts', 'tests', 'ROMs', 'Cargo.toml', 'Cargo.lock', 'Makefile.toml', 'rust-toolchain.toml', 'SECURITY.md', 'LICENSE', '.github/workflows/release.yml']
+          subprocess.run(['git', 'diff', '--exit-code', baseline, 'HEAD', '--', *protected], check=True)
+          for name in ['ci.yml', 'lint.yml', 'windows-package-smoke.yml', 'community-tester-kit.yml']:
+              path = '.github/workflows/' + name
+              old = subprocess.check_output(['git', 'show', f'{baseline}:{path}'], text=True)
+              expected = old.replace('branches: [master, develop]', 'branches: [main, develop]').replace('branches: [master]', 'branches: [main]')
+              actual = Path(path).read_text()
+              assert actual.splitlines() == expected.splitlines(), f'Unexpected change beyond branch filters: {path}'
+          print('PASS: application and production release logic match the latest master snapshot exactly.')
+          print('PASS: existing CI and packaging workflows differ only in repository branch filters.')
+          result = subprocess.run(['git', 'grep', '-n', '-w', 'master', '--', 'README.md', 'CONTRIBUTING.md', 'docs', 'scripts', '.github', ':!docs/archive', ':!docs/BRANCH_CONSOLIDATION_2026-09-09.md'], text=True, capture_output=True)
+          if result.returncode not in (0, 1):
+              raise RuntimeError(result.stderr)
+          print('Remaining master references for contextual review:\n' + result.stdout)
+          PY

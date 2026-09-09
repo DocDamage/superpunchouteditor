@@ -1,5 +1,11 @@
 # Contributing
 
+## Branch policy
+
+Create feature branches from current `origin/main` and target pull requests to `main`. `main` is both the default branch and the authoritative application history. Do not resume development on the retired `master` or old milestone branches. This supersedes older handoffs that described `main` as obsolete. See `AGENTS.md` and `docs/BRANCH_CONSOLIDATION_2026-09-09.md`.
+
+For an existing clean checkout, use `git fetch origin`, `git switch main`, and `git pull --ff-only origin main`. Preserve uncommitted work before switching. Do not force-reset a local branch containing unique work; move that work to a feature branch and integrate it through a pull request.
+
 ## Supported development baseline
 
 Use the committed Rust toolchain file and frontend engine constraints; do not substitute newer toolchains merely to make a local warning disappear. Install dependencies from committed lockfiles with `cargo` and `npm ci`.

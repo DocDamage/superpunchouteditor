@@ -8,9 +8,9 @@ A Windows-first desktop ROM editor for *Super Punch-Out!!* (SNES), built with Ta
 
 **Windows x64 is the active release target.** Linux and macOS CI remain useful shared-code signals, but they are not the current packaging/release gate.
 
-The authoritative development branch is **`master`**.
+The authoritative development and default branch is **`main`**.
 
-The GitHub repository default branch is still `main` for historical/admin reasons. That `main` branch is obsolete starter history and is **not** the real application. Do not develop from, merge into, force-update, or replace `main`.
+The September 9, 2026 consolidation brought the current application, all merged milestones, and the assembled boxer-pose update onto `main` while preserving the original branch histories. Earlier instructions calling `main` obsolete or directing development to `master` are superseded. Start new work from `origin/main` and target pull requests to `main`; the old milestone branches are historical references only. See [`docs/BRANCH_CONSOLIDATION_2026-09-09.md`](docs/BRANCH_CONSOLIDATION_2026-09-09.md).
 
 ## Stable user workflow
 
@@ -135,8 +135,8 @@ The desktop application does not require Python at runtime. Remaining Python fil
 
 ## Contributing
 
-1. Create work from the current authoritative **`master`** branch.
-2. Keep changes on a feature branch and target pull requests to `master`.
+1. Create work from the current authoritative **`main`** branch.
+2. Keep changes on a feature branch and target pull requests to `main`.
 3. Run the relevant frontend/Rust checks before merge.
 4. Do not commit ROM files, save states, copyrighted ROM extracts, private keys, certificates, or signing secrets.
 5. Keep stable mutations on the canonical `BaseRom → EditJournal → WorkingRom` materialization path.

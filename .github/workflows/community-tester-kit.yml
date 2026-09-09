@@ -2,9 +2,9 @@ name: Community Windows Tester Kit
 
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
