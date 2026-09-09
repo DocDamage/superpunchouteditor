@@ -35,7 +35,7 @@ A first-time Windows tester should be able to complete this sequence without dev
 
 ## Community-test gates
 
-- A dedicated Windows tester-kit workflow runs on PRs and pushes targeting `master`.
+- A dedicated Windows tester-kit workflow runs on PRs and pushes targeting `main`.
 - The kit includes a start-here guide, exact installer checksum, source/build provenance, and advanced evidence helpers.
 - The kit scan fails if ROM, SRAM/save-state, or `SUPERZSNES.exe` content enters the artifact.
 - The tester kit is explicitly identified as unsigned/non-production unless built by the separate production signing workflow.

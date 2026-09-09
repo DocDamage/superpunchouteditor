@@ -13,7 +13,7 @@ Key changes:
 - community test guide and GitHub issue template;
 - automated Windows community tester kit with checksum/provenance metadata;
 - fail-closed tester-kit scan for ROM, SRAM/save-state, and SuperZSNES content;
-- documentation corrected to identify `master` as authoritative and Windows x64 as the active release target.
+- documentation identifies Windows x64 as the active release target. The original milestone used `master`; the September 9, 2026 consolidation supersedes that branch policy with `main` (see `BRANCH_CONSOLIDATION_2026-09-09.md`).
 - complete assembled boxer-pose preview with pose navigation;
 - raw tile-bank view relabeled as an individual-8×8-tile editing reference so chopped bank sheets are not mistaken for missing sprites;
 - user, architecture, troubleshooting, and Windows acceptance guidance added for the two preview modes.
