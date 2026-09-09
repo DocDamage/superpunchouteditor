@@ -285,7 +285,7 @@ jobs:
           Write-Host "SHA-256: $hash"
 
       - name: Upload Windows installer smoke artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: super-punch-out-editor-windows-nsis-smoke
           path: |
@@ -327,7 +327,7 @@ jobs:
           "path=$kitDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Upload Windows acceptance kit
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: super-punch-out-editor-windows-acceptance-kit
           path: ${{ steps.acceptance-kit.outputs.path }}
