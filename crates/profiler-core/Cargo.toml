@@ -1,0 +1,15 @@
+[package]
+name = "profiler-core"
+version = "2.0.0"
+edition = "2021"
+description = "Performance profiling crate for SNES emulation - CPU, graphics, and audio analysis"
+license = "MIT"
+
+[dependencies]
+emulator-core = { path = "../emulator-core" }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+
+[dev-dependencies]
+mockall = "0.12"
+tokio-test = "0.4"

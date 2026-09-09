@@ -1,0 +1,60 @@
+    Checking asset-core v0.1.0 (C:\Users\dferr\Desktop\super_punch_out_editor\editor\crates\asset-core)
+warning: unused imports: `Cursor` and `Read`
+ --> src\compression.rs:1:15
+  |
+1 | use std::io::{Cursor, Read};
+  |               ^^^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `Tile` and `tiles_to_image`
+ --> src\fighter.rs:4:37
+  |
+4 | use crate::gfx::{decode_4bpp_sheet, Tile, tiles_to_image};
+  |                                     ^^^^  ^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src\fighter.rs:133:56
+    |
+133 |                     let mut decomp = Decompressor::new(data.to_vec());
+    |                                      ----------------- ^^^^^^^^^^^^^ expected `&[u8]`, found `Vec<u8>`
+    |                                      |
+    |                                      arguments to this function are incorrect
+    |
+    = note: expected reference `&[u8]`
+                  found struct `Vec<u8>`
+note: associated function defined here
+   --> src\compression.rs:10:12
+    |
+10  |     pub fn new(input: &'a [u8]) -> Self {
+    |            ^^^ ---------------
+help: try removing the method call
+    |
+133 -                     let mut decomp = Decompressor::new(data.to_vec());
+133 +                     let mut decomp = Decompressor::new(data);
+    |
+
+error[E0308]: mismatched types
+   --> src\fighter.rs:148:56
+    |
+148 |                     let mut decomp = Decompressor::new(data.to_vec());
+    |                                      ----------------- ^^^^^^^^^^^^^ expected `&[u8]`, found `Vec<u8>`
+    |                                      |
+    |                                      arguments to this function are incorrect
+    |
+    = note: expected reference `&[u8]`
+                  found struct `Vec<u8>`
+note: associated function defined here
+   --> src\compression.rs:10:12
+    |
+10  |     pub fn new(input: &'a [u8]) -> Self {
+    |            ^^^ ---------------
+help: try removing the method call
+    |
+148 -                     let mut decomp = Decompressor::new(data.to_vec());
+148 +                     let mut decomp = Decompressor::new(data);
+    |
+
+For more information about this error, try `rustc --explain E0308`.
+warning: `asset-core` (lib) generated 2 warnings
+error: could not compile `asset-core` (lib) due to 2 previous errors; 2 warnings emitted

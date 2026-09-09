@@ -1,0 +1,65 @@
+# Rust
+target/
+**/target/
+target_codex/
+target[0-9]*/
+**/target[0-9]*/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+
+# Node
+node_modules/
+yarn.lock
+
+# Python caches/environments
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+
+# Test outputs
+test-output/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# User-owned ROMs, patches, save states, emulator binaries, and archives
+*.rom
+*.smc
+*.sfc
+*.ips
+*.bps
+*.srm
+*.state
+*.sav
+*.zip
+!docs/archive/*.zip
+*.tar.gz
+*.rar

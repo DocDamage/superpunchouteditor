@@ -1,0 +1,18 @@
+{
+  "_comment": "Layout metadata for Hoy Quarlow — all unique, no shared banks, safest fighter to work with.",
+  "fighter": "Hoy Quarlow",
+  "key": "Hoy Quarlow",
+  "tier": 1,
+  "notes": "47 unique sprite bins, 0 shared. Ideal first target for full graphics replacement.",
+  "bin_labels": {
+    "GFX_Sprite_HoyQuarlow1.bin": { "region": "Main Body A", "description": "Standing, idle, intro animations", "priority": 1 },
+    "GFX_Sprite_HoyQuarlow2.bin": { "region": "Main Body B", "description": "Punching, blocking animations", "priority": 2 },
+    "GFX_Sprite_HoyQuarlow3.bin": { "region": "Main Body C", "description": "Knockdown, victory animations", "priority": 3 },
+    "GFX_Sprite_HoyQuarlowIndex25.bin": { "region": "Auxiliary", "description": "Additional sprite data", "priority": 10 }
+  },
+  "reference_layout": [
+    { "bin": "GFX_Sprite_HoyQuarlow1.bin", "x": 0, "y": 0 },
+    { "bin": "GFX_Sprite_HoyQuarlow2.bin", "x": 0, "y": 256 },
+    { "bin": "GFX_Sprite_HoyQuarlow3.bin", "x": 0, "y": 512 }
+  ]
+}

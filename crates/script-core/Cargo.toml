@@ -1,0 +1,13 @@
+[package]
+name = "script-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Scripting support for Super Punch-Out!! Editor"
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+rom-core = { workspace = true }

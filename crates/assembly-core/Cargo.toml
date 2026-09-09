@@ -1,0 +1,17 @@
+[package]
+name = "assembly-core"
+version = "2.0.0"
+edition = "2021"
+description = "Deep System Layer - Assembly tools for 65816/SNES ROM manipulation"
+license = "MIT"
+authors = ["Super Punch-Out!! Editor Team"]
+repository = "https://github.com/superpunchout/editor"
+
+[dependencies]
+rom-core = { path = "../rom-core", version = "2.0.0" }
+debugger-core = { path = "../debugger-core", version = "2.0.0" }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.8"

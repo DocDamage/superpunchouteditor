@@ -1,0 +1,450 @@
+name: Windows Package Smoke
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-package-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  nsis-smoke:
+    name: Build and exercise Windows NSIS installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: Windows-package-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: Windows-package-cargo-
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Validate Windows acceptance script syntax
+        shell: pwsh
+        run: |
+          $scripts = @(Get-ChildItem -Path 'scripts/windows' -Filter 'acceptance-*.ps1' -File)
+          if ($scripts.Count -eq 0) {
+            throw 'No Windows acceptance scripts were found.'
+          }
+
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell acceptance script contains syntax errors: $($script.Name)"
+            }
+          }
+
+          Write-Host "Validated $($scripts.Count) Windows acceptance script(s)."
+
+      - name: Exercise canonical acceptance evidence toolkit
+        shell: pwsh
+        run: |
+          $fixtureDir = Join-Path $env:RUNNER_TEMP 'acceptance-artifact-verifier'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $fixtureDir
+          New-Item -ItemType Directory -Force -Path $fixtureDir | Out-Null
+
+          $rom = Join-Path $fixtureDir 'source.sfc'
+          $saved = Join-Path $fixtureDir 'saved.sfc'
+          $bps = Join-Path $fixtureDir 'bps.sfc'
+          $ips = Join-Path $fixtureDir 'ips.sfc'
+          $project = Join-Path $fixtureDir 'project-restored.sfc'
+          $evidencePath = Join-Path $fixtureDir 'evidence.json'
+          $verifiedPath = Join-Path $fixtureDir 'verified.json'
+          $summaryPath = Join-Path $fixtureDir 'summary.md'
+
+          [byte[]]$sourceBytes = 0..255
+          [byte[]]$editedBytes = $sourceBytes.Clone()
+          $editedBytes[42] = [byte]($editedBytes[42] -bxor 0x5A)
+
+          [System.IO.File]::WriteAllBytes($rom, $sourceBytes)
+          [System.IO.File]::WriteAllBytes($saved, $editedBytes)
+          Copy-Item -LiteralPath $saved -Destination $bps
+          Copy-Item -LiteralPath $saved -Destination $ips
+          Copy-Item -LiteralPath $saved -Destination $project
+
+          $sourceHash = (Get-FileHash -LiteralPath $rom -Algorithm SHA256).Hash.ToLowerInvariant()
+          $evidence = [ordered]@{
+            schemaVersion = 1
+            generatedAtUtc = [DateTime]::UtcNow.ToString('o')
+            gitCommit = '${{ github.sha }}'
+            windows = [ordered]@{
+              caption = 'Synthetic Windows CI fixture'
+              version = '0'
+              buildNumber = '0'
+              architecture = 'x64'
+              manufacturer = 'GitHub Actions'
+              model = 'Synthetic'
+            }
+            installer = [ordered]@{
+              fileName = 'synthetic-unsigned-setup.exe'
+              sizeBytes = 1
+              sha256 = ('0' * 64)
+              authenticodeStatus = 'NotSigned'
+              signerSubject = $null
+            }
+            rom = [ordered]@{
+              fileName = 'source.sfc'
+              sizeBytes = (Get-Item -LiteralPath $rom).Length
+              sha256 = $sourceHash
+            }
+            emulator = $null
+            acceptance = [ordered]@{
+              automatedWindowsSourceGate = 'NOT_RECORDED'
+              automatedNsisPackageGate = 'NOT_RECORDED'
+              automatedInstallLaunchUninstallGate = 'NOT_RECORDED'
+              loadValidation = 'NOT_RUN'
+              editUndoRedo = 'NOT_RUN'
+              savedRomEquivalence = 'NOT_RUN'
+              ipsEquivalence = 'NOT_RUN'
+              bpsEquivalence = 'NOT_RUN'
+              comparisonPath = 'NOT_RUN'
+              projectV2RestoreEquivalence = 'NOT_RUN'
+              embeddedEmulatorCurrentRevision = 'NOT_RUN'
+              externalEmulatorCurrentRevision = 'N/A'
+              safeSaveRecovery = 'NOT_RUN'
+              defaultUninstallDataPreservation = 'NOT_RUN'
+            }
+            notes = @('Synthetic metadata only.')
+          }
+          $evidence | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $evidencePath -Encoding utf8
+
+          & ./scripts/windows/acceptance-verify-artifacts.ps1 `
+            -EvidencePath $evidencePath `
+            -RomPath $rom `
+            -SavedRomPath $saved `
+            -BpsPatchedRomPath $bps `
+            -IpsPatchedRomPath $ips `
+            -ProjectRestoredRomPath $project `
+            -OutputPath $verifiedPath
+
+          $verified = Get-Content -LiteralPath $verifiedPath -Raw | ConvertFrom-Json
+          foreach ($field in @('savedRomEquivalence', 'ipsEquivalence', 'bpsEquivalence', 'projectV2RestoreEquivalence')) {
+            if ($verified.acceptance.$field -ne 'PASS') {
+              throw "Artifact verifier did not record PASS for $field."
+            }
+          }
+          if (-not $verified.artifactVerification.sourceRomUnchanged) {
+            throw 'Artifact verifier did not preserve source-ROM integrity evidence.'
+          }
+
+          $manualOverrideRejected = $false
+          try {
+            & ./scripts/windows/acceptance-record-status.ps1 `
+              -EvidencePath $verifiedPath `
+              -Field savedRomEquivalence `
+              -Status FAIL
+          } catch {
+            $manualOverrideRejected = $true
+            Write-Host "Expected hash-field override rejection: $($_.Exception.Message)"
+          }
+          if (-not $manualOverrideRejected) {
+            throw 'Manual status recorder allowed a hash-proven equivalence field to be overridden.'
+          }
+
+          $manualPassFields = @(
+            'automatedWindowsSourceGate',
+            'automatedNsisPackageGate',
+            'automatedInstallLaunchUninstallGate',
+            'loadValidation',
+            'editUndoRedo',
+            'comparisonPath',
+            'embeddedEmulatorCurrentRevision',
+            'safeSaveRecovery',
+            'defaultUninstallDataPreservation'
+          )
+          foreach ($field in $manualPassFields) {
+            & ./scripts/windows/acceptance-record-status.ps1 `
+              -EvidencePath $verifiedPath `
+              -Field $field `
+              -Status PASS `
+              -Note 'Synthetic Windows acceptance toolkit certification.'
+          }
+
+          & ./scripts/windows/acceptance-summary.ps1 `
+            -EvidencePath $verifiedPath `
+            -OutputPath $summaryPath `
+            -RequireCompleteLocalAcceptance
+
+          $summary = Get-Content -LiteralPath $summaryPath -Raw
+          if ($summary -notmatch 'Local canonical acceptance: \*\*PASS\*\*') {
+            throw 'Acceptance summary did not report a complete local PASS matrix.'
+          }
+
+          $signedGateRejected = $false
+          try {
+            & ./scripts/windows/acceptance-summary.ps1 `
+              -EvidencePath $verifiedPath `
+              -OutputPath (Join-Path $fixtureDir 'signed-summary.md') `
+              -RequireSignedInstaller
+          } catch {
+            $signedGateRejected = $true
+            Write-Host "Expected unsigned-installer rejection: $($_.Exception.Message)"
+          }
+          if (-not $signedGateRejected) {
+            throw 'Acceptance summary accepted unsigned installer evidence as production-signed.'
+          }
+
+          [byte[]]$tampered = [System.IO.File]::ReadAllBytes($bps)
+          $tampered[0] = [byte]($tampered[0] -bxor 0xFF)
+          [System.IO.File]::WriteAllBytes($bps, $tampered)
+
+          $tamperRejected = $false
+          try {
+            & ./scripts/windows/acceptance-verify-artifacts.ps1 `
+              -EvidencePath $evidencePath `
+              -RomPath $rom `
+              -SavedRomPath $saved `
+              -BpsPatchedRomPath $bps `
+              -IpsPatchedRomPath $ips `
+              -ProjectRestoredRomPath $project `
+              -OutputPath (Join-Path $fixtureDir 'tampered.json')
+          } catch {
+            $tamperRejected = $true
+            Write-Host "Expected tamper rejection: $($_.Exception.Message)"
+          }
+
+          if (-not $tamperRejected) {
+            throw 'Artifact verifier accepted a tampered BPS output.'
+          }
+
+          "- Windows acceptance toolkit: passed (equivalence, protected fields, summary, signing gate, tamper rejection)" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Build unsigned NSIS smoke bundle
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          # Release updater artifacts remain signed in tauri.conf.json. This smoke
+          # build disables only updater-artifact generation so installer packaging
+          # can be validated on pull requests without access to release secrets.
+          npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Verify installer and record SHA-256
+        id: installer
+        shell: pwsh
+        run: |
+          $roots = @("target", "apps/desktop/src-tauri/target") | Where-Object { Test-Path $_ }
+          $installers = @(
+            foreach ($root in $roots) {
+              Get-ChildItem -Path $root -Filter *.exe -Recurse -File |
+                Where-Object { $_.FullName -match '[\\/]bundle[\\/]nsis[\\/]' }
+            }
+          ) | Sort-Object FullName -Unique
+
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
+          }
+
+          $installer = $installers[0]
+          if ($installer.Length -le 0) {
+            throw "Installer is empty: $($installer.FullName)"
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $installer.FullName).Hash.ToLowerInvariant()
+          "path=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          "## Windows NSIS smoke artifact" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- $($installer.Name) — $($installer.Length) bytes — SHA-256 ``$hash``" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          Write-Host "Installer: $($installer.FullName)"
+          Write-Host "SHA-256: $hash"
+
+      - name: Upload Windows installer smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-punch-out-editor-windows-nsis-smoke
+          path: |
+            target/**/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assemble Windows acceptance kit
+        id: acceptance-kit
+        shell: pwsh
+        run: |
+          $kitDir = Join-Path (Get-Location) 'target/windows-acceptance-kit'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $kitDir
+          New-Item -ItemType Directory -Force -Path $kitDir | Out-Null
+
+          $installer = '${{ steps.installer.outputs.path }}'
+          $installerHash = '${{ steps.installer.outputs.sha256 }}'
+          Copy-Item -LiteralPath $installer -Destination $kitDir
+          Copy-Item -Path 'scripts/windows/acceptance-*.ps1' -Destination $kitDir
+          Copy-Item -LiteralPath 'docs/WINDOWS_ACCEPTANCE.md' -Destination $kitDir
+
+          @"
+          Super Punch-Out!! Editor Windows Acceptance Kit
+
+          Workflow build commit: $env:GITHUB_SHA
+          Installer SHA-256: $installerHash
+
+          This installer is the unsigned PR/package smoke artifact for functional acceptance.
+          Production stable artifacts must come from the signed tag release workflow.
+
+          Supply your own legally obtained ROM locally. Never upload ROM bytes to GitHub.
+          Start with WINDOWS_ACCEPTANCE.md and acceptance-preflight.ps1.
+          Use acceptance-verify-artifacts.ps1 for hash-proven canonical output equality.
+          Use acceptance-record-status.ps1 only for manual/visual gate results.
+          Use acceptance-summary.ps1 to generate the final Markdown matrix.
+          "@ | Set-Content -LiteralPath (Join-Path $kitDir 'README.txt') -Encoding utf8
+
+          "path=$kitDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload Windows acceptance kit
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-punch-out-editor-windows-acceptance-kit
+          path: ${{ steps.acceptance-kit.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install and launch application
+        id: lifecycle
+        shell: pwsh
+        run: |
+          $installer = '${{ steps.installer.outputs.path }}'
+          $installDir = Join-Path $env:LOCALAPPDATA 'Super Punch-Out!! Editor'
+          $appExe = Join-Path $installDir 'tauri-appsuper-punch-out-editor.exe'
+          $uninstaller = Join-Path $installDir 'uninstall.exe'
+
+          if (Test-Path $installDir) {
+            throw "Expected a clean runner, but install directory already exists: $installDir"
+          }
+
+          $install = Start-Process -FilePath $installer -ArgumentList '/S', '/NS' -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "Silent NSIS install failed with exit code $($install.ExitCode)."
+          }
+
+          if (-not (Test-Path $appExe -PathType Leaf)) {
+            throw "Installed application executable not found: $appExe"
+          }
+          if (-not (Test-Path $uninstaller -PathType Leaf)) {
+            throw "Installed uninstaller not found: $uninstaller"
+          }
+
+          $forbidden = @(
+            Get-ChildItem -Path $installDir -Recurse -File | Where-Object {
+              $_.Extension -in @('.sfc', '.smc') -or $_.Name -ieq 'SUPERZSNES.exe'
+            }
+          )
+          if ($forbidden.Count -gt 0) {
+            throw "Copyright-sensitive ROM/emulator content was unexpectedly bundled: $($forbidden.FullName -join ', ')"
+          }
+
+          $roamingData = Join-Path $env:APPDATA 'com.dferr.super-punch-out-editor'
+          $localData = Join-Path $env:LOCALAPPDATA 'com.dferr.super-punch-out-editor'
+          New-Item -ItemType Directory -Force -Path $roamingData, $localData | Out-Null
+          Set-Content -Path (Join-Path $roamingData 'windows-smoke-preserve.txt') -Value 'preserve-on-uninstall'
+          Set-Content -Path (Join-Path $localData 'windows-smoke-preserve.txt') -Value 'preserve-on-uninstall'
+
+          $app = Start-Process -FilePath $appExe -PassThru
+          Start-Sleep -Seconds 10
+          $app.Refresh()
+          if ($app.HasExited) {
+            throw "Installed application exited during launch smoke with code $($app.ExitCode)."
+          }
+
+          Stop-Process -Id $app.Id -Force
+          Wait-Process -Id $app.Id -ErrorAction SilentlyContinue
+
+          "install_dir=$installDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "app_exe=$appExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "uninstaller=$uninstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "roaming_marker=$(Join-Path $roamingData 'windows-smoke-preserve.txt')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "local_marker=$(Join-Path $localData 'windows-smoke-preserve.txt')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+          "- Silent current-user install: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Installed application launch (10 seconds): passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- ROM/emulator bundle boundary: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Uninstall and preserve application data
+        shell: pwsh
+        run: |
+          $uninstaller = '${{ steps.lifecycle.outputs.uninstaller }}'
+          $installDir = '${{ steps.lifecycle.outputs.install_dir }}'
+          $appExe = '${{ steps.lifecycle.outputs.app_exe }}'
+          $roamingMarker = '${{ steps.lifecycle.outputs.roaming_marker }}'
+          $localMarker = '${{ steps.lifecycle.outputs.local_marker }}'
+
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "Silent NSIS uninstall failed with exit code $($uninstall.ExitCode)."
+          }
+
+          for ($i = 0; $i -lt 30 -and (Test-Path $appExe); $i++) {
+            Start-Sleep -Seconds 1
+          }
+
+          if (Test-Path $appExe) {
+            throw "Application executable remains after uninstall: $appExe"
+          }
+          if (Test-Path $installDir) {
+            $leftovers = @(Get-ChildItem -Path $installDir -Force -ErrorAction SilentlyContinue)
+            if ($leftovers.Count -gt 0) {
+              throw "Install directory contains leftovers after uninstall: $($leftovers.FullName -join ', ')"
+            }
+          }
+
+          if (-not (Test-Path $roamingMarker -PathType Leaf)) {
+            throw "Roaming application data was deleted by default uninstall."
+          }
+          if (-not (Test-Path $localMarker -PathType Leaf)) {
+            throw "Local application data was deleted by default uninstall."
+          }
+
+          "- Silent uninstall: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- Application-data preservation on uninstall: passed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Cleanup smoke markers
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process -Name 'tauri-appsuper-punch-out-editor' -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+          $installDir = Join-Path $env:LOCALAPPDATA 'Super Punch-Out!! Editor'
+          $uninstaller = Join-Path $installDir 'uninstall.exe'
+          if (Test-Path $uninstaller -PathType Leaf) {
+            Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -ErrorAction SilentlyContinue
+          }
+
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue `
+            (Join-Path $env:APPDATA 'com.dferr.super-punch-out-editor'), `
+            (Join-Path $env:LOCALAPPDATA 'com.dferr.super-punch-out-editor')

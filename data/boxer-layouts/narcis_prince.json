@@ -1,0 +1,16 @@
+{
+  "fighter": "Narcis Prince",
+  "key": "Narcis Prince",
+  "tier": 1,
+  "notes": "31 unique sprite bins, 0 shared. Second safest full-body modding target.",
+  "bin_labels": {
+    "GFX_Sprite_NarcisPrice1.bin": { "region": "Main Body A", "description": "Standing, idle, intro animations", "priority": 1 },
+    "GFX_Sprite_NarcisPrice2.bin": { "region": "Main Body B", "description": "Punching, blocking animations", "priority": 2 },
+    "GFX_Sprite_NarcisPrice3.bin": { "region": "Main Body C", "description": "Knockdown, victory, special move animations", "priority": 3 }
+  },
+  "reference_layout": [
+    { "bin": "GFX_Sprite_NarcisPrice1.bin", "x": 0, "y": 0 },
+    { "bin": "GFX_Sprite_NarcisPrice2.bin", "x": 0, "y": 256 },
+    { "bin": "GFX_Sprite_NarcisPrice3.bin", "x": 0, "y": 512 }
+  ]
+}
