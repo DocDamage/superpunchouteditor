@@ -1,0 +1,37 @@
+name: Development Snapshot
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/development-snapshot.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Archive tracked source only
+        run: |
+          mkdir -p /tmp/dev-snapshot
+          git archive --format=tar.gz HEAD > /tmp/dev-snapshot/source.tar.gz
+          git rev-parse HEAD > /tmp/dev-snapshot/COMMIT.txt
+      - run: npm ci
+        working-directory: apps/desktop
+      - name: Archive locked frontend test dependencies separately
+        run: tar -czf /tmp/dev-snapshot/frontend-test-deps.tar.gz -C apps/desktop node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: development-snapshot-not-release
+          path: /tmp/dev-snapshot
+          retention-days: 1
+          if-no-files-found: error
