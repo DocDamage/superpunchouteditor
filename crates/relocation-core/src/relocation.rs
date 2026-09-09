@@ -1,6 +1,16 @@
 use crate::{FreeSpaceRegion, RelocationError};
 use serde::{Deserialize, Serialize};
 
+/// A byte match is evidence for investigation, not proof of a live reference.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PointerCandidate {
+    pub pointer_location: usize,
+    pub current_target: usize,
+    pub new_target: usize,
+    pub expected: [u8; 3],
+    pub replacement: [u8; 3],
+}
+
 /// Information about a pointer that needs to be updated
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PointerUpdate {
@@ -27,14 +37,38 @@ impl PointerUpdate {
     }
 
     /// Get the bytes that should be written for this pointer update
-    pub fn get_pointer_bytes(&self) -> Vec<u8> {
+    pub fn get_pointer_bytes(&self) -> Result<Vec<u8>, RelocationError> {
+        if !matches!(self.pointer_size, 2..=4) {
+            return Err(RelocationError::InvalidSize(self.pointer_size as usize));
+        }
+        if self.is_snes_address {
+            // This encoder describes ordinary LoROM, not ExLoROM or an implicit
+            // bank-register update. A short pointer cannot express a bank move.
+            if self.new_target >= 0x400000 || self.current_target >= 0x400000 {
+                return Err(RelocationError::InvalidOffset(self.new_target));
+            }
+            if self.pointer_size == 2 && self.current_target / 0x8000 != self.new_target / 0x8000 {
+                return Err(RelocationError::RomError(
+                    "16-bit SNES pointer relocation requires the same target bank".into(),
+                ));
+            }
+        } else {
+            let maximum = match self.pointer_size {
+                2 => 0xffff,
+                3 => 0xffffff,
+                _ => u32::MAX as usize,
+            };
+            if self.new_target > maximum {
+                return Err(RelocationError::InvalidOffset(self.new_target));
+            }
+        }
         let target = if self.is_snes_address {
             Self::pc_to_snes_addr(self.new_target)
         } else {
             self.new_target as u32
         };
 
-        match self.pointer_size {
+        Ok(match self.pointer_size {
             2 => vec![(target & 0xFF) as u8, ((target >> 8) & 0xFF) as u8],
             3 => vec![
                 (target & 0xFF) as u8,
@@ -47,8 +81,8 @@ impl PointerUpdate {
                 ((target >> 16) & 0xFF) as u8,
                 ((target >> 24) & 0xFF) as u8,
             ],
-            _ => vec![(target & 0xFF) as u8, ((target >> 8) & 0xFF) as u8],
-        }
+            _ => unreachable!("pointer width validated above"),
+        })
     }
 }
 
@@ -102,6 +136,19 @@ pub fn validate_relocation(
     let mut errors = Vec::new();
     let mut affected_regions = Vec::new();
     let mut valid = true;
+
+    if size == 0 || source_pc.checked_add(size).is_none() || dest_pc.checked_add(size).is_none() {
+        return RelocationValidation {
+            valid: false,
+            source_pc,
+            dest_pc,
+            size,
+            warnings,
+            errors: vec!["Relocation size must be nonzero and ranges must not overflow".into()],
+            estimated_pointer_updates: 0,
+            affected_regions,
+        };
+    }
 
     // Basic bounds checks
     if source_pc >= rom_size {
@@ -273,41 +320,69 @@ impl RelocationPlanner {
         Ok(validation)
     }
 
-    /// Estimate the pointer updates needed for a relocation
-    pub fn estimate_pointer_updates(
+    /// Scan half-open byte ranges for long LoROM pointer candidates, including
+    /// references into the asset interior. This cannot prove reference coverage:
+    /// short/banked pointers and executable/data coincidences require analysis.
+    pub fn scan_long_pointer_candidates(
         &self,
+        rom: &[u8],
         source_pc: usize,
         dest_pc: usize,
-        _size: usize,
-        search_ranges: &[(usize, usize)], // Ranges to scan for pointers
-    ) -> Vec<PointerUpdate> {
-        let mut updates = Vec::new();
-
-        // This is a simplified estimation - in a real implementation,
-        // you would scan the ROM for values matching the source address
-        // in various formats (SNES address, PC offset, etc.)
-
-        // Common patterns in SNES games:
-        // - 24-bit SNES addresses (3 bytes)
-        // - 16-bit offsets within a bank (2 bytes)
-        // - Sometimes 32-bit pointers
-
-        for (search_start, _search_end) in search_ranges {
-            // Heuristic: check if any known pointer tables overlap this range
-            // For now, we'll add placeholder pointer updates for common scenarios
-
-            // Data header pointer (common in graphics data)
-            updates.push(PointerUpdate {
-                pointer_location: *search_start, // Placeholder
-                current_target: source_pc,
-                new_target: dest_pc,
-                pointer_size: 3,
-                description: "Data pointer".to_string(),
-                is_snes_address: true,
-            });
+        size: usize,
+        search_ranges: &[(usize, usize)],
+    ) -> Result<Vec<PointerCandidate>, RelocationError> {
+        let source_end = source_pc
+            .checked_add(size)
+            .ok_or(RelocationError::ExceedsRomSize)?;
+        let dest_end = dest_pc
+            .checked_add(size)
+            .ok_or(RelocationError::ExceedsRomSize)?;
+        if size == 0 {
+            return Err(RelocationError::InvalidSize(size));
         }
-
-        updates
+        if source_end > rom.len()
+            || dest_end > rom.len()
+            || source_end > 0x400000
+            || dest_end > 0x400000
+        {
+            return Err(RelocationError::ExceedsRomSize);
+        }
+        let mut candidates = std::collections::BTreeMap::new();
+        for &(start, end) in search_ranges {
+            let bytes = rom
+                .get(start..end)
+                .ok_or(RelocationError::InvalidOffset(start))?;
+            for (index, bytes) in bytes.windows(3).enumerate() {
+                let addr = u16::from_le_bytes([bytes[0], bytes[1]]);
+                let bank = bytes[2];
+                if addr < 0x8000 || bank == 0x7e || bank == 0x7f {
+                    continue;
+                }
+                let target = usize::from(bank & 0x7f) * 0x8000 + usize::from(addr & 0x7fff);
+                if target < source_pc || target >= source_end {
+                    continue;
+                }
+                let new_target = dest_pc + target - source_pc;
+                let encoded = PointerUpdate::pc_to_snes_addr(new_target);
+                let replacement_bank = ((encoded >> 16) as u8 & 0x7f) | (bank & 0x80);
+                if replacement_bank == 0x7e || replacement_bank == 0x7f {
+                    return Err(RelocationError::RomError(
+                        "Destination would map a low-bank pointer into WRAM".into(),
+                    ));
+                }
+                candidates.insert(
+                    start + index,
+                    PointerCandidate {
+                        pointer_location: start + index,
+                        current_target: target,
+                        new_target,
+                        expected: [bytes[0], bytes[1], bank],
+                        replacement: [encoded as u8, (encoded >> 8) as u8, replacement_bank],
+                    },
+                );
+            }
+        }
+        Ok(candidates.into_values().collect())
     }
 
     /// Get all pending relocations
@@ -387,7 +462,79 @@ impl RelocationSafetyReport {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn invalid_ranges_return_errors_without_arithmetic_panics() {
+        for (source, destination, size) in [
+            (0, 0, 0),
+            (usize::MAX, 0, 1),
+            (0, usize::MAX, 1),
+            (1, 1, usize::MAX),
+        ] {
+            let report =
+                super::validate_relocation(usize::MAX, &[], source, destination, size, true);
+            assert!(!report.valid);
+            assert!(!report.errors.is_empty());
+            assert!(report.affected_regions.is_empty());
+        }
+    }
     use super::*;
+
+    #[test]
+    fn long_pointer_scan_requires_byte_evidence_and_preserves_bank_aliases() {
+        let mut rom = vec![0; 0x60000];
+        let planner = RelocationPlanner::new(rom.len(), vec![]);
+        assert!(planner
+            .scan_long_pointer_candidates(&rom, 0x48000, 0x50000, 32, &[(0, 64)])
+            .unwrap()
+            .is_empty());
+        rom[16..19].copy_from_slice(&[2, 0x80, 0x09]);
+        rom[22..25].copy_from_slice(&[0, 0x80, 0x89]);
+        let candidates = planner
+            .scan_long_pointer_candidates(&rom, 0x48000, 0x50000, 32, &[(0, 64), (16, 25)])
+            .unwrap();
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].pointer_location, 16);
+        assert_eq!(candidates[0].current_target, 0x48002);
+        assert_eq!(candidates[0].new_target, 0x50002);
+        assert_eq!(candidates[0].expected, [2, 0x80, 9]);
+        assert_eq!(candidates[0].replacement, [2, 0x80, 10]);
+        assert_eq!(candidates[1].replacement, [0, 0x80, 0x8a]);
+        assert!(planner
+            .scan_long_pointer_candidates(&rom, 0x48000, 0x50000, 32, &[(0, usize::MAX)])
+            .is_err());
+        assert!(planner
+            .scan_long_pointer_candidates(&rom, 0x48000, 0x50000, 0, &[])
+            .is_err());
+        assert!(planner
+            .scan_long_pointer_candidates(&rom, usize::MAX, 0, 2, &[])
+            .is_err());
+    }
+
+    #[test]
+    fn pointer_encoding_rejects_bank_loss_and_truncation() {
+        let mut pointer = PointerUpdate {
+            pointer_location: 0,
+            current_target: 0x48000,
+            new_target: 0x50000,
+            pointer_size: 2,
+            description: String::new(),
+            is_snes_address: true,
+        };
+        assert!(pointer.get_pointer_bytes().is_err());
+        pointer.new_target = 0x48123;
+        assert_eq!(pointer.get_pointer_bytes().unwrap(), vec![0x23, 0x81]);
+        pointer.pointer_size = 3;
+        pointer.new_target = 0x50000;
+        assert_eq!(pointer.get_pointer_bytes().unwrap(), vec![0, 0x80, 0x8a]);
+        pointer.new_target = 0x400000;
+        assert!(pointer.get_pointer_bytes().is_err());
+        pointer.is_snes_address = false;
+        for (width, target) in [(2, 0x10000), (3, 0x1000000), (1, 1), (5, 1)] {
+            pointer.pointer_size = width;
+            pointer.new_target = target;
+            assert!(pointer.get_pointer_bytes().is_err());
+        }
+    }
 
     #[test]
     fn test_pointer_update_get_bytes_16bit() {
@@ -400,7 +547,7 @@ mod tests {
             is_snes_address: false,
         };
 
-        let bytes = update.get_pointer_bytes();
+        let bytes = update.get_pointer_bytes().unwrap();
         assert_eq!(bytes, vec![0x00, 0x30]);
     }
 
@@ -415,7 +562,7 @@ mod tests {
             is_snes_address: true,
         };
 
-        let bytes = update.get_pointer_bytes();
+        let bytes = update.get_pointer_bytes().unwrap();
         // PC 0x8000 -> SNES 0x818000
         assert_eq!(bytes, vec![0x00, 0x80, 0x81]);
     }

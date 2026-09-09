@@ -22,8 +22,7 @@
 use std::collections::HashMap;
 
 use asset_core::audio::{
-    export_brr_to_wav, import_wav_to_brr, MusicEntry, PlaybackState, PreviewConfig, SoundEntry,
-    Spc700Data,
+    import_wav_to_brr, MusicEntry, PlaybackState, PreviewConfig, SoundEntry, Spc700Data,
 };
 use asset_core::brr::{BrrDecoder, BrrEncodeOptions, BrrEncoder};
 use asset_core::spc::{Id666Tag, SpcFile};
@@ -34,6 +33,55 @@ use tauri::State;
 use crate::AppState;
 
 /// Audio playback state managed by Tauri
+#[derive(Clone)]
+pub struct ImportedSample {
+    pub data: Vec<u8>,
+    pub sample_rate: u32,
+}
+
+fn validate_sample_rate(rate: u32) -> Result<(), String> {
+    if !(1000..=192000).contains(&rate) {
+        return Err("Sample rate must be between 1000 and 192000 Hz".into());
+    }
+    Ok(())
+}
+
+fn export_imported_wav(
+    sample: &ImportedSample,
+    path: &str,
+    target_rate: u32,
+) -> Result<(), String> {
+    validate_sample_rate(sample.sample_rate)?;
+    validate_sample_rate(target_rate)?;
+    let pcm = BrrDecoder::new().decode(&sample.data);
+    let resampled = asset_core::audio::resample_to_rate(&pcm, sample.sample_rate, target_rate);
+    asset_core::audio::write_wav_file(path, &resampled, target_rate)
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod imported_sample_tests {
+    use super::*;
+
+    #[test]
+    fn wav_export_preserves_duration_at_non_default_sample_rate() {
+        let data = asset_core::brr::encode_brr(&[0; 160], BrrEncodeOptions::default());
+        let sample = ImportedSample {
+            data,
+            sample_rate: 16000,
+        };
+        let directory = tempfile::tempdir().unwrap();
+        for (rate, length) in [(16000, 160), (32000, 320)] {
+            let path = directory.path().join(format!("sample-{rate}.wav"));
+            export_imported_wav(&sample, path.to_str().unwrap(), rate).unwrap();
+            let (pcm, actual_rate) = asset_core::audio::read_wav_file(&path).unwrap();
+            assert_eq!(actual_rate, rate);
+            assert_eq!(pcm.len(), length);
+        }
+        assert!(export_imported_wav(&sample, "unused.wav", 0).is_err());
+    }
+}
+
 pub struct AudioState {
     /// Currently loaded SPC700 data
     current_spc: Mutex<Option<Spc700Data>>,
@@ -47,7 +95,7 @@ pub struct AudioState {
     current_music_id: Mutex<Option<u8>>,
     /// User-imported BRR data keyed by sample ID.
     /// Populated by `import_sound_from_wav`; consumed by preview and export commands.
-    pub imported_samples: Mutex<HashMap<u8, Vec<u8>>>,
+    pub imported_samples: Mutex<HashMap<u8, ImportedSample>>,
 }
 
 impl AudioState {
@@ -138,7 +186,7 @@ pub struct ImportOptions {
 ///
 /// The file is placed in the OS temp directory with a name derived from `sound_id`.
 /// The frontend can convert this path to a playable URL via Tauri's `convertFileSrc`.
-fn write_preview_wav(brr_data: &[u8], sound_id: u8) -> Result<String, String> {
+fn write_preview_wav(brr_data: &[u8], sound_id: u8, sample_rate: u32) -> Result<String, String> {
     use asset_core::audio::write_wav_file;
 
     let decoder = BrrDecoder::new();
@@ -146,7 +194,7 @@ fn write_preview_wav(brr_data: &[u8], sound_id: u8) -> Result<String, String> {
 
     let temp_path = std::env::temp_dir().join(format!("spo_preview_{}.wav", sound_id));
 
-    write_wav_file(&temp_path, &pcm, 32000)
+    write_wav_file(&temp_path, &pcm, sample_rate)
         .map_err(|e| format!("Failed to write preview WAV: {}", e))?;
 
     temp_path
@@ -215,7 +263,7 @@ pub fn preview_sound(state: State<AppState>, sound_id: u8) -> Result<String, Str
         )
     })?;
 
-    let wav_path = write_preview_wav(&brr, sound_id)?;
+    let wav_path = write_preview_wav(&brr.data, sound_id, brr.sample_rate)?;
 
     {
         let audio = state.audio_state.lock();
@@ -279,8 +327,8 @@ pub fn export_sound_as_wav(
     let target_rate = options
         .as_ref()
         .and_then(|o| o.sample_rate)
-        .unwrap_or(32000);
-    export_brr_to_wav(&brr, &output_path, target_rate).map_err(|e| e.to_string())
+        .unwrap_or(brr.sample_rate);
+    export_imported_wav(&brr, &output_path, target_rate)
 }
 
 /// Export an imported sample as a BRR file.
@@ -308,8 +356,9 @@ pub fn export_sound_as_brr(
         )
     })?;
 
-    let size = brr.len();
-    std::fs::write(&output_path, &brr).map_err(|e| format!("Failed to write BRR file: {}", e))?;
+    let size = brr.data.len();
+    std::fs::write(&output_path, &brr.data)
+        .map_err(|e| format!("Failed to write BRR file: {}", e))?;
     Ok(size)
 }
 
@@ -454,6 +503,7 @@ pub fn import_sound_from_wav(
     wav_path: String,
     options: ImportOptions,
 ) -> Result<serde_json::Value, String> {
+    validate_sample_rate(options.target_sample_rate)?;
     let encode_options = BrrEncodeOptions {
         looped: options.enable_loop,
         loop_start: options.loop_start.unwrap_or(0),
@@ -470,7 +520,13 @@ pub fn import_sound_from_wav(
     // Store in AudioState so preview/export commands can access it
     {
         let audio = state.audio_state.lock();
-        audio.imported_samples.lock().insert(sample_id, brr_data);
+        audio.imported_samples.lock().insert(
+            sample_id,
+            ImportedSample {
+                data: brr_data,
+                sample_rate: options.target_sample_rate,
+            },
+        );
     }
 
     // Compute approximate duration from BRR size

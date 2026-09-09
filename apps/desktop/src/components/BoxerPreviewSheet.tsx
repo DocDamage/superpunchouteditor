@@ -177,9 +177,10 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
   const handleApplyPack = async (pack: LayoutPackInfo) => {
     try {
       await invoke('apply_layout_pack', {
-        packPath: `data/boxer-layouts/community/${pack.filename}`,
+        packPath: pack.path,
         boxerKeys: [boxer.key],
       });
+      await Promise.all([useStore.getState().refreshUndoState(), useStore.getState().refreshPendingWrites()]);
       showToast(`Applied layout "${pack.name}" to ${boxer.name}.`, 'success');
       setShowPackMenu(false);
     } catch (e) {
@@ -202,9 +203,10 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         valid: boolean;
         warnings: string[];
         boxer_validations: Array<{ boxer_key: string; exists_in_manifest: boolean }>;
-      }>('validate_layout_pack', { packPath: selected });
+      }>('validate_layout_pack', { packPath: selected, boxerKeys: [boxer.key] });
       
-      if (!validation.valid && !confirm('This pack has validation issues. Apply anyway?')) {
+      if (!validation.valid) {
+        setError('This pack failed validation. Resolve the reported compatibility issues before applying it.');
         return;
       }
       
@@ -220,6 +222,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         boxerKeys: [boxer.key],
       });
       
+      await Promise.all([useStore.getState().refreshUndoState(), useStore.getState().refreshPendingWrites()]);
       showToast(`Layout pack applied to ${boxer.name}.`, 'success');
     } catch (e) {
       setError(`Failed to import and apply layout: ${e}`);

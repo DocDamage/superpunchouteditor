@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { AiScriptEditor } from './AiScriptEditor';
+import { AnimationScriptEditor } from './AnimationScriptEditor';
 import { invoke } from '@tauri-apps/api/core';
 import { useStore, EditableFighterParams, ParamValidationResult } from '../store/useStore';
 
@@ -54,7 +56,7 @@ const riskColors: Record<ScriptRecord['risk'], string> = {
 };
 
 export const ScriptViewer: React.FC = () => {
-  const { boxers, selectedBoxer, setPendingWrite } = useStore();
+  const { boxers, selectedBoxer, refreshPendingWrites, refreshUndoState } = useStore();
   const [scripts, setScripts] = useState<ScriptRecord[]>([]);
   const [header, setHeader] = useState<FighterHeader | null>(null);
   const [loading, setLoading] = useState(false);
@@ -220,11 +222,7 @@ export const ScriptViewer: React.FC = () => {
         params: editParams,
       });
 
-      // Mark as pending write
-      if (header) {
-        const pcOffset = `0x${header.pc_offset.toString(16).toUpperCase()}`;
-        setPendingWrite(pcOffset);
-      }
+      await Promise.all([refreshPendingWrites(), refreshUndoState()]);
 
       // Update header with new values
       setHeader(prev => prev ? {
@@ -264,6 +262,8 @@ export const ScriptViewer: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white p-6">
+      <AiScriptEditor />
+      <AnimationScriptEditor />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-blue-400">Script Viewer</h1>
         <div className="flex items-center gap-4">
@@ -296,7 +296,8 @@ export const ScriptViewer: React.FC = () => {
                 {selectedBoxer && (
                   <button
                     onClick={handleEditToggle}
-                    disabled={isSaving}
+                    disabled
+                    title="Legacy parameter offsets are ROM pointers, not statistics. Verified parameter mapping is required."
                     className={`px-3 py-1 rounded text-xs font-medium transition ${
                       isEditMode
                         ? 'bg-slate-600 text-slate-300 hover:bg-slate-500'

@@ -4,6 +4,41 @@ use super::types::*;
 /// Parser for AI behavior data from ROM
 pub struct AiParser;
 
+#[cfg(test)]
+mod serialization_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_pattern_and_defense_overflow() {
+        let mut behavior = crate::ai_behavior::AiBehavior::default();
+        behavior.attack_patterns = vec![AttackPattern::default(); MAX_PATTERNS_PER_FIGHTER + 1];
+        assert!(matches!(
+            AiParser::serialize_to_bytes(&behavior, 0),
+            Err(AiParseError::PatternTooLarge)
+        ));
+        behavior.attack_patterns.clear();
+        behavior.defense_behaviors = vec![DefenseBehavior::default(); MAX_DEFENSE_PER_FIGHTER + 1];
+        assert!(matches!(
+            AiParser::serialize_to_bytes(&behavior, 0),
+            Err(AiParseError::DefenseOverflow)
+        ));
+    }
+
+    #[test]
+    fn rejects_empty_and_multi_move_patterns_instead_of_losing_moves() {
+        for count in [0, 2] {
+            let behavior = crate::ai_behavior::AiBehavior {
+                attack_patterns: vec![AttackPattern {
+                    sequence: vec![AttackMove::default(); count],
+                    ..AttackPattern::default()
+                }],
+                ..Default::default()
+            };
+            assert!(AiParser::serialize_to_bytes(&behavior, 0).is_err());
+        }
+    }
+}
+
 /// Error types for AI parsing
 #[derive(Debug, Clone)]
 pub enum AiParseError {
@@ -549,6 +584,25 @@ impl AiParser {
     ) -> Result<Vec<u8>, AiParseError> {
         if fighter_id as usize >= MAX_FIGHTERS {
             return Err(AiParseError::InvalidFighterId(fighter_id as usize));
+        }
+
+        if behavior.attack_patterns.len() > MAX_PATTERNS_PER_FIGHTER {
+            return Err(AiParseError::PatternTooLarge);
+        }
+        if behavior.defense_behaviors.len() > MAX_DEFENSE_PER_FIGHTER {
+            return Err(AiParseError::DefenseOverflow);
+        }
+        if behavior.triggers.len() > MAX_TRIGGERS_PER_FIGHTER {
+            return Err(AiParseError::CorruptedData("Too many AI triggers".into()));
+        }
+        if behavior
+            .attack_patterns
+            .iter()
+            .any(|pattern| pattern.sequence.len() != 1)
+        {
+            return Err(AiParseError::CorruptedData(
+                "Legacy AI encoding requires exactly one move per attack pattern".into(),
+            ));
         }
 
         let mut bytes = Vec::new();

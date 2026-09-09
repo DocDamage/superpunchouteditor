@@ -20,7 +20,10 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
   } = useStore();
 
   const canvasRef = useRef<HTMLImageElement>(null);
+  const dragCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => { dragCleanup.current?.(); }, []);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [splitOriginalSrc, setSplitOriginalSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [splitPosition, setSplitPosition] = useState(0.5);
@@ -48,9 +51,14 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
 
   // Render the comparison view
   useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    setImageSrc(null);
+    setSplitOriginalSrc(null);
     const render = async () => {
       if (!selectedDiff) {
-        setImageSrc(null);
+        setLoading(false);
+        setError(null);
         return;
       }
 
@@ -80,37 +88,56 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
           return;
         }
 
-        const bytes = await renderComparisonView({
+        const splitBoth = viewMode === 'split' && showOriginal && showModified;
+        const params = {
           boxer_key: boxerKey,
           view_type: viewType,
-          show_original: viewMode === 'blink' ? !blinkState : showOriginal,
+          show_original: splitBoth ? false : viewMode === 'blink' ? !blinkState : showOriginal,
           show_modified: viewMode === 'blink' ? blinkState : showModified,
           asset_offset: assetOffset,
           palette_offset: paletteOffset,
           mode: viewMode,
-        });
+        };
+        const [bytes, originalBytes] = await Promise.all([
+          renderComparisonView(params),
+          splitBoth ? renderComparisonView({ ...params, show_original: true, show_modified: false }) : Promise.resolve(null),
+        ]);
 
-        if (bytes) {
+        if (cancelled) return;
+        if (bytes && (!splitBoth || originalBytes)) {
           const blob = new Blob([bytes], { type: 'image/png' });
           const url = URL.createObjectURL(blob);
+          objectUrls.push(url);
           setImageSrc(url);
+          if (originalBytes) {
+            const originalUrl = URL.createObjectURL(new Blob([originalBytes], { type: 'image/png' }));
+            objectUrls.push(originalUrl);
+            setSplitOriginalSrc(originalUrl);
+          }
         } else {
           setError('Failed to render comparison');
         }
       } catch (e) {
+        if (cancelled) return;
         console.error('Render error:', e);
         setError('Error rendering comparison view');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     render();
+    return () => {
+      cancelled = true;
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+    };
   }, [selectedDiff, viewMode, showOriginal, showModified, blinkState, renderComparisonView]);
 
   // Handle split drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (viewMode !== 'split') return;
+    e.preventDefault();
+    dragCleanup.current?.();
     
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -123,10 +150,12 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      dragCleanup.current = null;
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    dragCleanup.current = handleMouseUp;
   }, [viewMode]);
 
   if (!selectedDiff) {
@@ -261,7 +290,10 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
               onMouseDown={handleMouseDown}
             />
             
-            {viewMode === 'split' && (
+            {viewMode === 'split' && splitOriginalSrc && <img src={splitOriginalSrc} alt="Original split layer"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'pixelated',
+                pointerEvents: 'none', clipPath: `inset(0 ${(1 - splitPosition) * 100}% 0 0)` }} />}
+            {viewMode === 'split' && splitOriginalSrc && (
               <div style={{
                 position: 'absolute',
                 top: 0,
@@ -271,7 +303,7 @@ export const ComparisonCanvas: React.FC<ComparisonCanvasProps> = ({
                 backgroundColor: 'white',
                 cursor: 'col-resize',
                 transform: 'translateX(-1px)'
-              }} />
+              }} onMouseDown={handleMouseDown} />
             )}
           </div>
         ) : (

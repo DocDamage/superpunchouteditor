@@ -140,6 +140,12 @@ impl<'a> RosterWriter<'a> {
             RosterError::EncodingError(format!("Invalid characters: {:?}", invalid))
         })?;
 
+        let encoded_len = self.encoder.encode(text).len();
+        if encoded_len > INTRO_FIELD_SIZE {
+            return Err(RosterError::EncodingError(format!(
+                "Intro field is {encoded_len} bytes; maximum is {INTRO_FIELD_SIZE}"
+            )));
+        }
         let encoded = self.encoder.encode_fixed(text, INTRO_FIELD_SIZE);
 
         self.rom
@@ -189,15 +195,6 @@ impl<'a> RosterWriter<'a> {
         }
 
         let entry_addr = data_pc + 1 + (text_id as usize * 3);
-
-        // Optionally update the condition byte (first byte of the 3-byte entry)
-        if let Some(condition) = new_condition {
-            self.rom
-                .write_bytes(entry_addr, &[condition])
-                .map_err(|_| {
-                    RosterError::AddressNotFound("Cornerman condition byte".to_string())
-                })?;
-        }
 
         // Read the text pointer (bytes 1-2 of the entry)
         let text_ptr_bytes = self
@@ -250,7 +247,70 @@ impl<'a> RosterWriter<'a> {
             .write_bytes(text_pc, &write_bytes)
             .map_err(|_| RosterError::AddressNotFound("Cornerman text write".to_string()))?;
 
+        // The entry was already bounds-checked while reading its pointer.
+        // Apply its condition only after text validation and writing succeed.
+        if let Some(condition) = new_condition {
+            self.rom
+                .write_bytes(entry_addr, &[condition])
+                .map_err(|_| {
+                    RosterError::AddressNotFound("Cornerman condition byte".to_string())
+                })?;
+        }
+
         Ok(())
+    }
+
+    /// Delete one entry without reclaiming its possibly shared string bytes.
+    pub fn delete_cornerman_text(&mut self, boxer_id: u8, text_id: u8) -> Result<(), RosterError> {
+        if boxer_id as usize >= self.layout.boxer_count.min(BOXER_COUNT) {
+            return Err(RosterError::InvalidFighterId(boxer_id));
+        }
+        let pointers = self
+            .rom
+            .read_bytes(CORNERMAN_POINTER_TABLE, BOXER_COUNT * 2)
+            .map_err(|_| RosterError::AddressNotFound("Cornerman pointers".into()))?;
+        let index = boxer_id as usize * 2;
+        let pointer = u16::from_le_bytes([pointers[index], pointers[index + 1]]);
+        if pointer < 0x8000 {
+            return Err(RosterError::EncodingError(
+                "Invalid cornerman table pointer".into(),
+            ));
+        }
+        if pointers.chunks_exact(2).enumerate().any(|(id, bytes)| {
+            id != boxer_id as usize && u16::from_le_bytes([bytes[0], bytes[1]]) == pointer
+        }) {
+            return Err(RosterError::EncodingError(
+                "Cornerman entry table is shared by another boxer".into(),
+            ));
+        }
+        let pc = self.snes_to_pc(0x0C, pointer);
+        let count = self
+            .rom
+            .read_bytes(pc, 1)
+            .map_err(|_| RosterError::AddressNotFound("Cornerman count".into()))?[0];
+        if text_id >= count {
+            return Err(RosterError::EncodingError(
+                "Cornerman entry ID out of range".into(),
+            ));
+        }
+        let size = 1 + usize::from(count) * 3;
+        if usize::from(pointer) + size > 0x10000 {
+            return Err(RosterError::EncodingError(
+                "Cornerman entry table crosses bank boundary".into(),
+            ));
+        }
+        let mut table = self
+            .rom
+            .read_bytes(pc, size)
+            .map_err(|_| RosterError::AddressNotFound("Cornerman entries".into()))?
+            .to_vec();
+        let start = 1 + usize::from(text_id) * 3;
+        table.copy_within(start + 3..size, start);
+        table[size - 3..].fill(0);
+        table[0] = count - 1;
+        self.rom
+            .write_bytes(pc, &table)
+            .map_err(|_| RosterError::AddressNotFound("Cornerman deletion".into()))
     }
 
     // Helper: Convert SNES address to PC offset

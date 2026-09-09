@@ -5,6 +5,46 @@
 use tauri::State;
 
 use crate::app_state::AppState;
+
+#[cfg(test)]
+mod journal_tests {
+    use super::*;
+
+    #[test]
+    fn ai_commit_is_undoable_and_rejects_stale_payloads() {
+        let state = AppState::new(manifest_core::Manifest::empty());
+        state.install_rom_session(rom_core::Rom::new(vec![0; 32]), "synthetic.sfc".into());
+        commit_ai_bytes(&state, 8, vec![0; 4], vec![1; 4]).unwrap();
+        let edited = state.materialize_current_rom().unwrap().bytes;
+        assert_eq!(&edited[8..12], &[1; 4]);
+        assert!(commit_ai_bytes(&state, 8, vec![0; 4], vec![2; 4]).is_err());
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, edited);
+        state.undo_journal().unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, vec![0; 32]);
+        state.redo_journal().unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, edited);
+    }
+}
+
+fn commit_ai_bytes(
+    state: &AppState,
+    offset: usize,
+    expected: Vec<u8>,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    state
+        .commit_rom_transform("Update AI behavior", |rom| {
+            if rom
+                .read_bytes(offset, expected.len())
+                .map_err(|e| e.to_string())?
+                != expected
+            {
+                return Err("AI data changed while editing; reload the behavior and retry".into());
+            }
+            rom.write_bytes(offset, &bytes).map_err(|e| e.to_string())
+        })
+        .map(|_| ())
+}
 use script_core::ai_behavior::{
     AiBehavior, AiBehaviorManager, AiParser, AiPresets, AiTrigger, AttackPattern, DefenseBehavior,
     DefenseType, DifficultyCurve, MoveType, SimulationResult, MAX_FIGHTERS,
@@ -75,11 +115,12 @@ pub fn update_attack_pattern(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }
@@ -117,11 +158,12 @@ pub fn update_defense_behavior(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }
@@ -152,11 +194,12 @@ pub fn update_difficulty_curve(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }
@@ -187,11 +230,12 @@ pub fn update_triggers(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }
@@ -353,11 +397,12 @@ pub fn apply_ai_preset(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }
@@ -475,11 +520,12 @@ pub fn reset_ai_to_defaults(
     let ai_offset = AiParser::get_ai_offset(fighter_id)
         .map_err(|e| format!("Failed to get AI offset: {}", e))?;
 
+    let expected = rom
+        .read_bytes(ai_offset, bytes.len())
+        .map_err(|e| e.to_string())?
+        .to_vec();
     drop(rom_opt);
-
-    // Store in pending writes
-    let pc_offset_str = format!("0x{:X}", ai_offset);
-    state.pending_writes.lock().insert(pc_offset_str, bytes);
+    commit_ai_bytes(&state, ai_offset, expected, bytes)?;
 
     Ok(behavior)
 }

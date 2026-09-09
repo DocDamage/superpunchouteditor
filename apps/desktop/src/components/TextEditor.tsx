@@ -256,11 +256,12 @@ export function TextEditor({ initialTab = 'cornerman', initialBoxerKey }: TextEd
 
   // Delete cornerman text
   const deleteCornermanText = async (id: number) => {
+    if (!selectedBoxer) return;
     if (!confirm('Delete this cornerman text?')) return;
     
     try {
       setSaving(true);
-      await invoke('delete_cornerman_text', { id });
+      await invoke('delete_cornerman_text', { boxerKey: selectedBoxer, id });
       await loadCornermanTexts();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete cornerman text');

@@ -153,6 +153,14 @@ pub fn run() {
             commands::layout_pack::apply_layout_pack,
             // Script/fighter parameter commands
             commands::scripts::get_all_scripts,
+            commands::scripts::read_ai_script_stream,
+            commands::scripts::get_usa_ai_script_regions,
+            commands::scripts::update_ai_script_operands,
+            commands::scripts::read_reference_animation,
+            commands::scripts::get_usa_animation_regions,
+            commands::scripts::get_animation_references,
+            commands::scripts::update_reference_animation_duration,
+            commands::scripts::update_animation_durations,
             commands::scripts::get_scripts_for_fighter,
             commands::scripts::get_fighter_header,
             commands::scripts::validate_fighter_params,
@@ -172,6 +180,7 @@ pub fn run() {
             commands::emulator_current::emulator_load_current_rom,
             // Comparison Commands
             commands::comparison::generate_comparison,
+            commands::comparison::render_comparison_view,
             commands::comparison::get_palette_diff,
             commands::comparison::get_sprite_bin_diff_comparison,
             commands::comparison::get_binary_diff,

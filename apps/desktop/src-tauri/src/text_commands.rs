@@ -22,6 +22,94 @@ use rom_core::{
 
 use crate::AppState;
 
+#[cfg(test)]
+mod journal_tests {
+    use super::*;
+
+    fn request(quote: &str) -> UpdateIntroRequest {
+        UpdateIntroRequest {
+            boxer_key: "gabby_jay".into(),
+            name_text: Some("GABBY".into()),
+            origin_text: None,
+            record_text: None,
+            rank_text: None,
+            intro_quote: Some(quote.into()),
+        }
+    }
+
+    #[test]
+    fn intro_edit_is_materialized_and_undoable() {
+        let state = AppState::new(manifest_core::Manifest::empty());
+        state.install_rom_session(
+            rom_core::Rom::new(vec![0x24; 0x200000]),
+            "missing.sfc".into(),
+        );
+        let before = state.materialize_current_rom().unwrap().bytes;
+        let response = update_boxer_intro_internal(&state, request("HELLO")).unwrap();
+        assert_eq!(response.intro_quote, "HELLO");
+        let edited = state.materialize_current_rom().unwrap().bytes;
+        assert_ne!(before, edited);
+        assert_eq!(
+            RosterLoader::new(&rom_core::Rom::new(edited.clone()))
+                .load_boxer_intro(0)
+                .unwrap()
+                .intro_quote,
+            "HELLO"
+        );
+        state.undo_journal().unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, before);
+        state.redo_journal().unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, edited);
+    }
+
+    #[test]
+    fn invalid_later_field_rolls_back_entire_intro_edit() {
+        let state = AppState::new(manifest_core::Manifest::empty());
+        state.install_rom_session(
+            rom_core::Rom::new(vec![0x24; 0x200000]),
+            "missing.sfc".into(),
+        );
+        let before = state.materialize_current_rom().unwrap().bytes;
+        assert!(update_boxer_intro_internal(&state, request(&"A".repeat(17))).is_err());
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, before);
+        assert!(state.undo_journal().unwrap().is_none());
+    }
+
+    #[test]
+    fn reset_restores_base_without_source_file_and_is_undoable() {
+        let state = AppState::new(manifest_core::Manifest::empty());
+        state.install_rom_session(
+            rom_core::Rom::new(vec![0x24; 0x200000]),
+            "missing.sfc".into(),
+        );
+        let base = state.materialize_current_rom().unwrap().bytes;
+        update_boxer_intro_internal(&state, request("HELLO")).unwrap();
+        let edited = state.materialize_current_rom().unwrap().bytes;
+        reset_text_internal(&state, "intro".into(), "gabby_jay".into()).unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, base);
+        state.undo_journal().unwrap();
+        assert_eq!(state.materialize_current_rom().unwrap().bytes, edited);
+    }
+
+    #[test]
+    fn text_database_reads_current_journal_revision() {
+        let state = AppState::new(manifest_core::Manifest::empty());
+        state.install_rom_session(rom_core::Rom::new(vec![0; 0x200000]), "missing.sfc".into());
+        update_boxer_intro_internal(&state, request("JOURNAL")).unwrap();
+        let db = load_current_text_db(&state).unwrap();
+        assert_eq!(db.boxer_intros.len(), rom_core::roster::BOXER_COUNT);
+        assert_eq!(db.boxer_intros[0].intro_quote, "JOURNAL");
+        assert!(db.cornerman_texts.is_empty());
+        assert!(db.victory_quotes.is_empty());
+        assert!(db.menu_texts.is_empty());
+        state.undo_journal().unwrap();
+        assert_ne!(
+            load_current_text_db(&state).unwrap().boxer_intros[0].intro_quote,
+            "JOURNAL"
+        );
+    }
+}
+
 // ============================================================================
 // REQUEST/RESPONSE TYPES
 // ============================================================================
@@ -275,6 +363,26 @@ fn get_text_db() -> TextDatabase {
     TextDatabase::with_defaults()
 }
 
+fn load_current_text_db(state: &AppState) -> Result<TextDatabase, String> {
+    let rom = rom_core::Rom::new(state.materialize_current_rom()?.bytes);
+    let loader = RosterLoader::new(&rom);
+    let layout = rom_core::roster::detect_roster_layout(&rom);
+    let mut db = TextDatabase::new();
+    for index in 0..layout.boxer_count {
+        let id = u8::try_from(index).map_err(|_| "Text boxer ID exceeds byte range")?;
+        db.boxer_intros
+            .push(loader.load_boxer_intro(id).map_err(|e| e.to_string())?);
+        // Expanded layouts currently relocate intros, but not these vanilla tables.
+        if index < rom_core::roster::BOXER_COUNT {
+            db.cornerman_texts
+                .extend(loader.load_cornerman_texts(id).map_err(|e| e.to_string())?);
+            db.victory_quotes
+                .extend(loader.load_victory_quotes(id).map_err(|e| e.to_string())?);
+        }
+    }
+    Ok(db)
+}
+
 /// Get encoder
 fn get_encoder() -> SpoTextEncoder {
     SpoTextEncoder::new()
@@ -334,21 +442,13 @@ pub fn update_cornerman_text(
     let fighter_id = crate::roster_commands::get_boxer_id_from_key(&request.boxer_key)
         .ok_or_else(|| format!("Unknown boxer key: {}", request.boxer_key))?;
 
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
+    let (updated, _) = state.commit_rom_transform("Update cornerman text", |rom| {
         let mut writer = RosterWriter::new(rom);
         writer
             .write_cornerman_text(fighter_id, request.id, &request.text, request.condition)
             .map_err(|e| e.to_string())?;
 
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-        drop(modified);
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
+        let loader = RosterLoader::new(rom);
         let texts = loader
             .load_cornerman_texts(fighter_id)
             .map_err(|e| e.to_string())?;
@@ -358,9 +458,8 @@ pub fn update_cornerman_text(
             .ok_or_else(|| format!("Cornerman text {} not found after write", request.id))?;
 
         Ok(CornermanTextDto::from(updated))
-    } else {
-        Err("No ROM loaded".to_string())
-    }
+    })?;
+    Ok(updated)
 }
 
 /// Add a new cornerman text
@@ -390,13 +489,20 @@ pub fn add_cornerman_text(
 
 /// Delete a cornerman text
 #[tauri::command]
-pub fn delete_cornerman_text(_state: State<AppState>, id: u8) -> Result<(), String> {
-    let mut db = get_text_db();
-
-    db.remove_cornerman_text(id)
-        .ok_or_else(|| format!("Cornerman text with ID {} not found", id))?;
-
-    Ok(())
+pub fn delete_cornerman_text(
+    state: State<AppState>,
+    boxer_key: String,
+    id: u8,
+) -> Result<(), String> {
+    let fighter_id = crate::roster_commands::get_boxer_id_from_key(&boxer_key)
+        .ok_or_else(|| format!("Unknown boxer key: {boxer_key}"))?;
+    state
+        .commit_rom_transform("Delete cornerman text", |rom| {
+            RosterWriter::new(rom)
+                .delete_cornerman_text(fighter_id, id)
+                .map_err(|e| e.to_string())
+        })
+        .map(|_| ())
 }
 
 /// Get available text conditions (for dropdown)
@@ -473,14 +579,19 @@ pub fn update_boxer_intro(
     state: State<AppState>,
     request: UpdateIntroRequest,
 ) -> Result<BoxerIntroResponse, String> {
+    update_boxer_intro_internal(&state, request)
+}
+
+fn update_boxer_intro_internal(
+    state: &AppState,
+    request: UpdateIntroRequest,
+) -> Result<BoxerIntroResponse, String> {
     let fighter_id = crate::roster_commands::get_boxer_id_from_key(&request.boxer_key)
         .ok_or_else(|| format!("Unknown boxer key: {}", request.boxer_key))?;
 
     let encoder = get_encoder();
 
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
+    let (updated, _) = state.commit_rom_transform("Update boxer intro", |rom| {
         let mut writer = RosterWriter::new(rom);
 
         // Write only the fields that were provided
@@ -510,14 +621,7 @@ pub fn update_boxer_intro(
                 .map_err(|e| e.to_string())?;
         }
 
-        // Mark ROM as modified and reload updated intro
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-        drop(modified);
-
-        let rom_guard = state.rom.lock();
-        let loader = RosterLoader::new(rom_guard.as_ref().ok_or("No ROM loaded")?);
+        let loader = RosterLoader::new(rom);
         let intro = loader
             .load_boxer_intro(fighter_id)
             .map_err(|e| e.to_string())?;
@@ -532,9 +636,8 @@ pub fn update_boxer_intro(
             intro_quote: intro.intro_quote,
             validation,
         })
-    } else {
-        Err("No ROM loaded".to_string())
-    }
+    })?;
+    Ok(updated)
 }
 
 // ============================================================================
@@ -567,9 +670,7 @@ pub fn update_victory_quote(
         ));
     }
 
-    let mut rom_guard = state.rom.lock();
-
-    if let Some(ref mut rom) = *rom_guard {
+    let (updated, _) = state.commit_rom_transform("Update victory quote", |rom| {
         // Load current quotes (immutable borrow) to get rom_offset and existing allocated size
         let (rom_offset, original_byte_len, is_loss_quote, boxer_key, max_length) = {
             let loader = RosterLoader::new(rom);
@@ -605,11 +706,6 @@ pub fn update_victory_quote(
         rom.write_bytes(rom_offset, &write_bytes)
             .map_err(|e| e.to_string())?;
 
-        // Mark ROM as modified
-        drop(rom_guard);
-        let mut modified = state.modified.lock();
-        *modified = true;
-
         Ok(VictoryQuoteDto {
             id: request.id,
             boxer_key,
@@ -621,9 +717,8 @@ pub fn update_victory_quote(
             max_length,
             is_valid: true,
         })
-    } else {
-        Err("No ROM loaded".to_string())
-    }
+    })?;
+    Ok(updated)
 }
 
 /// Get available victory conditions
@@ -830,11 +925,31 @@ pub fn validate_all_texts(_state: State<AppState>) -> Result<TextValidationSumma
 /// Search text database
 #[tauri::command]
 pub fn search_texts(
-    _state: State<AppState>,
+    state: State<AppState>,
     query: String,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let db = get_text_db();
+    let db = load_current_text_db(&state)?;
     let mut results = Vec::new();
+    let query = query.to_lowercase();
+
+    for intro in &db.boxer_intros {
+        for (field, text) in [
+            ("name", &intro.name_text),
+            ("origin", &intro.origin_text),
+            ("record", &intro.record_text),
+            ("rank", &intro.rank_text),
+            ("quote", &intro.intro_quote),
+        ] {
+            if text.to_lowercase().contains(&query) {
+                results.push(serde_json::json!({
+                    "type": "intro",
+                    "id": field,
+                    "boxer_key": intro.boxer_key,
+                    "text_preview": text.chars().take(50).collect::<String>(),
+                }));
+            }
+        }
+    }
 
     // Search cornerman texts
     for text in &db.cornerman_texts {
@@ -843,7 +958,7 @@ pub fn search_texts(
                 "type": "cornerman",
                 "id": text.id,
                 "boxer_key": text.boxer_key,
-                "text_preview": &text.text[..text.text.len().min(50)],
+                "text_preview": text.text.chars().take(50).collect::<String>(),
             }));
         }
     }
@@ -855,7 +970,7 @@ pub fn search_texts(
                 "type": "victory",
                 "id": quote.id,
                 "boxer_key": quote.boxer_key,
-                "text_preview": &quote.text[..quote.text.len().min(50)],
+                "text_preview": quote.text.chars().take(50).collect::<String>(),
             }));
         }
     }
@@ -866,7 +981,7 @@ pub fn search_texts(
             results.push(serde_json::json!({
                 "type": "menu",
                 "id": menu.id,
-                "text_preview": &menu.text[..menu.text.len().min(50)],
+                "text_preview": menu.text.chars().take(50).collect::<String>(),
             }));
         }
     }
@@ -888,17 +1003,17 @@ pub fn reset_text_to_defaults(
     text_type: String,
     id: String,
 ) -> Result<(), String> {
-    // ---- locate original ROM file ----------------------------------------
-    let rom_path = state
-        .rom_path
-        .lock()
-        .clone()
-        .ok_or("No ROM loaded; cannot reset to defaults")?;
+    reset_text_internal(&state, text_type, id)
+}
 
-    let original_bytes =
-        std::fs::read(&rom_path).map_err(|e| format!("Failed to read original ROM: {}", e))?;
-
-    let original_rom = rom_core::Rom::new(original_bytes);
+fn reset_text_internal(state: &AppState, text_type: String, id: String) -> Result<(), String> {
+    let original_rom = {
+        let sessions = state.rom_session.lock();
+        let session = sessions
+            .as_ref()
+            .ok_or("No ROM loaded; cannot reset to defaults")?;
+        rom_core::Rom::new(session.base().bytes().to_vec())
+    };
 
     // ---- resolve boxer ID ------------------------------------------------
     let fighter_id = crate::roster_commands::get_boxer_id_from_key(&id)
@@ -906,104 +1021,105 @@ pub fn reset_text_to_defaults(
 
     let encoder = get_encoder();
 
-    match text_type.as_str() {
-        "intro" => {
-            // Load original intro from disk ROM
-            let orig_loader = RosterLoader::new(&original_rom);
-            let orig_intro = orig_loader
-                .load_boxer_intro(fighter_id)
-                .map_err(|e| e.to_string())?;
-
-            // Write each field back into the current (edited) ROM
-            let mut rom_guard = state.rom.lock();
-            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-            let mut writer = RosterWriter::new(rom);
-            writer
-                .write_boxer_intro_field(fighter_id, 0, &orig_intro.name_text)
-                .map_err(|e| e.to_string())?;
-            writer
-                .write_boxer_intro_field(fighter_id, 1, &orig_intro.origin_text)
-                .map_err(|e| e.to_string())?;
-            writer
-                .write_boxer_intro_field(fighter_id, 2, &orig_intro.record_text)
-                .map_err(|e| e.to_string())?;
-            writer
-                .write_boxer_intro_field(fighter_id, 3, &orig_intro.rank_text)
-                .map_err(|e| e.to_string())?;
-            writer
-                .write_boxer_intro_field(fighter_id, 4, &orig_intro.intro_quote)
-                .map_err(|e| e.to_string())?;
-            drop(rom_guard);
-
-            *state.modified.lock() = true;
-            Ok(())
-        }
-
-        "cornerman" => {
-            // Load original cornerman texts from disk ROM
-            let orig_loader = RosterLoader::new(&original_rom);
-            let orig_texts = orig_loader
-                .load_cornerman_texts(fighter_id)
-                .map_err(|e| e.to_string())?;
-
-            let mut rom_guard = state.rom.lock();
-            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-            let mut writer = RosterWriter::new(rom);
-            for ct in &orig_texts {
-                writer
-                    .write_cornerman_text(fighter_id, ct.id, &ct.text, Some(ct.condition.to_byte()))
+    state
+        .commit_rom_transform("Reset text to defaults", |rom| match text_type.as_str() {
+            "intro" => {
+                // Load original intro from disk ROM
+                let orig_loader = RosterLoader::new(&original_rom);
+                let orig_intro = orig_loader
+                    .load_boxer_intro(fighter_id)
                     .map_err(|e| e.to_string())?;
+
+                // Write each field back into the current (edited) ROM
+                let mut writer = RosterWriter::new(rom);
+                writer
+                    .write_boxer_intro_field(fighter_id, 0, &orig_intro.name_text)
+                    .map_err(|e| e.to_string())?;
+                writer
+                    .write_boxer_intro_field(fighter_id, 1, &orig_intro.origin_text)
+                    .map_err(|e| e.to_string())?;
+                writer
+                    .write_boxer_intro_field(fighter_id, 2, &orig_intro.record_text)
+                    .map_err(|e| e.to_string())?;
+                writer
+                    .write_boxer_intro_field(fighter_id, 3, &orig_intro.rank_text)
+                    .map_err(|e| e.to_string())?;
+                writer
+                    .write_boxer_intro_field(fighter_id, 4, &orig_intro.intro_quote)
+                    .map_err(|e| e.to_string())?;
+                Ok(())
             }
-            drop(rom_guard);
 
-            *state.modified.lock() = true;
-            Ok(())
-        }
+            "cornerman" => {
+                // Restore against the immutable allocation, even after shortening.
+                let orig_loader = RosterLoader::new(&original_rom);
+                let orig_texts = orig_loader
+                    .load_cornerman_texts(fighter_id)
+                    .map_err(|e| e.to_string())?;
 
-        "victory" => {
-            // Load original quotes from disk ROM, then write their encoded bytes
-            // back into the current ROM at the same ROM offsets.
-            let orig_loader = RosterLoader::new(&original_rom);
-            let orig_quotes = orig_loader
-                .load_victory_quotes(fighter_id)
-                .map_err(|e| e.to_string())?;
-
-            let mut rom_guard = state.rom.lock();
-            let rom = rom_guard.as_mut().ok_or("No ROM loaded")?;
-
-            for q in &orig_quotes {
-                let rom_offset = match q.rom_offset {
-                    Some(o) => o,
-                    None => continue, // no write-back target; skip
-                };
-
-                let mut encoded = encoder.encode(&q.text);
-                encoded.push(0xFF); // null terminator
-
-                rom.write_bytes(rom_offset, &encoded).map_err(|_| {
-                    format!(
-                        "Victory quote reset would write past ROM end at offset 0x{:X}",
-                        rom_offset
-                    )
-                })?;
+                let current_texts = RosterLoader::new(rom)
+                    .load_cornerman_texts(fighter_id)
+                    .map_err(|e| e.to_string())?;
+                for ct in &orig_texts {
+                    let current = current_texts.iter().find(|entry| entry.id == ct.id)
+                        .ok_or("Cornerman entry is missing from the current layout")?;
+                    let offset = ct.rom_offset.ok_or("Original cornerman text has no offset")?;
+                    if current.rom_offset != Some(offset) {
+                        return Err("Cornerman text was relocated; original allocation cannot be restored in place".into());
+                    }
+                    let original = encoder.encode_with_terminator(&ct.text);
+                    rom.write_bytes(offset, &original).map_err(|e| e.to_string())?;
+                    RosterWriter::new(rom)
+                        .write_cornerman_text(
+                            fighter_id,
+                            ct.id,
+                            &ct.text,
+                            Some(ct.condition.to_byte()),
+                        )
+                        .map_err(|e| e.to_string())?;
+                }
+                Ok(())
             }
-            drop(rom_guard);
 
-            *state.modified.lock() = true;
-            Ok(())
-        }
+            "victory" => {
+                // Load original quotes from disk ROM, then write their encoded bytes
+                // back into the current ROM at the same ROM offsets.
+                let orig_loader = RosterLoader::new(&original_rom);
+                let orig_quotes = orig_loader
+                    .load_victory_quotes(fighter_id)
+                    .map_err(|e| e.to_string())?;
 
-        other => Err(format!(
-            "Unknown text type '{}'; expected 'cornerman', 'intro', or 'victory'",
-            other
-        )),
-    }
+                for q in &orig_quotes {
+                    let rom_offset = match q.rom_offset {
+                        Some(o) => o,
+                        None => continue, // no write-back target; skip
+                    };
+
+                    let mut encoded = encoder.encode(&q.text);
+                    encoded.push(0xFF); // null terminator
+
+                    rom.write_bytes(rom_offset, &encoded).map_err(|_| {
+                        format!(
+                            "Victory quote reset would write past ROM end at offset 0x{:X}",
+                            rom_offset
+                        )
+                    })?;
+                }
+                Ok(())
+            }
+
+            other => Err(format!(
+                "Unknown text type '{}'; expected 'cornerman', 'intro', or 'victory'",
+                other
+            )),
+        })
+        .map(|_| ())
 }
 
 /// Get text statistics
 #[tauri::command]
-pub fn get_text_statistics(_state: State<AppState>) -> Result<serde_json::Value, String> {
-    let db = get_text_db();
+pub fn get_text_statistics(state: State<AppState>) -> Result<serde_json::Value, String> {
+    let db = load_current_text_db(&state)?;
     let encoder = get_encoder();
 
     // Calculate total bytes used by each category

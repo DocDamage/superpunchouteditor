@@ -53,7 +53,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
     setError(null);
     try {
       const pack = await invoke<LayoutPack>('import_layout_pack', {
-        packPath: `data/boxer-layouts/community/${packInfo.filename}`,
+        packPath: packInfo.path,
       });
       setPackData(pack);
 
@@ -124,9 +124,10 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
 
     try {
       await invoke('apply_layout_pack', {
-        packPath: `data/boxer-layouts/community/${selectedPack.filename}`,
+        packPath: selectedPack.path,
         boxerKeys,
       });
+      await Promise.all([useStore.getState().refreshUndoState(), useStore.getState().refreshPendingWrites()]);
       showToast('Layout pack applied.', 'success');
     } catch (e) {
       setError(`Failed to apply pack: ${e}`);
@@ -142,9 +143,10 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
 
     try {
       await invoke('apply_layout_pack', {
-        packPath: `data/boxer-layouts/community/${selectedPack.filename}`,
+        packPath: selectedPack.path,
         boxerKeys: [boxerKey],
       });
+      await Promise.all([useStore.getState().refreshUndoState(), useStore.getState().refreshPendingWrites()]);
       showToast(`Layout for ${boxerKey} applied.`, 'success');
     } catch (e) {
       setError(`Failed to apply layout: ${e}`);

@@ -26,6 +26,15 @@ pub struct LayoutBin {
     pub size: usize,
     pub category: String,
     pub label: Option<String>,
+    #[serde(default)]
+    pub edits: Vec<LayoutEdit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutEdit {
+    pub offset: usize,
+    pub expected: Vec<u8>,
+    pub replacement: Vec<u8>,
 }
 
 /// Boxer layout within a pack
@@ -47,11 +56,14 @@ pub struct LayoutPack {
     pub description: String,
     pub created_at: String,
     pub layouts: Vec<PackBoxerLayout>,
+    #[serde(default)]
+    pub source_sha1: Option<String>,
 }
 
 /// Layout pack info for listing (without full layouts)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutPackInfo {
+    pub path: String,
     pub filename: String,
     pub name: String,
     pub author: String,
@@ -197,7 +209,7 @@ impl From<&str> for ComparisonViewMode {
 // ============================================================================
 
 /// Layout pack file format version
-pub const LAYOUT_PACK_VERSION: &str = "1.0";
+pub const LAYOUT_PACK_VERSION: &str = "2.0";
 
 /// Path to default layouts directory
 #[allow(dead_code)]

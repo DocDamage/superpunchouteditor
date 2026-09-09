@@ -242,43 +242,9 @@ pub fn relocate_asset(
     asset_file: String,
     new_pc_offset: String,
 ) -> Result<RelocationResult, String> {
-    let new_offset = parse_offset(&new_pc_offset)?;
-
-    // Get asset info first
-    let asset_info = get_asset_by_file(state.clone(), boxer_key.clone(), asset_file.clone())?;
-    let old_offset = parse_offset(&asset_info.start_pc)?;
-    let size = asset_info.size;
-
-    // Get ROM data
-    let mut rom_opt = state.rom.lock();
-    let rom = rom_opt.as_mut().ok_or("No ROM loaded")?;
-
-    // Read the data from the old location
-    let data = rom
-        .read_bytes(old_offset, size)
-        .map_err(|e| e.to_string())?
-        .to_vec();
-
-    // Write to the new location
-    rom.write_bytes(new_offset, &data)
-        .map_err(|e| e.to_string())?;
-
-    // Clear the old location
-    let clear_bytes = vec![0xFFu8; size];
-    rom.write_bytes(old_offset, &clear_bytes)
-        .map_err(|e| e.to_string())?;
-
-    drop(rom_opt);
-
-    Ok(RelocationResult {
-        success: true,
-        old_address: asset_info.start_pc,
-        new_address: new_pc_offset,
-        size,
-        boxer_key,
-        asset_file,
-        warnings: vec!["Note: Manifest and pointer updates must be done separately".to_string()],
-    })
+    parse_offset(&new_pc_offset)?;
+    get_asset_by_file(state, boxer_key, asset_file)?;
+    Err("Relocation requires a verified allocation and complete pointer-update plan committed with the asset through the journal; copying and erasing bytes alone would corrupt references".into())
 }
 
 /// Preview what would be affected by a relocation

@@ -2,6 +2,7 @@ use rom_core::Rom;
 use serde::{Deserialize, Serialize};
 
 pub mod animation;
+pub mod animation_bytecode;
 pub use animation::*;
 
 pub mod ai_behavior;
@@ -536,31 +537,13 @@ impl<'a> ScriptReader<'a> {
         // Validate params first
         params.validate()?;
 
-        let base_snes = 0x8000u16 + (fighter_index as u16 * 0x20);
-        let pc = self.rom.snes_to_pc(0x09, base_snes);
-
-        // Read current header
-        let mut raw = self
-            .rom
-            .read_bytes(pc, 32.min(self.rom.data.len().saturating_sub(pc)))
-            .unwrap_or(&[])
-            .to_vec();
-
-        if raw.len() < 32 {
-            return Err(format!(
-                "Insufficient header data for fighter {}. Got {} bytes, expected 32.",
-                fighter_index,
-                raw.len()
-            ));
+        if fighter_index >= MAX_FIGHTERS {
+            return Err(format!("Invalid fighter index: {fighter_index}"));
         }
 
-        // Update the editable fields in place
-        raw[0] = params.palette_id;
-        raw[1] = params.attack_power;
-        raw[2] = params.defense_rating;
-        raw[3] = params.speed_rating;
-
-        Ok((raw, pc))
+        // DATA_098000 begins with pointers, not scalar fighter statistics.
+        // See upstream Routine_Macros_SPO.asm at 3a1bd913e5ff6aefe7c7bcdb2c797919bcea7cba.
+        Err("Legacy fighter parameter mapping is invalid: these bytes are ROM pointers, not statistics".into())
     }
 }
 

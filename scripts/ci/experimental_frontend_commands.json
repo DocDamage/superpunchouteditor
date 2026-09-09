@@ -17,7 +17,6 @@
   "remove_attack_pattern": "research-blocked animation mutation",
   "remove_frame_annotation": "research-blocked frame authoring",
   "remove_sprite": "research-blocked frame/sprite authoring",
-  "render_comparison_view": "experimental visual comparison renderer",
   "render_frame_data_preview": "research-blocked frame renderer",
   "save_frame": "research-blocked animation/frame write-back",
   "update_sprite_flags": "research-blocked frame/sprite mutation",

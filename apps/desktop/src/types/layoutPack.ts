@@ -17,6 +17,13 @@ export interface LayoutBin {
   size: number;
   category: string;
   label?: string;
+  edits?: LayoutEdit[];
+}
+
+export interface LayoutEdit {
+  offset: number;
+  expected: number[];
+  replacement: number[];
 }
 
 export interface PackBoxerLayout {
@@ -34,9 +41,11 @@ export interface LayoutPack {
   description: string;
   created_at: string;
   layouts: PackBoxerLayout[];
+  source_sha1?: string | null;
 }
 
 export interface LayoutPackInfo {
+  path: string;
   filename: string;
   name: string;
   author: string;

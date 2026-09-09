@@ -26,6 +26,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod bytecode;
 pub mod constants;
 pub mod manager;
 pub mod parser;

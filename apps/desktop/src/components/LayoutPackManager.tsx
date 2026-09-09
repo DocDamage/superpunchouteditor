@@ -105,8 +105,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
 
   const handleApplyPack = async (pack: LayoutPackInfo) => {
     try {
-      const dir = 'data/boxer-layouts/community';
-      const packPath = `${dir}/${pack.filename}`;
+      const packPath = pack.path;
       
       // Get full pack to see which boxers are included
       const fullPack = await invoke<LayoutPack>('import_layout_pack', { packPath });
@@ -119,6 +118,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
       }
       
       await invoke('apply_layout_pack', { packPath, boxerKeys });
+      await Promise.all([useStore.getState().refreshUndoState(), useStore.getState().refreshPendingWrites()]);
       showToast(`Applied layout pack "${pack.name}" to ${boxerKeys.length} boxer(s).`, 'success');
     } catch (e) {
       setError(`Failed to apply pack: ${e}`);
@@ -161,6 +161,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
       
       await invoke('export_layout_pack', {
         boxerKeys: selectedKeys,
+        includeSharedFor: exportSelections.filter(s => s.selected && s.include_shared).map(s => s.boxer_key),
         metadata: exportMetadata,
         outputPath,
       });
@@ -617,7 +618,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
                     const boxer = boxers.find(b => b.key === selection.boxer_key);
                     if (!boxer) return null;
                     return (
-                      <label
+                      <div
                         key={selection.boxer_key}
                         style={{
                           display: 'flex',
@@ -630,6 +631,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
                       >
                         <input
                           type="checkbox"
+                          aria-label={`Export ${boxer.name}`}
                           checked={selection.selected}
                           onChange={() => toggleBoxerSelection(selection.boxer_key)}
                           style={{ marginRight: '10px' }}
@@ -642,7 +644,16 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
                           {boxer.unique_sprite_bins.length} unique
                           {boxer.shared_sprite_bins.length > 0 && ` + ${boxer.shared_sprite_bins.length} shared`}
                         </span>
-                      </label>
+                        {boxer.shared_sprite_bins.length > 0 && (
+                          <label style={{ marginLeft: '12px', fontSize: '0.8rem' }}>
+                            <input type="checkbox" checked={selection.include_shared}
+                              disabled={!selection.selected}
+                              onChange={e => setExportSelections(prev => prev.map(s =>
+                                s.boxer_key === selection.boxer_key ? { ...s, include_shared: e.target.checked } : s))} />
+                            Include shared graphics (affects other fighters)
+                          </label>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

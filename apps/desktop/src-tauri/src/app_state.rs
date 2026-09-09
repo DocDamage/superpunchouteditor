@@ -150,8 +150,25 @@ impl AppState {
     where
         F: FnOnce(&mut Rom) -> Result<T, String>,
     {
+        self.commit_rom_transform_for_base(label, None, transform)
+    }
+
+    /// Check source identity under the same lock as the transaction, so a ROM
+    /// switch cannot race a format-specific edit.
+    pub fn commit_rom_transform_for_base<T, F>(
+        &self,
+        label: impl Into<String>,
+        expected_base_sha1: Option<&str>,
+        transform: F,
+    ) -> Result<(T, EditStateProjection), String>
+    where
+        F: FnOnce(&mut Rom) -> Result<T, String>,
+    {
         let mut session_guard = self.rom_session.lock();
         let session = session_guard.as_mut().ok_or("No ROM loaded")?;
+        if expected_base_sha1.is_some_and(|expected| session.base().sha1() != expected) {
+            return Err("ROM source identity does not match the required layout".into());
+        }
         let current = session.materialize().map_err(|e| e.to_string())?;
         let mut scratch = Rom::new(current.bytes.clone());
         let result = transform(&mut scratch)?;

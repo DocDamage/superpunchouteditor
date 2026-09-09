@@ -357,21 +357,17 @@ mod tests {
     }
 
     #[test]
-    fn test_write_boxer_intro_field_long_text_truncates() {
-        // write_boxer_intro_field uses encode_fixed which silently truncates
-        // to INTRO_FIELD_SIZE bytes. Text longer than 16 chars is accepted.
+    fn test_write_boxer_intro_field_long_text_preserves_existing_value() {
         let mut rom = build_intro_rom();
+        let before = rom.data.clone();
         {
             let mut writer = RosterWriter::new(&mut rom);
             let long = "A".repeat(INTRO_FIELD_SIZE + 4);
             writer
                 .write_boxer_intro_field(0, 0, &long)
-                .expect("should succeed via truncation");
+                .expect_err("oversized text must be rejected");
         }
-        let loader = RosterLoader::new(&rom);
-        let intro = loader.load_boxer_intro(0).expect("intro should load");
-        // The decoded field should not exceed the field size
-        assert!(intro.name_text.trim().len() <= INTRO_FIELD_SIZE);
+        assert_eq!(rom.data, before);
     }
 
     /// Build a minimal ROM with one cornerman text entry for boxer 0.
@@ -423,9 +419,69 @@ mod tests {
     #[test]
     fn test_write_cornerman_text_too_long_is_err() {
         let mut rom = build_cornerman_test_rom();
+        let before = rom.data.clone();
         let mut writer = RosterWriter::new(&mut rom);
         // Original text "GOOD LUCK" is 9 bytes. This 20-byte text must fail.
-        let result = writer.write_cornerman_text(0, 0, "THIS TEXT IS TOO LONG", None);
+        let result = writer.write_cornerman_text(0, 0, "THIS TEXT IS TOO LONG", Some(7));
         assert!(result.is_err());
+        assert_eq!(rom.data, before);
+    }
+
+    #[test]
+    fn delete_cornerman_entry_compacts_table_and_preserves_strings() {
+        let mut rom = build_cornerman_test_rom();
+        let table = 0x063200;
+        rom.write_bytes(table, &[2]).unwrap();
+        let first = rom.read_bytes(table + 1, 3).unwrap().to_vec();
+        rom.write_bytes(table + 4, &first).unwrap();
+        let strings = rom.read_bytes(0x063230, 10).unwrap().to_vec();
+        RosterWriter::new(&mut rom)
+            .delete_cornerman_text(0, 0)
+            .unwrap();
+        let entries = RosterLoader::new(&rom).load_cornerman_texts(0).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, 0);
+        assert_eq!(entries[0].text, "GOOD LUCK");
+        assert_eq!(rom.read_bytes(0x063230, 10).unwrap(), strings);
+        RosterWriter::new(&mut rom)
+            .delete_cornerman_text(0, 0)
+            .unwrap();
+        assert!(RosterLoader::new(&rom)
+            .load_cornerman_texts(0)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn delete_cornerman_rejects_shared_table_without_mutation() {
+        let mut rom = build_cornerman_test_rom();
+        let pointer = rom.read_bytes(CORNERMAN_POINTER_TABLE, 2).unwrap().to_vec();
+        rom.write_bytes(CORNERMAN_POINTER_TABLE + 2, &pointer)
+            .unwrap();
+        let before = rom.data.clone();
+        assert!(RosterWriter::new(&mut rom)
+            .delete_cornerman_text(0, 0)
+            .is_err());
+        assert_eq!(rom.data, before);
+    }
+
+    #[test]
+    fn intro_field_rejects_overflow_without_changing_rom() {
+        let mut rom = Rom::new(vec![0x24; 0x200000]);
+        let before = rom.data.clone();
+        assert!(RosterWriter::new(&mut rom)
+            .write_boxer_intro_field(0, 4, &"A".repeat(INTRO_FIELD_SIZE + 1))
+            .is_err());
+        assert_eq!(rom.data, before);
+        RosterWriter::new(&mut rom)
+            .write_boxer_intro_field(0, 4, &"B".repeat(INTRO_FIELD_SIZE))
+            .unwrap();
+        assert_eq!(
+            RosterLoader::new(&rom)
+                .load_boxer_intro(0)
+                .unwrap()
+                .intro_quote,
+            "B".repeat(INTRO_FIELD_SIZE)
+        );
     }
 }
