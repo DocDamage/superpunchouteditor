@@ -9,9 +9,10 @@ The advanced-feature implementation below is committed as `1f2a260` on
 `origin/main`. Local `main` remains at that baseline. Local `work` contains the
 reconciliation cleanup: lint fixes in sprite compression, fighter lookup,
 comparison, layout-pack export and an AI parser test, plus a scoped permission
-fix for the CI Security Audit check. Three lint fixes from closed PR #38 were
-recovered into `work`. The retired local `master` ref was removed after
-confirming its tip is an ancestor of `main`.
+fix for the CI Security Audit check. CI and Lint now run on pushes to `main` and
+`work`; the retired `develop` push filter was removed. Three lint fixes from
+closed PR #38 were recovered into `work`. The retired local `master` ref was
+removed after confirming its tip is an ancestor of `main`.
 
 Dependabot PRs #40–#53 were closed without merging because their checks failed.
 Their head refs were removed; the remote now contains only `main` and `work`.
@@ -111,7 +112,7 @@ Completed checks at their respective implementation boundaries:
   `cargo clippy --workspace --all-targets -- -D warnings` passed. Targeted
   `asset-core` and `script-core` test suites passed.
 - CI workflow hygiene passed after scoping `checks: write` and `contents: read`
-  to the Security Audit job.
+  to the Security Audit job and targeting `main`/`work` for CI and Lint pushes.
 
 No test process remains running. Tests above are not gameplay or release proof.
 Next substantive milestone: source-backed animation traversal/coverage and
