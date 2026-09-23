@@ -152,7 +152,7 @@ fn export_pack_internal(
     if json.len() as u64 > MAX_LAYOUT_PACK_BYTES {
         return Err("Exported layout pack exceeds size limit".into());
     }
-    std::fs::write(&output_path, json).map_err(|e| format!("Failed to write layout pack: {e}"))
+    std::fs::write(output_path, json).map_err(|e| format!("Failed to write layout pack: {e}"))
 }
 
 fn sparse_edits(before: &[u8], after: &[u8]) -> Vec<LayoutEdit> {

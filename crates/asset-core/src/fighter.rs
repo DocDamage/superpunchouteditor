@@ -950,11 +950,7 @@ fn push_transparent_score(tile: &Tile) -> usize {
     tile.pixels.iter().filter(|pixel| **pixel != 0).count()
 }
 
-fn lookup_object_tile<'a>(
-    table: &'a ObjectTileTable,
-    tile_index: usize,
-    attr: u8,
-) -> Option<&'a Tile> {
+fn lookup_object_tile(table: &ObjectTileTable, tile_index: usize, attr: u8) -> Option<&Tile> {
     if let Some(Some(tile)) = table.tiles.get(tile_index) {
         return Some(tile);
     }
