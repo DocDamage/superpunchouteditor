@@ -8,16 +8,19 @@ animation/frame/hitbox editing and plugins. The full objective remains active.
 The advanced-feature implementation below is committed as `1f2a260` on
 `origin/main`. Local `main` remains at that baseline. Local `work` contains the
 reconciliation cleanup: lint fixes in sprite compression, fighter lookup,
-comparison, layout-pack export and an AI parser test. Three lint fixes from
-closed PR #38 were recovered into `work`. The retired local `master` ref was
-removed after confirming its tip is an ancestor of `main`.
+comparison, layout-pack export and an AI parser test, plus a scoped permission
+fix for the CI Security Audit check. Three lint fixes from closed PR #38 were
+recovered into `work`. The retired local `master` ref was removed after
+confirming its tip is an ancestor of `main`.
 
 Dependabot PRs #40–#53 were closed without merging because their checks failed.
-Their head refs were removed; the remote currently contains only `main`. PR #38
-(`Creative Corner`) remains closed without merge as a recovery record. Its
-verified UI work and later Appearance Studio / Game Extras source handoff are
-separate from the committed advanced-feature work; the handoff source has not
-been recovered in this checkout and remains a follow-up decision.
+Their head refs were removed; the remote now contains only `main` and `work`.
+PR #54 carries the reconciliation commit from `work` to `main` and is awaiting
+CI. PR #38 (`Creative Corner`) remains closed without merge as a recovery
+record. Its verified UI work and later Appearance Studio / Game Extras source
+handoff are separate from the committed advanced-feature work; the handoff
+source has not been recovered in this checkout and remains a follow-up
+decision.
 
 Preserve BaseRom -> EditJournal -> WorkingRom and user edits. Never commit ROMs,
 SRAM, emulator binaries or private signing material.
@@ -107,6 +110,8 @@ Completed checks at their respective implementation boundaries:
 - Reconciliation checks: `cargo fmt --all -- --check` and
   `cargo clippy --workspace --all-targets -- -D warnings` passed. Targeted
   `asset-core` and `script-core` test suites passed.
+- CI workflow hygiene passed after scoping `checks: write` and `contents: read`
+  to the Security Audit job.
 
 No test process remains running. Tests above are not gameplay or release proof.
 Next substantive milestone: source-backed animation traversal/coverage and
