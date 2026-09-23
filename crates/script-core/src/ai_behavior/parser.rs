@@ -10,16 +10,20 @@ mod serialization_tests {
 
     #[test]
     fn rejects_pattern_and_defense_overflow() {
-        let mut behavior = crate::ai_behavior::AiBehavior::default();
-        behavior.attack_patterns = vec![AttackPattern::default(); MAX_PATTERNS_PER_FIGHTER + 1];
+        let pattern_overflow = crate::ai_behavior::AiBehavior {
+            attack_patterns: vec![AttackPattern::default(); MAX_PATTERNS_PER_FIGHTER + 1],
+            ..Default::default()
+        };
         assert!(matches!(
-            AiParser::serialize_to_bytes(&behavior, 0),
+            AiParser::serialize_to_bytes(&pattern_overflow, 0),
             Err(AiParseError::PatternTooLarge)
         ));
-        behavior.attack_patterns.clear();
-        behavior.defense_behaviors = vec![DefenseBehavior::default(); MAX_DEFENSE_PER_FIGHTER + 1];
+        let defense_overflow = crate::ai_behavior::AiBehavior {
+            defense_behaviors: vec![DefenseBehavior::default(); MAX_DEFENSE_PER_FIGHTER + 1],
+            ..Default::default()
+        };
         assert!(matches!(
-            AiParser::serialize_to_bytes(&behavior, 0),
+            AiParser::serialize_to_bytes(&defense_overflow, 0),
             Err(AiParseError::DefenseOverflow)
         ));
     }

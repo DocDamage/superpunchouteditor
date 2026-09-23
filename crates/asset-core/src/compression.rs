@@ -407,14 +407,14 @@ impl<'a> Decompressor<'a> {
 /// A shorter valid multiple of eight uses a zero mask and one chunk per base
 /// group.
 pub fn compress_sprite_graphics_exact(data: &[u8]) -> Result<Vec<u8>, String> {
-    if data.len() % 8 != 0 {
+    if !data.len().is_multiple_of(8) {
         return Err(format!(
             "Sprite graphics data must be aligned to eight-byte flag chunks ({} bytes)",
             data.len()
         ));
     }
 
-    let mask = if data.len() % 16 == 0 {
+    let mask = if data.len().is_multiple_of(16) {
         SPO_GRAPHICS_CONTINUATION_MASK
     } else {
         0

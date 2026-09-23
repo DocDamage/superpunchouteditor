@@ -300,7 +300,7 @@ fn asset_difference(
     after: &[u8],
 ) -> Option<Difference> {
     if palette {
-        if before.len() % 2 != 0 || before.len() != after.len() {
+        if !before.len().is_multiple_of(2) || before.len() != after.len() {
             return None;
         }
         let colors = |bytes: &[u8]| {
