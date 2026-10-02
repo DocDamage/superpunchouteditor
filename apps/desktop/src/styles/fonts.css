@@ -1,0 +1,7 @@
+/* Bundled open-licence fonts (SIL OFL 1.1). Nothing is fetched at runtime. */
+@import "@fontsource-variable/nunito/index.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+@import "@fontsource/barlow-condensed/latin-800.css";
+@import "@fontsource/barlow-condensed/latin-800-italic.css";
+@import "@fontsource/press-start-2p/latin-400.css";

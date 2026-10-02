@@ -25,8 +25,6 @@ describe("GuidedSidebar", () => {
         ]}
         currentTab="editor"
         romSha1={null}
-        boxers={[]}
-        boxerPortraits={{}}
         canUndo={false}
         canRedo={false}
         editCount={0}
@@ -38,7 +36,6 @@ describe("GuidedSidebar", () => {
         onUndo={noop}
         onRedo={noop}
         onNavigate={noop}
-        onSelectBoxer={noop}
         onOpenHelp={noop}
         onOpenKeyboardShortcuts={noop}
         onOpenEmulatorSettings={noop}
@@ -47,10 +44,10 @@ describe("GuidedSidebar", () => {
     );
 
     expect(screen.getByRole("button", { name: /open rom/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /edit & export/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /inspect/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /test game/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /projects/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit boxers/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /look around/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /play game/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /my projects/i })).toBeInTheDocument();
     expect(screen.queryByText(/advanced tools/i)).not.toBeInTheDocument();
   });
 
@@ -67,8 +64,6 @@ describe("GuidedSidebar", () => {
         ]}
         currentTab="editor"
         romSha1="0123456789abcdef"
-        boxers={[]}
-        boxerPortraits={{}}
         canUndo={false}
         canRedo={false}
         editCount={0}
@@ -80,7 +75,6 @@ describe("GuidedSidebar", () => {
         onUndo={noop}
         onRedo={noop}
         onNavigate={noop}
-        onSelectBoxer={noop}
         onOpenHelp={noop}
         onOpenKeyboardShortcuts={noop}
         onOpenEmulatorSettings={noop}

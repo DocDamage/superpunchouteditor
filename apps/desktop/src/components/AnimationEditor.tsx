@@ -361,8 +361,8 @@ export const AnimationEditor: React.FC = () => {
                       <span 
                         className="text-xs px-2 py-0.5 rounded"
                         style={{ 
-                          backgroundColor: `${categoryColors[anim.category as string] || '#6b7280'}20`,
-                          color: categoryColors[anim.category as string] || '#6b7280'
+                          backgroundColor: `color-mix(in srgb, ${categoryColors[anim.category as string] || '#6b7280'} 13%, transparent)`,
+                          color: categoryColors[anim.category as string] || 'var(--text-muted)'
                         }}
                       >
                         {anim.category}
@@ -407,8 +407,8 @@ export const AnimationEditor: React.FC = () => {
                     <span 
                       className="text-xs px-2 py-1 rounded"
                       style={{ 
-                        backgroundColor: `${categoryColors[currentAnimation.category as string] || '#6b7280'}20`,
-                        color: categoryColors[currentAnimation.category as string] || '#6b7280'
+                        backgroundColor: `color-mix(in srgb, ${categoryColors[currentAnimation.category as string] || '#6b7280'} 13%, transparent)`,
+                        color: categoryColors[currentAnimation.category as string] || 'var(--text-muted)'
                       }}
                     >
                       {currentAnimation.category}

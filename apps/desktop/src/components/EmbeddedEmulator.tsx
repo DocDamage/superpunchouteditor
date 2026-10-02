@@ -1263,7 +1263,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
           {!emulator.isInitialized && (
             <span
               title={emulatorInitError ?? EMBEDDED_CORE_SETUP_MESSAGE}
-              style={{ marginLeft: 8, color: 'var(--warning, #f59e0b)', fontSize: 12 }}
+              style={{ marginLeft: 8, color: 'var(--warning)', fontSize: 12 }}
             >
               (Not Initialized)
             </span>
@@ -1442,7 +1442,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Creator Runtime Monitor</div>
                   {creatorSessionLabel && (
-                    <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', marginTop: '0.18rem' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.18rem' }}>
                       Session target: {creatorSessionLabel}
                     </div>
                   )}
@@ -1452,7 +1452,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                     padding: '0.2rem 0.55rem',
                     borderRadius: '999px',
                     background: creatorState?.active ? 'rgba(34,197,94,0.18)' : 'rgba(148,163,184,0.14)',
-                    color: creatorState?.active ? 'var(--success, #22c55e)' : 'var(--text-muted, #94a3b8)',
+                    color: creatorState?.active ? 'var(--success)' : 'var(--text-muted)',
                     fontSize: '0.78rem',
                     fontWeight: 700,
                   }}
@@ -1535,11 +1535,11 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                         <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>
                           {creatorPageLabel} Menu Preview
                         </div>
-                        <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.8rem' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                           {describeCreatorSummary(creatorState.render_page)}
                         </div>
                       </div>
-                      <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                         Cursor {creatorState.render_cursor + 1} of {creatorMenuRows.length || 4}
                       </div>
                     </div>
@@ -1566,13 +1566,13 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                         >
                           <div>
                             <div style={{ fontWeight: 600, fontSize: '0.84rem' }}>{row.label}</div>
-                            <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.76rem' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.76rem' }}>
                               {row.detail}
                             </div>
                           </div>
                           <div
                             style={{
-                              color: row.selected ? 'var(--info, #60a5fa)' : 'var(--text-muted, #94a3b8)',
+                              color: row.selected ? 'var(--info)' : 'var(--text-muted)',
                               fontSize: '0.76rem',
                               fontWeight: 700,
                             }}
@@ -1605,11 +1605,11 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                     >
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>Creator Draft Editor</div>
-                        <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.8rem' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                           The ROM-side hook chooses the page and action. This panel owns the editable draft and commit.
                         </div>
                       </div>
-                      <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                         {creatorDraftBusy ? 'Committing...' : creatorDraft ? `Target slot #${creatorDraft.boxerId}` : 'No active creator target'}
                       </div>
                     </div>
@@ -1639,7 +1639,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                                 borderRadius: '8px',
                                 border: '1px solid var(--border, rgba(255,255,255,0.12))',
                                 background: 'rgba(15,23,42,0.55)',
-                                color: 'var(--text-primary, #e2e8f0)',
+                                color: 'var(--text-primary)',
                               }}
                             />
                           </label>
@@ -1666,7 +1666,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                                 borderRadius: '8px',
                                 border: '1px solid var(--border, rgba(255,255,255,0.12))',
                                 background: 'rgba(15,23,42,0.55)',
-                                color: 'var(--text-primary, #e2e8f0)',
+                                color: 'var(--text-primary)',
                               }}
                             />
                           </label>
@@ -1729,7 +1729,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                                 borderRadius: '8px',
                                 border: '1px solid var(--border, rgba(255,255,255,0.12))',
                                 background: 'rgba(15,23,42,0.55)',
-                                color: 'var(--text-primary, #e2e8f0)',
+                                color: 'var(--text-primary)',
                               }}
                             >
                               <option value="">Select portrait owner</option>
@@ -1752,7 +1752,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                               </button>
                             )}
                           </div>
-                          <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.76rem', marginTop: '0.35rem' }}>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.76rem', marginTop: '0.35rem' }}>
                             Portrait PNG staging now works through Graphic Assets. Character Create now generates a dedicated owner automatically; this selector lets you inspect or retarget the current session if needed.
                           </div>
                         </div>
@@ -1777,7 +1777,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                               borderRadius: '8px',
                               border: '1px solid var(--border, rgba(255,255,255,0.12))',
                               background: 'rgba(15,23,42,0.55)',
-                              color: 'var(--text-primary, #e2e8f0)',
+                              color: 'var(--text-primary)',
                             }}
                           />
                         </label>
@@ -1821,7 +1821,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                         </div>
                       </>
                     ) : (
-                      <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.82rem' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                         Launch creator mode from a roster session to bind this draft editor to a boxer slot.
                       </div>
                     )}
@@ -1854,7 +1854,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                       gap: '0.6rem',
                       fontFamily: 'monospace',
                       fontSize: '0.82rem',
-                      color: 'var(--text-muted, #94a3b8)',
+                      color: 'var(--text-muted)',
                       marginBottom: '0.2rem',
                     }}
                   >
@@ -1885,7 +1885,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                       }}
                     >
                       <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Creator Quick Controls</div>
-                      <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                         {creatorActionBusy ? 'Sending input...' : 'Works while running or paused'}
                       </div>
                     </div>
@@ -1957,7 +1957,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
 
                     <div
                       style={{
-                        color: 'var(--text-muted, #94a3b8)',
+                        color: 'var(--text-muted)',
                         fontSize: '0.78rem',
                         lineHeight: 1.5,
                       }}
@@ -1967,7 +1967,7 @@ export const EmbeddedEmulator: React.FC<EmbeddedEmulatorProps> = ({
                   </div>
                 </>
               ) : (
-                <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.85rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   Initialize the emulator to inspect the in-ROM creator contract.
                 </div>
               )}

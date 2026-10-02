@@ -21,3 +21,11 @@ Do not share:
 - signing keys, certificates, tokens, or passwords.
 
 The community tester kit and its report workflow are designed around these boundaries.
+
+## What the editor keeps on your computer
+
+- The path of the last ROM you opened, so it can be reopened at startup.
+- An automatic copy of your edit journal per ROM, in the app's own data folder. It contains your changes, not the ROM.
+- Your emulator choice. To find an emulator the editor reads file names in the usual download, desktop, documents and program folders; it does not open or send those files anywhere.
+
+None of this leaves the computer.

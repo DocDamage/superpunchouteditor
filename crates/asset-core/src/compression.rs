@@ -407,6 +407,24 @@ impl<'a> Decompressor<'a> {
 /// A shorter valid multiple of eight uses a zero mask and one chunk per base
 /// group.
 pub fn compress_sprite_graphics_exact(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mask = if data.len().is_multiple_of(16) {
+        SPO_GRAPHICS_CONTINUATION_MASK
+    } else {
+        0
+    };
+    compress_sprite_graphics_with_mask(data, mask)
+}
+
+/// Compresses a fighter graphics byte stream with an explicit continuation
+/// mask, so an edited bank can be written back with the same grouping the
+/// game's original data used (the stock banks use `0x0F`, `0x07` and `0x08`).
+///
+/// Each group stores one base byte followed by flag chunks; a byte equal to
+/// the base costs nothing, every other byte is stored literally. The base is
+/// therefore the group's most common byte, which is what the original data
+/// does: re-encoding an unmodified stock bank this way gives a stream of
+/// exactly the original length.
+pub fn compress_sprite_graphics_with_mask(data: &[u8], mask: u8) -> Result<Vec<u8>, String> {
     if !data.len().is_multiple_of(8) {
         return Err(format!(
             "Sprite graphics data must be aligned to eight-byte flag chunks ({} bytes)",
@@ -414,38 +432,93 @@ pub fn compress_sprite_graphics_exact(data: &[u8]) -> Result<Vec<u8>, String> {
         ));
     }
 
-    let mask = if data.len().is_multiple_of(16) {
-        SPO_GRAPHICS_CONTINUATION_MASK
-    } else {
-        0
-    };
-    let chunks_per_group = if mask == 0 { 1 } else { 2 };
     let mut output = vec![mask];
     let mut cursor = 0usize;
+    let mut output_offset = 0x8000usize;
 
     while cursor < data.len() {
-        let base = data[cursor];
+        // A group runs until the output address, masked, returns to zero.
+        let mut group_end = cursor;
+        loop {
+            group_end += 8;
+            output_offset += 8;
+            if output_offset & usize::from(mask) == 0 {
+                break;
+            }
+            if group_end >= data.len() {
+                return Err(format!(
+                    "Sprite graphics data ({} bytes) does not end on a group boundary for mask {mask:#04X}",
+                    data.len()
+                ));
+            }
+        }
+        let group = &data[cursor..group_end];
+
+        let mut counts = [0u16; 256];
+        for &byte in group {
+            counts[usize::from(byte)] += 1;
+        }
+        // Most common byte; ties go to the one that appears first.
+        let mut base = group[0];
+        for &byte in group {
+            if counts[usize::from(byte)] > counts[usize::from(base)] {
+                base = byte;
+            }
+        }
         output.push(base);
 
-        for _ in 0..chunks_per_group {
-            let chunk = &data[cursor..cursor + 8];
+        for chunk in group.chunks_exact(8) {
             let mut flags = 0u8;
             let mut literals = Vec::new();
-
             for (index, &byte) in chunk.iter().enumerate() {
                 if byte != base {
                     flags |= 1 << (7 - index);
                     literals.push(byte);
                 }
             }
-
             output.push(flags);
             output.extend(literals);
-            cursor += 8;
         }
+        cursor = group_end;
     }
 
     Ok(output)
+}
+
+/// A compressed fighter bank stored at the start of a ROM bank is preceded by
+/// a two-byte end offset, which the game uses to know where the stream stops.
+/// Returns the stream length recorded there, or `None` when `stream_pc` is not
+/// such a bank-start stream or the header is not a plausible end offset.
+///
+/// Reading the length from the ROM rather than from a fixed table means a
+/// stream that was rewritten shorter is still decoded exactly.
+pub fn sprite_stream_len_from_header(rom: &[u8], stream_pc: usize) -> Option<usize> {
+    const BANK_SIZE: usize = 0x8000;
+    if stream_pc % BANK_SIZE != 2 {
+        return None;
+    }
+    let header_pc = stream_pc - 2;
+    let end_offset = usize::from(u16::from_le_bytes([
+        *rom.get(header_pc)?,
+        *rom.get(header_pc + 1)?,
+    ]));
+    // Two header bytes, one mask byte and at least one group.
+    if !(6..=BANK_SIZE).contains(&end_offset) || header_pc + end_offset > rom.len() {
+        return None;
+    }
+    Some(end_offset - 2)
+}
+
+/// The end-offset header bytes to store in front of a bank-start stream of
+/// `stream_len` bytes.
+pub fn sprite_stream_header_for_len(stream_len: usize) -> Result<[u8; 2], String> {
+    let end_offset = stream_len
+        .checked_add(2)
+        .filter(|end| *end <= 0x8000)
+        .ok_or_else(|| {
+            format!("Sprite stream of {stream_len} bytes does not fit in one ROM bank")
+        })?;
+    Ok((end_offset as u16).to_le_bytes())
 }
 
 /// Convenience wrapper for callers that already know their tile data is
@@ -690,6 +763,63 @@ mod tests {
             expected
         );
         assert_eq!(decompressor.position(), compressed.len());
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_uses_the_most_common_byte_as_base() {
+        // First byte is rare; 0xAA is the common one and should cost nothing.
+        let mut data = vec![0xAA; 16];
+        data[0] = 0x11;
+        data[9] = 0x22;
+        let compressed = compress_sprite_graphics_exact(&data).unwrap();
+        // mask, base, flags + 1 literal, flags + 1 literal
+        assert_eq!(compressed, vec![0x0F, 0xAA, 0x80, 0x11, 0x40, 0x22]);
+
+        let mut decompressor = Decompressor::new(&compressed);
+        assert_eq!(
+            decompressor.decompress_sprite_graphics_exact().unwrap(),
+            data
+        );
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_roundtrips_with_every_stock_mask() {
+        let data = (0..256u32)
+            .map(|index| ((index * 37 + index / 5) % 7) as u8)
+            .collect::<Vec<_>>();
+        for mask in [0x0F, 0x07, 0x08, 0x00] {
+            let compressed = compress_sprite_graphics_with_mask(&data, mask).unwrap();
+            assert_eq!(compressed[0], mask);
+            let mut decompressor = Decompressor::new(&compressed);
+            assert_eq!(
+                decompressor.decompress_sprite_graphics_exact().unwrap(),
+                data,
+                "mask {mask:#04X}"
+            );
+            assert_eq!(decompressor.position(), compressed.len());
+        }
+    }
+
+    #[test]
+    fn test_spo_sprite_graphics_rejects_data_that_ends_mid_group() {
+        // Eight bytes cannot fill a sixteen-byte group.
+        assert!(compress_sprite_graphics_with_mask(&[0; 8], 0x0F).is_err());
+        assert!(compress_sprite_graphics_with_mask(&[0; 8], 0x07).is_ok());
+    }
+
+    #[test]
+    fn test_sprite_stream_header_round_trip() {
+        let mut rom = vec![0u8; 0x10000];
+        let stream_pc = 0x8002;
+        let header = sprite_stream_header_for_len(1234).unwrap();
+        rom[0x8000..0x8002].copy_from_slice(&header);
+        assert_eq!(sprite_stream_len_from_header(&rom, stream_pc), Some(1234));
+
+        // Not at the start of a bank, or an implausible header: no answer.
+        assert_eq!(sprite_stream_len_from_header(&rom, 0x8010), None);
+        rom[0x8000..0x8002].copy_from_slice(&[0xFF, 0xFF]);
+        assert_eq!(sprite_stream_len_from_header(&rom, stream_pc), None);
+        assert!(sprite_stream_header_for_len(0x8000).is_err());
     }
 
     #[test]

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useStore, ProjectThumbnail } from '../store/useStore';
 import { ProjectThumbnailDisplay, ThumbnailCaptureButton, ThumbnailManager } from './ProjectThumbnail';
+import './ProjectManager.css';
 
 interface NewProjectDialogProps {
   isOpen: boolean;
@@ -498,95 +499,51 @@ export function ProjectManager() {
   }, []);
 
   return (
-    <div>
+    <div className="projects-page">
+      <header className="projects-header">
+        <p className="eyebrow">My Projects</p>
+        <h2>Save your work for later</h2>
+        <p>
+          A project remembers every change you have made so you can keep going another day. It does not
+          contain the game itself, so it is safe to keep and to share.
+        </p>
+      </header>
+
       {/* Project Menu Buttons */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '0.5rem', 
-        marginBottom: '1rem',
-        flexWrap: 'wrap'
-      }}>
+      <div className="projects-actions">
         <button
-          onClick={handleNewProject}
-          disabled={!romSha1}
-          title={!romSha1 ? 'Load a ROM first' : undefined}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-            backgroundColor: 'var(--glass)',
-            color: 'var(--text)',
-            cursor: romSha1 ? 'pointer' : 'not-allowed',
-            opacity: romSha1 ? 1 : 0.5,
-            fontSize: '0.85rem',
-          }}
-        >
-          New Project
-        </button>
-        
-        <button
-          onClick={handleOpenProject}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-            backgroundColor: 'var(--glass)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-          }}
-        >
-          Open Project
-        </button>
-        
-        <button
+          type="button"
+          className="btn-primary"
           onClick={handleSaveProject}
           disabled={!romSha1}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-            backgroundColor: currentProject ? 'var(--blue)' : 'var(--glass)',
-            color: 'white',
-            cursor: romSha1 ? 'pointer' : 'not-allowed',
-            opacity: romSha1 ? 1 : 0.5,
-            fontSize: '0.85rem',
-          }}
+          title={!romSha1 ? 'Open your ROM first' : undefined}
         >
-          {currentProject ? 'Save' : 'Save Project'}
+          {currentProject ? 'Save My Work' : 'Save My Work…'}
         </button>
-        
+
+        <button type="button" className="secondary" onClick={handleOpenProject}>
+          Open a Project
+        </button>
+
+        <button
+          type="button"
+          className="secondary"
+          onClick={handleNewProject}
+          disabled={!romSha1}
+          title={!romSha1 ? 'Open your ROM first' : undefined}
+        >
+          Start a New Project
+        </button>
+
         {currentProject && (
-          <button
-            onClick={handleSaveProjectAs}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--glass)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-            }}
-          >
-            Save As...
+          <button type="button" className="secondary" onClick={handleSaveProjectAs}>
+            Save a Copy…
           </button>
         )}
-        
+
         {currentProject && (
-          <button
-            onClick={handleCloseProject}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--glass)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-            }}
-          >
-            Close
+          <button type="button" className="quiet-button" onClick={handleCloseProject}>
+            Close Project
           </button>
         )}
       </div>
@@ -602,30 +559,15 @@ export function ProjectManager() {
           <ThumbnailManager style={{ marginBottom: '1rem' }} />
         </>
       ) : (
-        <div style={{
-          backgroundColor: 'var(--glass)',
-          borderRadius: '8px',
-          padding: '1rem',
-          marginBottom: '1rem',
-          textAlign: 'center',
-          color: 'var(--text-dim)',
-        }}>
-          No project open. Create a new project or open an existing one.
+        <div className="projects-empty">
+          No project is open yet. Press <strong>Save My Work</strong> to make one from what you have done so far.
         </div>
       )}
 
       {/* Recent Projects */}
       {recentProjects.length > 0 && !currentProject && (
         <div style={{ marginTop: '1rem' }}>
-          <h4 style={{ 
-            fontSize: '0.9rem', 
-            color: 'var(--text-dim)',
-            marginBottom: '0.5rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
-            Recent Projects
-          </h4>
+          <h3>Pick up where you left off</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {recentProjects.map((project, index) => (
               <button

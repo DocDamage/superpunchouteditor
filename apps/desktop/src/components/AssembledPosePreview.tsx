@@ -5,6 +5,10 @@ import type { BoxerRecord, FighterMetadata, PoseInfo } from '../store/useStore';
 
 interface AssembledPosePreviewProps {
   boxer: BoxerRecord;
+  /** When this value changes, the current pose is redrawn from the latest edits. */
+  refreshKey?: string | number;
+  /** Plain-language labels for the guided boxer workshop. */
+  friendly?: boolean;
 }
 
 /**
@@ -12,7 +16,7 @@ interface AssembledPosePreviewProps {
  * metasprite/OAM data. This is deliberately separate from the raw tile-bank
  * reference sheet below it.
  */
-export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
+export const AssembledPosePreview = ({ boxer, refreshKey, friendly = false }: AssembledPosePreviewProps) => {
   const { romSha1 } = useStore();
   const [fighterId, setFighterId] = useState<number | null>(null);
   const [poses, setPoses] = useState<PoseInfo[]>([]);
@@ -22,10 +26,12 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
   const [error, setError] = useState<string | null>(null);
   const imageUrlRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
+  const poseIndexRef = useRef(0);
 
-  const renderPose = useCallback(async (id: number, index: number) => {
+  const renderPose = useCallback(async (id: number, index: number, quiet = false) => {
     const requestId = ++requestIdRef.current;
-    setLoading(true);
+    // A quiet redraw keeps the current picture on screen until the new one is ready.
+    if (!quiet) setLoading(true);
     setError(null);
 
     try {
@@ -44,6 +50,7 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
       imageUrlRef.current = url;
       setImageSrc(url);
       setPoseIndex(index);
+      poseIndexRef.current = index;
     } catch (renderError) {
       if (requestId === requestIdRef.current) {
         setError(String(renderError));
@@ -127,6 +134,19 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
     };
   }, []);
 
+  // Redraw the pose in place after an edit, undo or redo.
+  const firstRefreshRef = useRef(true);
+  useEffect(() => {
+    if (firstRefreshRef.current) {
+      firstRefreshRef.current = false;
+      return;
+    }
+    if (fighterId === null || refreshKey === undefined) return;
+    void renderPose(fighterId, poseIndexRef.current, true);
+    // Only the refresh key should trigger a redraw here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
   const changePose = (nextIndex: number) => {
     if (fighterId === null || nextIndex < 0 || nextIndex >= poses.length) return;
     void renderPose(fighterId, nextIndex);
@@ -134,7 +154,8 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
 
   return (
     <div
-      style={{
+      className="pose-preview"
+      style={friendly ? undefined : {
         paddingBottom: '1.5rem',
         borderBottom: '1px solid var(--border)',
       }}
@@ -150,9 +171,11 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
         }}
       >
         <div>
-          <h3 style={{ margin: 0 }}>Assembled Pose Preview</h3>
+          <h3 style={{ margin: 0 }}>{friendly ? 'Preview' : 'Assembled Pose Preview'}</h3>
           <p style={{ margin: '4px 0 0', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-            Uses the game&apos;s pose data to place the 8×8 tiles into a complete boxer image.
+            {friendly
+              ? `This is how ${boxer.name} looks in the game. It updates as you make changes.`
+              : 'Uses the game\u2019s pose data to place the 8×8 tiles into a complete boxer image.'}
           </p>
         </div>
 
@@ -164,7 +187,7 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
               disabled={loading || poseIndex <= 0}
               style={{ padding: '5px 10px' }}
             >
-              ← Prev
+              {friendly ? '← Back' : '← Prev'}
             </button>
             <select
               aria-label={`${boxer.name} pose`}
@@ -175,7 +198,9 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
             >
               {poses.map((pose, index) => (
                 <option key={pose.index ?? index} value={index}>
-                  Pose {index} · ${pose.data_addr.toString(16).toUpperCase().padStart(4, '0')}
+                  {friendly
+                    ? `Pose ${index + 1} of ${poses.length}`
+                    : `Pose ${index} · $${pose.data_addr.toString(16).toUpperCase().padStart(4, '0')}`}
                 </option>
               ))}
             </select>
@@ -197,7 +222,7 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0c0d14',
+          background: 'var(--canvas-bg)',
           border: '1px solid var(--border)',
           borderRadius: '10px',
           padding: '1rem',
@@ -206,16 +231,18 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
         }}
       >
         {loading && (
-          <div style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>Assembling pose…</div>
+          <div style={{ color: 'var(--text-dim)', fontSize: '0.875rem' }}>
+            {friendly ? 'Drawing the boxer…' : 'Assembling pose…'}
+          </div>
         )}
 
         {!loading && imageSrc && (
           <img
             src={imageSrc}
             alt={`${boxer.name} assembled pose ${poseIndex}`}
-            width={512}
-            height={512}
-            style={{ imageRendering: 'pixelated', display: 'block' }}
+            width={friendly ? 384 : 512}
+            height={friendly ? 384 : 512}
+            style={{ imageRendering: 'pixelated', display: 'block', maxWidth: '100%', height: 'auto' }}
           />
         )}
 
@@ -226,8 +253,8 @@ export const AssembledPosePreview = ({ boxer }: AssembledPosePreviewProps) => {
         )}
 
         {!loading && error && (
-          <div style={{ color: '#ff7777', fontSize: '0.875rem', textAlign: 'center' }}>
-            Could not assemble this pose: {error}
+          <div style={{ color: 'var(--error)', fontSize: '0.875rem', textAlign: 'center' }}>
+            {friendly ? 'This pose could not be drawn' : 'Could not assemble this pose'}: {error}
           </div>
         )}
       </div>

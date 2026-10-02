@@ -40,9 +40,17 @@ IPS export is intentionally rejected when source and target ROM lengths differ. 
 
 Undo and redo operate on logical journal transactions, not on a separate frontend history. A new edit after undo discards the redo branch. Selective removal of an arbitrary middle edit is intentionally unsupported because it can invalidate later before-bytes; use Undo or start from a known saved project state.
 
-## Embedded emulator testing
+## Play Game
 
-The stable test path loads the current materialized ROM bytes in memory and records the editor revision/SHA-1 loaded by the emulator. Legacy external-emulator launching is experimental because a disk-path workflow can test an older image than the editor currently represents.
+**Play Game** writes the current edited game (every change, saved or not) to a temporary file and opens it in your emulator, so what you play always matches what the editor shows. The first time, the editor looks for an emulator in the usual download, desktop, documents and program folders by file name only, and asks you to confirm the one to use. You can also pick the program yourself.
+
+**Play inside the editor** is an advanced option that needs a separate Snes9x libretro core. It loads the current edited game in memory.
+
+## Automatic safekeeping
+
+Shortly after every change, Undo or Redo, the editor keeps your edit journal in its own data folder (`super-punch-out-editor/autosave/<ROM SHA-1>` under the local app-data directory). Like a project, this copy never contains the ROM itself. The next time the same ROM is opened, the changes come back and are still individual Undo steps. The copy is tied to the exact ROM by its SHA-1 and is never applied to a different file; a damaged copy is rejected and the session is left untouched. **Start Over** on the Save & Share tab undoes every change.
+
+The editor also remembers the path of the last ROM you opened, on this computer only, so it can reopen it at startup.
 
 ## Recovery
 

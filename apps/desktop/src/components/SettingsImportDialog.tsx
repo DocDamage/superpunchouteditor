@@ -134,15 +134,15 @@ export function SettingsImportDialog({ isOpen, onClose, onImport }: SettingsImpo
 
   const getChangeType = (item: SettingsChangePreview): { icon: string; color: string; label: string } => {
     if (item.has_conflict) {
-      return { icon: '⚠️', color: '#fbbf24', label: 'Conflict' };
+      return { icon: '⚠️', color: 'var(--warning)', label: 'Conflict' };
     }
     if (!item.current_value && item.new_value) {
-      return { icon: '➕', color: '#22c55e', label: 'New' };
+      return { icon: '➕', color: 'var(--success)', label: 'New' };
     }
     if (item.current_value && !item.new_value) {
-      return { icon: '🗑️', color: '#ef4444', label: 'Remove' };
+      return { icon: '🗑️', color: 'var(--error)', label: 'Remove' };
     }
-    return { icon: '↻', color: '#3b82f6', label: 'Update' };
+    return { icon: '↻', color: 'var(--info)', label: 'Update' };
   };
 
   // Group changes by category

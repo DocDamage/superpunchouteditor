@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeProvider';
 import type { Theme } from '../config/themes';
+import { MoonIcon, SunIcon } from './icons';
 
 export interface ThemeToggleProps {
   /** Display style variant */
@@ -137,7 +138,7 @@ export function ThemeToggle({
           transition: 'all 0.2s ease',
         }}
       >
-        {isDark ? '🌙' : '☀️'}
+        {isDark ? <MoonIcon size={18} /> : <SunIcon size={18} />}
       </button>
     );
   }

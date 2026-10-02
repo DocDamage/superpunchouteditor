@@ -280,7 +280,7 @@ export function EmulatorSettings({ isOpen, onClose, onSave, currentSettings }: E
               </div>
             ) : verificationStatus.info?.is_valid ? (
               <div>
-                <strong style={{ color: '#4ade80' }}>✓ Verified</strong>
+                <strong style={{ color: 'var(--success)' }}>✓ Verified</strong>
                 {verificationStatus.info.version && (
                   <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-dim)' }}>
                     Version: {verificationStatus.info.version}

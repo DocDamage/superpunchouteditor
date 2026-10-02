@@ -251,7 +251,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       style={{
         width: canvasWidth,
         height: canvasHeight,
-        backgroundColor: '#1a1a2e',
+        backgroundColor: 'var(--bg-primary)',
         position: 'relative',
         overflow: 'hidden',
         cursor: isPanning ? 'grabbing' : currentTool === 'move' ? 'crosshair' : 'default',
@@ -346,7 +346,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               top: screenPos.y,
               width: 8 * zoom,
               height: 8 * zoom,
-              border: '2px solid #00a8ff',
+              border: '2px solid var(--info)',
               boxSizing: 'border-box',
               pointerEvents: 'none',
               zIndex: 100,
@@ -359,7 +359,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               left: -4,
               width: 8,
               height: 8,
-              backgroundColor: '#00a8ff',
+              backgroundColor: 'var(--info-solid)',
               borderRadius: '50%',
             }} />
             <div style={{
@@ -368,7 +368,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               right: -4,
               width: 8,
               height: 8,
-              backgroundColor: '#00a8ff',
+              backgroundColor: 'var(--info-solid)',
               borderRadius: '50%',
             }} />
             <div style={{
@@ -377,7 +377,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               left: -4,
               width: 8,
               height: 8,
-              backgroundColor: '#00a8ff',
+              backgroundColor: 'var(--info-solid)',
               borderRadius: '50%',
             }} />
             <div style={{
@@ -386,7 +386,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
               right: -4,
               width: 8,
               height: 8,
-              backgroundColor: '#00a8ff',
+              backgroundColor: 'var(--info-solid)',
               borderRadius: '50%',
             }} />
           </div>
@@ -401,7 +401,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
           left: 8,
           padding: '4px 8px',
           backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          color: '#aaa',
+          color: 'var(--text-muted)',
           fontSize: '11px',
           borderRadius: 4,
           pointerEvents: 'none',

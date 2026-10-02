@@ -400,7 +400,7 @@
 }
 
 .action {
-  color: var(--success, #22c55e);
+  color: var(--success);
   font-weight: 500;
 }
 

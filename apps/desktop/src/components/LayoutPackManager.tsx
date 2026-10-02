@@ -235,7 +235,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
           border: '1px solid rgba(255, 100, 100, 0.3)',
           borderRadius: '8px',
           marginBottom: '1rem',
-          color: '#ff8888',
+          color: 'var(--error)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>⚠️</span>
@@ -415,12 +415,12 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
                   }}>
                     <div style={{ 
                       fontWeight: 600,
-                      color: validationReport.valid ? '#6bdb7d' : '#ffcc88',
+                      color: validationReport.valid ? 'var(--success)' : 'var(--warning)',
                     }}>
                       {validationReport.valid ? '✓ Pack is valid' : '⚠ Pack has issues'}
                     </div>
                     {!validationReport.version_compatible && (
-                      <div style={{ fontSize: '0.85rem', marginTop: '4px', color: '#ffcc88' }}>
+                      <div style={{ fontSize: '0.85rem', marginTop: '4px', color: 'var(--warning)' }}>
                         Version mismatch detected
                       </div>
                     )}
@@ -428,7 +428,7 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
 
                   {validationReport.warnings.length > 0 && (
                     <div style={{ marginBottom: '12px' }}>
-                      <div style={{ fontSize: '0.85rem', color: '#ffcc88', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--warning)', marginBottom: '4px' }}>
                         Warnings ({validationReport.warnings.length}):
                       </div>
                       <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: 'var(--text-dim)' }}>
@@ -444,10 +444,10 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
 
                   {validationReport.errors.length > 0 && (
                     <div>
-                      <div style={{ fontSize: '0.85rem', color: '#ff6666', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--error)', marginBottom: '4px' }}>
                         Errors ({validationReport.errors.length}):
                       </div>
-                      <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: '#ff6666' }}>
+                      <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: 'var(--error)' }}>
                         {validationReport.errors.map((e, i) => (
                           <li key={i}>{e}</li>
                         ))}
@@ -477,8 +477,8 @@ export const LayoutPackManager = ({ onBrowsePack }: LayoutPackManagerProps) => {
                           >
                             <span>{bv.exists_in_manifest ? '✓' : '✗'}</span>
                             <span style={{ flex: 1 }}>{bv.boxer_key}</span>
-                            {!bv.bins_valid && <span style={{ color: '#ff6666' }}>bin mismatch</span>}
-                            {!bv.size_matches && <span style={{ color: '#ffcc88' }}>size diff</span>}
+                            {!bv.bins_valid && <span style={{ color: 'var(--error)' }}>bin mismatch</span>}
+                            {!bv.size_matches && <span style={{ color: 'var(--warning)' }}>size diff</span>}
                           </div>
                         ))}
                       </div>

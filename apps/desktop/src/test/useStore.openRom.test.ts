@@ -30,8 +30,9 @@ const makeBoxer = (key: string) => ({
 const SHA1_USA = 'aaaa1111';
 const SHA1_JPN = 'bbbb2222';
 
-const USA_BOXERS = [makeBoxer('Little Mac'), makeBoxer('Bear Hugger')];
-const JPN_BOXERS = [makeBoxer('Mac'), makeBoxer('Gabby Jay')];
+// The store lists boxers in the order the game presents them, so the fixtures do too.
+const USA_BOXERS = [makeBoxer('Bear Hugger'), makeBoxer('Little Mac')];
+const JPN_BOXERS = [makeBoxer('Gabby Jay'), makeBoxer('Mac')];
 
 describe('useStore – openRom() state transitions', () => {
   beforeEach(() => {

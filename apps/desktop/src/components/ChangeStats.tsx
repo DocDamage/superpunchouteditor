@@ -131,7 +131,7 @@ export const ChangeStats = ({ refreshTrigger = 0 }: ChangeStatsProps) => {
           borderRadius: '8px',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fbbf24' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>
             {summary.total_changes}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>Total Changes</div>

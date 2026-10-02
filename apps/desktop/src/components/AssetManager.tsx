@@ -154,7 +154,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
             backgroundColor: 'rgba(255, 80, 80, 0.08)',
             border: '1px solid rgba(255, 80, 80, 0.25)',
             fontSize: '0.82rem',
-            color: '#ff8888',
+            color: 'var(--error)',
           }}
         >
           ⚠️ {sharedAssetCount} asset{sharedAssetCount !== 1 ? 's' : ''} in this section are shared with other fighters.
@@ -199,7 +199,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
                 </div>
                 <div style={{ 
                   fontSize: '0.8rem', 
-                  color: isShared ? '#ff8888' : 'var(--text-dim)',
+                  color: isShared ? 'var(--error)' : 'var(--text-dim)',
                   marginTop: '4px' 
                 }}>
                   {asset.size} bytes 
@@ -233,7 +233,7 @@ export const AssetManager = ({ boxer }: AssetManagerProps) => {
                       padding: '6px 12px', 
                       backgroundColor: isShared ? 'rgba(255, 80, 80, 0.15)' : 'var(--border)',
                       borderColor: isShared ? 'rgba(255, 80, 80, 0.4)' : undefined,
-                      color: isShared ? '#ff8888' : undefined,
+                      color: isShared ? 'var(--error)' : undefined,
                     }}
                     title={isShared 
                       ? `⚠️ SHARED: Editing affects ${otherFighters.join(' & ')}!` 

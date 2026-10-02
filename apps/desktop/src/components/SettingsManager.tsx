@@ -207,7 +207,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
               padding: '1rem',
               backgroundColor: 'rgba(34, 197, 94, 0.2)',
               borderRadius: '8px',
-              color: '#22c55e',
+              color: 'var(--success)',
               marginBottom: '1rem',
             }}
           >
@@ -234,7 +234,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
             
             {importReport.imported.length > 0 && (
               <div style={{ marginBottom: '0.5rem' }}>
-                <strong style={{ color: '#22c55e' }}>✓ Imported:</strong>
+                <strong style={{ color: 'var(--success)' }}>✓ Imported:</strong>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginLeft: '1rem' }}>
                   {importReport.imported.join(', ')}
                 </div>
@@ -243,7 +243,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
             
             {importReport.merged.length > 0 && (
               <div style={{ marginBottom: '0.5rem' }}>
-                <strong style={{ color: '#3b82f6' }}>↻ Merged:</strong>
+                <strong style={{ color: 'var(--info)' }}>↻ Merged:</strong>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginLeft: '1rem' }}>
                   {importReport.merged.join(', ')}
                 </div>
@@ -261,7 +261,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
             
             {importReport.warnings.length > 0 && (
               <div style={{ marginBottom: '0.5rem' }}>
-                <strong style={{ color: '#fbbf24' }}>⚠ Warnings:</strong>
+                <strong style={{ color: 'var(--warning)' }}>⚠ Warnings:</strong>
                 <ul style={{ fontSize: '0.85rem', color: 'var(--text-dim)', margin: '0.25rem 0', paddingLeft: '1.5rem' }}>
                   {importReport.warnings.map((w, i) => (
                     <li key={i}>{w}</li>
@@ -272,7 +272,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
             
             {importReport.errors.length > 0 && (
               <div style={{ marginBottom: '0.5rem' }}>
-                <strong style={{ color: '#ef4444' }}>✗ Errors:</strong>
+                <strong style={{ color: 'var(--error)' }}>✗ Errors:</strong>
                 <ul style={{ fontSize: '0.85rem', color: 'var(--text-dim)', margin: '0.25rem 0', paddingLeft: '1.5rem' }}>
                   {importReport.errors.map((e, i) => (
                     <li key={i}>{e}</li>
@@ -404,7 +404,7 @@ export function SettingsManager({ isOpen, onClose }: SettingsManagerProps) {
                       <div>Exported: {new Date(validationResult.exported_at).toLocaleString()}</div>
                       
                       {!validationResult.version_compatible && (
-                        <div style={{ color: '#fbbf24', marginTop: '0.5rem' }}>
+                        <div style={{ color: 'var(--warning)', marginTop: '0.5rem' }}>
                           ⚠️ Version mismatch - some settings may not be compatible
                         </div>
                       )}

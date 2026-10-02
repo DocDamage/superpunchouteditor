@@ -117,9 +117,9 @@ const ANIMATION_TYPES: { value: AnimationType; label: string; icon: string }[] =
 ];
 
 const HITBOX_TYPES: { value: HitboxType; label: string; color: string }[] = [
-  { value: 'jab', label: 'Jab', color: '#f59e0b' },
-  { value: 'hook', label: 'Hook', color: '#ef4444' },
-  { value: 'uppercut', label: 'Uppercut', color: '#8b5cf6' },
+  { value: 'jab', label: 'Jab', color: 'var(--warning)' },
+  { value: 'hook', label: 'Hook', color: 'var(--error)' },
+  { value: 'uppercut', label: 'Uppercut', color: 'var(--plum)' },
   { value: 'special', label: 'Special', color: '#ec4899' },
 ];
 
@@ -621,8 +621,8 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
                 top: hitbox.y * zoom,
                 width: hitbox.width * zoom,
                 height: hitbox.height * zoom,
-                border: `2px solid ${typeInfo?.color || '#ef4444'}`,
-                backgroundColor: isSelected ? `${typeInfo?.color}40` : `${typeInfo?.color}20`,
+                border: `2px solid ${typeInfo?.color || 'var(--error)'}`,
+                backgroundColor: isSelected ? `color-mix(in srgb, ${typeInfo?.color} 25%, transparent)` : `color-mix(in srgb, ${typeInfo?.color} 13%, transparent)`,
                 cursor: 'move',
                 zIndex: isSelected ? 10 : 1,
               }}
@@ -673,7 +673,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
               top: hurtbox.y * zoom,
               width: hurtbox.width * zoom,
               height: hurtbox.height * zoom,
-              border: '2px solid #22c55e',
+              border: '2px solid var(--success)',
               backgroundColor: 'rgba(34, 197, 94, 0.1)',
             }}
           >
@@ -683,7 +683,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
                 bottom: -18,
                 left: 0,
                 fontSize: 10,
-                color: '#22c55e',
+                color: 'var(--success)',
                 backgroundColor: 'rgba(0,0,0,0.7)',
                 padding: '2px 4px',
                 borderRadius: 2,
@@ -841,8 +841,8 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
                     width: canvasWidth * zoom,
                     height: canvasHeight * zoom,
                     imageRendering: 'pixelated',
-                    backgroundColor: '#0f172a',
-                    border: '1px solid #334155',
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid var(--border)',
                   }}
                   onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
@@ -1073,7 +1073,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
                         <span
                           className="text-xs px-2 py-0.5 rounded"
                           style={{
-                            backgroundColor: `${typeInfo?.color}20`,
+                            backgroundColor: `color-mix(in srgb, ${typeInfo?.color} 13%, transparent)`,
                             color: typeInfo?.color,
                           }}
                         >

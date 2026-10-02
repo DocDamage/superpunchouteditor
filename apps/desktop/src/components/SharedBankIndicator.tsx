@@ -74,7 +74,7 @@ export const SharedBankIndicator = ({
         borderRadius: '4px',
         backgroundColor: 'rgba(255, 80, 80, 0.15)',
         border: '1px solid rgba(255, 80, 80, 0.3)',
-        color: '#ff8888',
+        color: 'var(--error)',
         fontSize: style.fontSize,
         fontWeight: 600,
         whiteSpace: 'nowrap',
@@ -107,7 +107,7 @@ export const SharedBankIndicator = ({
             fontWeight: 'normal',
           }}
         >
-          <div style={{ fontWeight: 600, color: '#ffaaaa', marginBottom: '6px' }}>
+          <div style={{ fontWeight: 600, color: 'var(--error)', marginBottom: '6px' }}>
             Shared with:
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
@@ -126,7 +126,7 @@ export const SharedBankIndicator = ({
             ))}
           </div>
           {pairInfo?.note && (
-            <div style={{ color: '#ffcc88', fontSize: '0.75rem', fontStyle: 'italic' }}>
+            <div style={{ color: 'var(--warning)', fontSize: '0.75rem', fontStyle: 'italic' }}>
               {pairInfo.note}
             </div>
           )}
@@ -192,7 +192,7 @@ export const SharedBankSummary = ({
           backgroundColor: 'rgba(107, 219, 125, 0.08)',
           border: '1px solid rgba(107, 219, 125, 0.25)',
           fontSize: '0.82rem',
-          color: '#6bdb7d',
+          color: 'var(--success)',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -224,8 +224,8 @@ export const SharedBankSummary = ({
         onClick={() => setExpanded(!expanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#ff6666' }}>⚠</span>
-          <span style={{ color: '#ff8888' }}>
+          <span style={{ color: 'var(--error)' }}>⚠</span>
+          <span style={{ color: 'var(--error)' }}>
             {sharedCount} shared bin{sharedCount !== 1 ? 's' : ''} affect{sharedCount === 1 ? 's' : ''}{' '}
             {sharedFighterList.length} other fighter{sharedFighterList.length !== 1 ? 's' : ''}
           </span>
@@ -250,7 +250,7 @@ export const SharedBankSummary = ({
                   padding: '4px 10px',
                   borderRadius: '6px',
                   fontSize: '0.8rem',
-                  color: '#ff9999',
+                  color: 'var(--error)',
                 }}
               >
                 {fighter}

@@ -1,4 +1,4 @@
-use crate::compression::Decompressor;
+use crate::compression::{sprite_stream_len_from_header, Decompressor};
 use crate::gfx::{decode_4bpp_sheet, Tile};
 use crate::palette::{decode_palette, Color};
 use manifest_core::{AssetFile, BoxerRecord};
@@ -55,7 +55,40 @@ struct FighterGraphicsTables {
 
 struct ObjectTileTable {
     tiles: Vec<Option<Tile>>,
+    /// Where each loaded tile came from in the ROM, when that is known.
+    origins: Vec<Option<TileOrigin>>,
     fallback_banks: Vec<Vec<Tile>>,
+}
+
+/// The tiles a pose asked for, the whole block they came from, and where the
+/// first requested tile is stored (when known).
+type LoadedGraphics = (Vec<Tile>, Vec<Tile>, Option<TileOrigin>);
+
+/// Width and height of the canvas a pose is drawn on.
+pub const POSE_CANVAS_SIZE: usize = 256;
+
+/// Where one 8x8 tile of a boxer's graphics is stored in the ROM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct TileOrigin {
+    /// PC offset where the graphics block holding the tile starts.
+    pub block_pc: usize,
+    /// Index of the tile inside the (decompressed) block.
+    pub tile_index: usize,
+    /// True when the block is a compressed stream, false for plain 4bpp data.
+    pub compressed: bool,
+}
+
+/// Which stored tile pixel is shown at one pixel of a drawn pose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PosePixelOwner {
+    pub origin: TileOrigin,
+    /// Pixel inside the tile, `y * 8 + x`, before any flipping.
+    pub tile_pixel: u8,
+    /// Which 16-colour row of the boxer palette the sprite uses.
+    pub palette_row: u8,
+    /// False when the game draws nothing here yet (the tile pixel is
+    /// see-through) but a sprite cell covers the spot and could show a pixel.
+    pub opaque: bool,
 }
 
 /// Deprecated: Use `BoxerManager` instead
@@ -272,6 +305,49 @@ impl<'a> BoxerManager<'a> {
         Ok(png_bytes)
     }
 
+    /// For every pixel of a drawn pose, report which stored tile pixel the
+    /// game shows there. This is the inverse of [`BoxerManager::render_pose`]
+    /// and is what lets an edit made on the assembled picture be written back
+    /// into the boxer's graphics.
+    ///
+    /// The result has `POSE_CANVAS_SIZE * POSE_CANVAS_SIZE` entries, row by
+    /// row. A pixel is `None` when no sprite cell covers it, or when the tile
+    /// shown there has no known home in the ROM.
+    pub fn pose_pixel_owners(
+        &self,
+        fighter_index: usize,
+        pose_index: usize,
+        boxer: &BoxerRecord,
+    ) -> Result<Vec<Option<PosePixelOwner>>, String> {
+        let poses = self.get_poses(fighter_index);
+        let pose = poses.get(pose_index).ok_or("Pose index out of range")?;
+        let pose_bank = fighter_header_location(fighter_index)
+            .map(|(bank, _)| bank)
+            .ok_or("Fighter graphics header is unavailable")?;
+        let data_start = self.rom.snes_to_pc(pose_bank, pose.data_addr);
+        if data_start >= self.rom.data.len() {
+            return Err("Pose data address is outside the ROM".to_string());
+        }
+        let data_end = poses
+            .iter()
+            .skip(pose_index + 1)
+            .map(|next| self.rom.snes_to_pc(pose_bank, next.data_addr))
+            .find(|next| *next > data_start && *next <= self.rom.data.len())
+            .unwrap_or(self.rom.data.len());
+        let sprites = parse_game_pose(&self.rom.data[data_start..data_end], 0x28, 0x80, 0x88);
+        if sprites.is_empty() {
+            return Err("Pose contains no drawable sprite entries".to_string());
+        }
+        let table = self.build_object_tile_table(fighter_index, pose, boxer)?;
+
+        let mut owners: Vec<Option<PosePixelOwner>> =
+            vec![None; POSE_CANVAS_SIZE * POSE_CANVAS_SIZE];
+        for sprite in sprites {
+            record_sprite_owners(&mut owners, &table, sprite);
+        }
+        Ok(owners)
+    }
+
     fn graphics_tables(&self, fighter_index: usize) -> Result<FighterGraphicsTables, String> {
         let (header_bank, header_addr) = fighter_header_location(fighter_index)
             .ok_or("Fighter graphics header is unavailable")?;
@@ -308,6 +384,7 @@ impl<'a> BoxerManager<'a> {
         let ids = [pose.tileset1_id, pose.tileset2_id, pose.palette_id];
         let mut table = ObjectTileTable {
             tiles: vec![None; 512],
+            origins: vec![None; 512],
             fallback_banks: Vec::new(),
         };
 
@@ -338,7 +415,7 @@ impl<'a> BoxerManager<'a> {
             let source_addr = read_u16(&self.rom.data, source_offset);
             let source_bank = self.rom.data[bank_offset];
             let size_bytes = usize::from(read_u16(&self.rom.data, size_offset));
-            let (chunk, full_bank) =
+            let (chunk, full_bank, chunk_origin) =
                 self.load_source_graphics(boxer, source_bank, source_addr, size_bytes)?;
             if !full_bank.is_empty() {
                 table.fallback_banks.push(full_bank);
@@ -356,6 +433,11 @@ impl<'a> BoxerManager<'a> {
             for (offset, tile) in chunk.into_iter().enumerate() {
                 if let Some(slot) = table.tiles.get_mut(destination_tile + offset) {
                     *slot = Some(tile);
+                    table.origins[destination_tile + offset] =
+                        chunk_origin.map(|origin| TileOrigin {
+                            tile_index: origin.tile_index + offset,
+                            ..origin
+                        });
                 }
             }
         }
@@ -369,10 +451,10 @@ impl<'a> BoxerManager<'a> {
         source_bank: u8,
         source_addr: u16,
         size_bytes: usize,
-    ) -> Result<(Vec<Tile>, Vec<Tile>), String> {
+    ) -> Result<LoadedGraphics, String> {
         let tile_count = size_bytes / 32;
         if tile_count == 0 {
-            return Ok((Vec::new(), Vec::new()));
+            return Ok((Vec::new(), Vec::new(), None));
         }
 
         if source_bank == 0x7E || source_bank == 0x7F {
@@ -388,7 +470,14 @@ impl<'a> BoxerManager<'a> {
                     .take(tile_count)
                     .cloned()
                     .collect();
-                return Ok((chunk, full_bank));
+                let origin = parse_pc_offset(&asset.start_pc)
+                    .ok()
+                    .map(|block_pc| TileOrigin {
+                        block_pc,
+                        tile_index: start_tile,
+                        compressed: true,
+                    });
+                return Ok((chunk, full_bank, origin));
             }
         }
 
@@ -417,7 +506,14 @@ impl<'a> BoxerManager<'a> {
                 .take(tile_count)
                 .cloned()
                 .collect();
-            return Ok((chunk, full_bank));
+            let origin = parse_pc_offset(&asset.start_pc)
+                .ok()
+                .map(|block_pc| TileOrigin {
+                    block_pc,
+                    tile_index: start_tile,
+                    compressed: asset.category.contains("Compressed"),
+                });
+            return Ok((chunk, full_bank, origin));
         }
 
         let source_pc = self.rom.snes_to_pc(source_bank, source_addr);
@@ -427,7 +523,12 @@ impl<'a> BoxerManager<'a> {
             ));
         }
         let full_bank = decode_4bpp_sheet(&self.rom.data[source_pc..source_pc + size_bytes]);
-        Ok((full_bank.clone(), full_bank))
+        let origin = Some(TileOrigin {
+            block_pc: source_pc,
+            tile_index: 0,
+            compressed: false,
+        });
+        Ok((full_bank.clone(), full_bank, origin))
     }
 
     fn compressed_asset_for_source<'b>(
@@ -474,7 +575,16 @@ impl<'a> BoxerManager<'a> {
                 asset.filename
             ));
         }
-        let data = &self.rom.data[pc..pc + asset.size];
+        // A compressed bank records its own end; trust that over the fixed
+        // table so a stream rewritten shorter still decodes exactly.
+        let length = if asset.category.contains("Compressed") {
+            sprite_stream_len_from_header(&self.rom.data, pc)
+                .filter(|length| *length <= asset.size)
+                .unwrap_or(asset.size)
+        } else {
+            asset.size
+        };
+        let data = &self.rom.data[pc..pc + length];
         let gfx_data = if asset.category.contains("Compressed") {
             let mut decomp = Decompressor::new(data);
             decomp.decompress_sprite_graphics_exact().map_err(|error| {
@@ -1025,6 +1135,63 @@ fn paint_game_sprite(
                             py as u32,
                             image::Rgba([color.r, color.g, color.b, 255]),
                         );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Mirror of [`paint_game_sprite`] that records where each drawn pixel comes
+/// from instead of drawing it. Later sprites cover earlier ones, exactly as
+/// when drawing; a see-through tile pixel only claims a spot nothing else has.
+fn record_sprite_owners(
+    owners: &mut [Option<PosePixelOwner>],
+    table: &ObjectTileTable,
+    sprite: DecodedSprite,
+) {
+    let object_size = if sprite.large { 2usize } else { 1usize };
+    let flip_x = sprite.attr & 0x40 != 0;
+    let flip_y = sprite.attr & 0x80 != 0;
+    let palette_row = (sprite.attr >> 1) & 0x07;
+
+    for row in 0..object_size {
+        for column in 0..object_size {
+            let tile_index = (usize::from(sprite.tile) + row * 16 + column) & 0x1FF;
+            // Only tiles loaded straight from a known block can be written back.
+            let (Some(Some(tile)), Some(Some(origin))) =
+                (table.tiles.get(tile_index), table.origins.get(tile_index))
+            else {
+                continue;
+            };
+            let draw_column = if flip_x {
+                object_size - 1 - column
+            } else {
+                column
+            };
+            let draw_row = if flip_y { object_size - 1 - row } else { row };
+
+            for tile_y in 0..8usize {
+                for tile_x in 0..8usize {
+                    let source_x = if flip_x { 7 - tile_x } else { tile_x };
+                    let source_y = if flip_y { 7 - tile_y } else { tile_y };
+                    let tile_pixel = source_y * 8 + source_x;
+                    let opaque = tile.pixels[tile_pixel] != 0;
+
+                    let px = i32::from(sprite.x) + (draw_column * 8 + tile_x) as i32;
+                    let py = i32::from(sprite.y) + (draw_row * 8 + tile_y) as i32;
+                    let canvas = POSE_CANVAS_SIZE as i32;
+                    if !(0..canvas).contains(&px) || !(0..canvas).contains(&py) {
+                        continue;
+                    }
+                    let slot = &mut owners[py as usize * POSE_CANVAS_SIZE + px as usize];
+                    if opaque || slot.is_none() {
+                        *slot = Some(PosePixelOwner {
+                            origin: *origin,
+                            tile_pixel: tile_pixel as u8,
+                            palette_row,
+                            opaque,
+                        });
                     }
                 }
             }

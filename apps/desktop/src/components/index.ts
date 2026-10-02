@@ -36,7 +36,6 @@ export { AssetManager } from './AssetManager';
 export { BoxerPreviewSheet } from './BoxerPreviewSheet';
 export { ExportPanel } from './ExportPanel';
 export { FighterViewer } from './FighterViewer';
-export { PaletteEditor } from './PaletteEditor';
 export { ScriptViewer } from './ScriptViewer';
 export { SpriteBinEditor } from './SpriteBinEditor';
 

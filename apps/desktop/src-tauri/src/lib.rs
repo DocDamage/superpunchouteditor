@@ -74,12 +74,15 @@ pub fn run() {
     // Start with an empty default so startup never fails due to missing manifest files.
     let manifest = manifest_core::Manifest::empty();
 
-    // Load saved settings
-    let _emulator_settings = commands::settings::load_emulator_settings().unwrap_or_default();
-    let _external_tools = load_external_tools_config().unwrap_or_default();
+    // Restore saved settings into the application state so the user's choices
+    // (for example which emulator to use) survive a restart.
+    let app_state = AppState::new(manifest);
+    *app_state.emulator_settings.lock() =
+        commands::settings::load_emulator_settings().unwrap_or_default();
+    *app_state.external_tools.lock() = load_external_tools_config().unwrap_or_default();
 
     tauri::Builder::default()
-        .manage(AppState::new(manifest))
+        .manage(app_state)
         .manage(UpdateState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -110,10 +113,14 @@ pub fn run() {
             commands::boxer::render_fighter_pose,
             // Asset Commands
             commands::assets::get_palette,
+            commands::assets::apply_palette_colors,
+            commands::assets::get_original_palette,
             commands::assets::get_runtime_theme_assets,
             commands::assets::export_asset_to_png,
             commands::assets::import_asset_from_png,
             commands::assets::import_graphic_asset_from_png,
+            commands::assets::render_asset_preview,
+            commands::photo_stamp::stamp_photo_on_pose,
             commands::assets::export_sprite_bin_to_png,
             commands::assets::import_sprite_bin_from_png,
             commands::assets::get_bin_original_bytes,
@@ -134,6 +141,8 @@ pub fn run() {
             commands::project::get_current_project,
             commands::project::get_current_project_path,
             commands::project::close_project,
+            commands::project::autosave_session,
+            commands::project::restore_autosave,
             commands::project::generate_patch_notes,
             commands::project::get_change_summary,
             commands::project::save_patch_notes,
@@ -177,6 +186,7 @@ pub fn run() {
             // External Emulator Commands
             commands::emulator::test_in_emulator,
             commands::emulator::get_emulator_presets,
+            commands::emulator::find_installed_emulators,
             commands::emulator_current::emulator_load_current_rom,
             // Comparison Commands
             commands::comparison::generate_comparison,

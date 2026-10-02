@@ -160,12 +160,12 @@
 
 .diff-zero {
   background: rgba(255, 255, 255, 0.1);
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .diff-small {
   background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
+  color: var(--warning);
 }
 
 .diff-medium {
@@ -175,7 +175,7 @@
 
 .diff-large {
   background: rgba(248, 113, 113, 0.15);
-  color: #f87171;
+  color: var(--error);
 }
 
 .copy-actions {

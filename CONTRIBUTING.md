@@ -50,6 +50,10 @@ Released persistent formats require migration handling before schema changes. Pr
 
 Update `apps/desktop/src/featureMaturity.ts` and `docs/FEATURE_MATURITY_MATRIX.md` when changing release status. A control is not stable merely because its UI exists.
 
+## Interface and artwork
+
+Follow [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md): use design tokens instead of hard-coded colours, write for a ten-year-old reader, and never add game or console-maker artwork, logos or fonts. To check a screen without a ROM, run `npm run dev` in `apps/desktop` and open `http://localhost:1420/?preview`.
+
 ## Security
 
 Treat project files, layout packs, images, scripts and ROM-like inputs as untrusted. Validate ranges with checked arithmetic, bound file sizes/dimensions, reject traversal, and keep automatic writes inside app-owned or user-selected locations. Plugins remain disabled in stable builds until the trust model in `docs/PLUGIN_SECURITY_MODEL.md` is implemented and reviewed.

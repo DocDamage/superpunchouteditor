@@ -302,7 +302,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
             borderRadius: '6px', 
             background: 'rgba(255,200,0,0.15)', 
             border: '1px solid rgba(255,200,0,0.4)',
-            color: '#ffd700',
+            color: 'var(--warning)',
             fontSize: '0.85rem',
             fontWeight: 600
           }}>
@@ -355,7 +355,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                         padding: '2px 6px', 
                         borderRadius: '4px', 
                         background: 'rgba(255,200,0,0.2)', 
-                        color: '#ffd700',
+                        color: 'var(--warning)',
                         fontWeight: 600 
                       }}>
                         ✏ EDITED
@@ -365,11 +365,11 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '3px' }}>
                     {bin.size} bytes @ {bin.start_pc}
                     {state.isDuplicated && state.duplicationInfo ? (
-                      <span style={{ marginLeft: '8px', color: '#6bdb7d' }}>
+                      <span style={{ marginLeft: '8px', color: 'var(--success)' }}>
                         (duplicated to 0x{state.duplicationInfo.new_pc_offset.toString(16).toUpperCase().padStart(6, '0')})
                       </span>
                     ) : bin.isShared && getSharedWith(bin.shared_with).length > 0 ? (
-                      <span style={{ marginLeft: '8px', color: '#ff8888' }}>
+                      <span style={{ marginLeft: '8px', color: 'var(--error)' }}>
                         (shared with {getSharedWith(bin.shared_with).filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(', ')})
                       </span>
                     ) : null}
@@ -386,7 +386,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                             width: '8px',
                             height: '8px',
                             borderRadius: '1px',
-                            background: changed ? '#ffd700' : 'var(--border)',
+                            background: changed ? 'var(--pad-yellow)' : 'var(--border)',
                           }}
                         />
                       ))}
@@ -402,7 +402,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                     <div style={{ 
                       marginTop: '6px', 
                       fontSize: '0.78rem', 
-                      color: state.status.startsWith('✗') ? '#ff6666' : state.status.startsWith('⚠') ? '#ffd700' : '#6bdb7d',
+                      color: state.status.startsWith('✗') ? 'var(--error)' : state.status.startsWith('⚠') ? 'var(--warning)' : 'var(--success)',
                       fontFamily: 'monospace'
                     }}>
                       {state.status}
@@ -430,7 +430,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                       background: (bin.isShared && !state.isDuplicated) ? 'rgba(255,80,80,0.2)' : 'var(--border)',
                       opacity: (isLoading || duplicatingKey === bin.start_pc) ? 0.6 : 1,
                       borderColor: (bin.isShared && !state.isDuplicated) ? 'rgba(255,80,80,0.5)' : undefined,
-                      color: (bin.isShared && !state.isDuplicated) ? '#ff8888' : undefined,
+                      color: (bin.isShared && !state.isDuplicated) ? 'var(--error)' : undefined,
                     }}
                     title={(bin.isShared && !state.isDuplicated)
                       ? `⚠️ SHARED: Editing affects ${getSharedWith(bin.shared_with).filter(f => f.toLowerCase() !== boxer.name.toLowerCase()).join(' & ')}!` 
@@ -445,7 +445,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
                     <button
                       id={`revert-bin-${bin.start_pc.replace(/0x/, '')}`}
                       onClick={() => handleRevert(bin)}
-                      style={{ fontSize: '0.8rem', padding: '6px 10px', background: 'rgba(255,80,80,0.15)', color: '#ff8888' }}
+                      style={{ fontSize: '0.8rem', padding: '6px 10px', background: 'rgba(255,80,80,0.15)', color: 'var(--error)' }}
                       title="Discard import and revert this bin"
                     >
                       ↩
@@ -463,7 +463,7 @@ export const SpriteBinEditor = ({ boxer }: SpriteBinEditorProps) => {
         {boxer.shared_sprite_bins.length > 0 && (
           <>
             <br />
-            <span style={{ color: '#ff8888' }}>
+            <span style={{ color: 'var(--error)' }}>
               ⚠️ Red-bordered bins are shared with other fighters. Changes will affect all fighters using that bank.
             </span>
           </>

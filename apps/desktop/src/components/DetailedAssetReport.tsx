@@ -272,7 +272,7 @@ export const DetailedAssetReport = () => {
           borderRadius: '8px',
           background: 'rgba(255, 80, 80, 0.1)',
           border: '1px solid rgba(255, 80, 80, 0.3)',
-          color: '#ff6666',
+          color: 'var(--error)',
           fontSize: '0.85rem',
         }}>
           {error}
@@ -369,7 +369,7 @@ export const DetailedAssetReport = () => {
                 onClick={handleExport}
                 style={{
                   padding: '6px 16px',
-                  backgroundColor: '#10b981',
+                  backgroundColor: 'var(--pad-green)',
                   border: 'none',
                   borderRadius: '6px',
                   color: 'white',

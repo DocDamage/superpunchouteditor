@@ -353,3 +353,207 @@ pub fn get_change_summary(state: State<AppState>) -> Result<ChangeSummary, Strin
 pub fn save_patch_notes(content: String, output_path: String) -> Result<(), String> {
     std::fs::write(&output_path, content).map_err(|e| format!("Failed to save patch notes: {e}"))
 }
+
+// ============================================================================
+// Automatic safekeeping
+// ============================================================================
+
+/// Folder that holds automatically kept work for one base ROM. It lives in the
+/// app's own data directory and is keyed by the ROM's SHA-1, so work can only
+/// ever be restored onto the exact game it was made with.
+fn autosave_directory(root: &Path, base_sha1: &str) -> PathBuf {
+    root.join("autosave").join(base_sha1)
+}
+
+fn autosave_root() -> Result<PathBuf, String> {
+    dirs::data_local_dir()
+        .map(|dir| dir.join("super-punch-out-editor"))
+        .ok_or_else(|| "Could not find the app data folder".to_string())
+}
+
+/// Keep the current edit journal in `root` so it survives closing the editor.
+///
+/// When there is nothing to keep (no changes, or every change was undone and
+/// no redo remains) any earlier copy is removed instead. Returns the number of
+/// changes kept. Like a project, the copy never contains the base ROM.
+pub fn autosave_session_to(state: &AppState, root: &Path) -> Result<usize, String> {
+    let (base_sha1, kept) = {
+        let session_guard = state.rom_session.lock();
+        let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+        (
+            session.base().sha1().to_string(),
+            session.journal().transactions().len(),
+        )
+    };
+    let directory = autosave_directory(root, &base_sha1);
+
+    if kept == 0 {
+        if directory.exists() {
+            std::fs::remove_dir_all(&directory)
+                .map_err(|e| format!("Could not clear kept work: {e}"))?;
+        }
+        return Ok(0);
+    }
+
+    let metadata = ProjectMetadata {
+        name: "Automatically kept work".to_string(),
+        author: None,
+        description: Some("Kept automatically so changes survive closing the editor".to_string()),
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    };
+    let document = build_v2_document(state, metadata, None)?;
+    save_project_v2(&directory, &document).map_err(|e| e.to_string())?;
+    Ok(state
+        .rom_session
+        .lock()
+        .as_ref()
+        .map(|session| session.journal().active_transactions().len())
+        .unwrap_or(0))
+}
+
+/// Bring back automatically kept work for the loaded ROM.
+///
+/// Nothing is restored when the session already has changes, when no copy
+/// exists for this exact ROM, or when the copy fails validation; in each of
+/// those cases the current session is left untouched. Returns the number of
+/// changes restored.
+pub fn restore_autosave_from(state: &AppState, root: &Path) -> Result<usize, String> {
+    let base_sha1 = {
+        let session_guard = state.rom_session.lock();
+        let session = session_guard.as_ref().ok_or("No ROM loaded")?;
+        if !session.journal().transactions().is_empty() {
+            return Ok(0);
+        }
+        session.base().sha1().to_string()
+    };
+
+    let directory = autosave_directory(root, &base_sha1);
+    if !directory.join(PROJECT_V2_FILENAME).exists() {
+        return Ok(0);
+    }
+
+    let document = load_project_v2(&directory).map_err(|e| e.to_string())?;
+    install_loaded_document(state, &document)?;
+    Ok(state
+        .rom_session
+        .lock()
+        .as_ref()
+        .map(|session| session.journal().active_transactions().len())
+        .unwrap_or(0))
+}
+
+/// Keep the current changes safe without the user having to save.
+#[tauri::command]
+pub fn autosave_session(state: State<AppState>) -> Result<usize, String> {
+    autosave_session_to(state.inner(), &autosave_root()?)
+}
+
+/// Bring back the changes that were kept automatically for this ROM.
+#[tauri::command]
+pub fn restore_autosave(state: State<AppState>) -> Result<usize, String> {
+    restore_autosave_from(state.inner(), &autosave_root()?)
+}
+
+#[cfg(test)]
+mod autosave_tests {
+    use super::*;
+    use manifest_core::Manifest;
+
+    fn state_with_rom(bytes: Vec<u8>) -> AppState {
+        let state = AppState::new(Manifest::empty());
+        state.install_rom_session(Rom::new(bytes), "synthetic.sfc".into());
+        state
+    }
+
+    #[test]
+    fn kept_work_comes_back_after_reopening_the_same_rom() {
+        let root = tempfile::tempdir().unwrap();
+        let first = state_with_rom(vec![0; 32]);
+        first
+            .commit_rom_write("one", 2, vec![7, 7], None, None)
+            .unwrap();
+        first
+            .commit_rom_write("two", 10, vec![9], None, None)
+            .unwrap();
+        assert_eq!(autosave_session_to(&first, root.path()).unwrap(), 2);
+        let edited = first.materialize_current_rom().unwrap().bytes;
+
+        // A new editor session with the same ROM.
+        let second = state_with_rom(vec![0; 32]);
+        assert_eq!(restore_autosave_from(&second, root.path()).unwrap(), 2);
+        assert_eq!(second.materialize_current_rom().unwrap().bytes, edited);
+
+        // The restored changes are still individual Undo steps.
+        second.undo_journal().unwrap().unwrap();
+        let after_undo = second.materialize_current_rom().unwrap().bytes;
+        assert_eq!(after_undo[10], 0);
+        assert_eq!(&after_undo[2..4], &[7, 7]);
+    }
+
+    #[test]
+    fn kept_work_is_never_applied_to_a_different_rom() {
+        let root = tempfile::tempdir().unwrap();
+        let first = state_with_rom(vec![0; 32]);
+        first
+            .commit_rom_write("one", 2, vec![7], None, None)
+            .unwrap();
+        autosave_session_to(&first, root.path()).unwrap();
+
+        let other = state_with_rom(vec![1; 32]);
+        assert_eq!(restore_autosave_from(&other, root.path()).unwrap(), 0);
+        assert_eq!(other.materialize_current_rom().unwrap().bytes, vec![1; 32]);
+    }
+
+    #[test]
+    fn restore_never_replaces_changes_already_in_the_session() {
+        let root = tempfile::tempdir().unwrap();
+        let first = state_with_rom(vec![0; 32]);
+        first
+            .commit_rom_write("kept", 2, vec![7], None, None)
+            .unwrap();
+        autosave_session_to(&first, root.path()).unwrap();
+
+        let second = state_with_rom(vec![0; 32]);
+        second
+            .commit_rom_write("new", 5, vec![3], None, None)
+            .unwrap();
+        assert_eq!(restore_autosave_from(&second, root.path()).unwrap(), 0);
+        let bytes = second.materialize_current_rom().unwrap().bytes;
+        assert_eq!(bytes[5], 3);
+        assert_eq!(bytes[2], 0);
+    }
+
+    #[test]
+    fn a_session_with_no_changes_clears_the_kept_copy() {
+        let root = tempfile::tempdir().unwrap();
+        let state = state_with_rom(vec![0; 32]);
+        state
+            .commit_rom_write("one", 2, vec![7], None, None)
+            .unwrap();
+        autosave_session_to(&state, root.path()).unwrap();
+
+        let fresh = state_with_rom(vec![0; 32]);
+        assert_eq!(autosave_session_to(&fresh, root.path()).unwrap(), 0);
+        assert_eq!(restore_autosave_from(&fresh, root.path()).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_damaged_kept_copy_leaves_the_session_untouched() {
+        let root = tempfile::tempdir().unwrap();
+        let state = state_with_rom(vec![0; 32]);
+        state
+            .commit_rom_write("one", 2, vec![7], None, None)
+            .unwrap();
+        autosave_session_to(&state, root.path()).unwrap();
+
+        let sha1 = state.get_rom_sha1().unwrap();
+        let manifest = autosave_directory(root.path(), &sha1).join(PROJECT_V2_FILENAME);
+        std::fs::write(&manifest, b"{ not valid json").unwrap();
+
+        let fresh = state_with_rom(vec![0; 32]);
+        assert!(restore_autosave_from(&fresh, root.path()).is_err());
+        assert_eq!(fresh.materialize_current_rom().unwrap().bytes, vec![0; 32]);
+    }
+}

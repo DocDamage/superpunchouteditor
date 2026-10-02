@@ -286,7 +286,7 @@ export function UpdateSettings() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: '0.875rem', color: '#fbbf24' }}>
+              <div style={{ fontSize: '0.875rem', color: 'var(--warning)' }}>
                 ⚠️ {skippedCount} version{skippedCount === 1 ? '' : 's'} skipped
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
@@ -298,9 +298,9 @@ export function UpdateSettings() {
               style={{
                 padding: '0.375rem 0.75rem',
                 backgroundColor: 'transparent',
-                border: '1px solid #fbbf24',
+                border: '1px solid var(--warning)',
                 borderRadius: '4px',
-                color: '#fbbf24',
+                color: 'var(--warning)',
                 cursor: 'pointer',
                 fontSize: '0.75rem',
               }}
@@ -350,7 +350,7 @@ export function UpdateSettings() {
             backgroundColor: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.3)',
             borderRadius: '6px',
-            color: '#ef4444',
+            color: 'var(--error)',
             fontSize: '0.875rem',
           }}
         >

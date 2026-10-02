@@ -117,7 +117,7 @@ export function CircuitEditor({
               className={`circuit-card ${isDragOver ? 'drag-over' : ''}`}
               style={{
                 borderColor: isDragOver ? getCircuitColor(circuit.circuit_type) : undefined,
-                boxShadow: isDragOver ? `0 0 0 2px ${getCircuitColor(circuit.circuit_type)}40` : undefined,
+                boxShadow: isDragOver ? `0 0 0 2px color-mix(in srgb, ${getCircuitColor(circuit.circuit_type)} 25%, transparent)` : undefined,
               }}
               onDragOver={(e) => handleDragOver(e, circuit.circuit_type)}
               onDragLeave={handleDragLeave}
@@ -125,7 +125,7 @@ export function CircuitEditor({
             >
               <div 
                 className="circuit-header"
-                style={{ background: `${getCircuitColor(circuit.circuit_type)}20` }}
+                style={{ background: `color-mix(in srgb, ${getCircuitColor(circuit.circuit_type)} 13%, transparent)` }}
               >
                 <span className="circuit-icon">{getCircuitIcon(circuit.circuit_type)}</span>
                 <h4>{circuit.name}</h4>

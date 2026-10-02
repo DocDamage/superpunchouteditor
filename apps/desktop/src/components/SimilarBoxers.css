@@ -179,21 +179,21 @@
 }
 
 .use-template-btn:hover {
-  background: #2563eb;
+  background: var(--info-solid);
   transform: translateY(-1px);
 }
 
 /* Card styling based on score */
 .similar-card.score-high {
-  border-left: 4px solid #22c55e;
+  border-left: 4px solid var(--success);
 }
 
 .similar-card.score-medium {
-  border-left: 4px solid #fbbf24;
+  border-left: 4px solid var(--warning);
 }
 
 .similar-card.score-low {
-  border-left: 4px solid #f87171;
+  border-left: 4px solid var(--error);
 }
 
 .similar-legend {
@@ -230,15 +230,15 @@
 }
 
 .legend-dot.score-high {
-  background: #22c55e;
+  background: var(--pad-green);
 }
 
 .legend-dot.score-medium {
-  background: #fbbf24;
+  background: var(--pad-yellow);
 }
 
 .legend-dot.score-low {
-  background: #f87171;
+  background: var(--accent);
 }
 
 /* Responsive */
