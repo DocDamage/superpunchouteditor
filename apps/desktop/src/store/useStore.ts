@@ -102,6 +102,42 @@ async function domToImage(element: HTMLElement): Promise<string | null> {
 
 // Helper function to convert RGB color to SNES 15-bit BGR format
 // SNES format: 0bbbbbgggggrrrrr (little endian: low byte, high byte)
+/** The order the game presents its boxers: circuit by circuit, then the player. */
+const GAME_ORDER = [
+  'gabby jay',
+  'bear hugger',
+  'piston hurricane',
+  'bald bull',
+  'bob charlie',
+  'dragon chan',
+  'masked muscle',
+  'mr. sandman',
+  'aran ryan',
+  'heike kagero',
+  'mad clown',
+  'super macho man',
+  'narcis prince',
+  'hoy quarlow',
+  'rick bruiser',
+  'nick bruiser',
+  'little mac',
+];
+
+/**
+ * Sort boxers the way the game lists them so the picker always looks the
+ * same. Boxers the list does not know (for example newly created ones) go
+ * last, in alphabetical order.
+ */
+export function sortBoxersInGameOrder<T extends { name: string }>(boxers: T[]): T[] {
+  const rank = (name: string): number => {
+    const index = GAME_ORDER.indexOf(name.trim().toLowerCase());
+    return index === -1 ? GAME_ORDER.length : index;
+  };
+  return [...boxers].sort(
+    (a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name)
+  );
+}
+
 function colorToSnesBytes(color: Color): number[] {
   // Convert 8-bit RGB to 5-bit
   const r5 = Math.round(color.r / 255 * 31) & 0x1F;
@@ -449,15 +485,31 @@ interface AppStore {
   // Actions
   loadBoxers: () => Promise<void>;
   openRom: (path: string) => Promise<void>;
+  /**
+   * Reconnect to a ROM session the backend still holds, for example after the
+   * window reloads. Edits are kept. Returns true when a session was found.
+   */
+  resumeSession: () => Promise<boolean>;
   selectBoxer: (key: string) => Promise<void>;
   setError: (error: string | null) => void;
   updateColor: (index: number, newColor: Color, pcOffset?: string) => void;
   exportAsset: (asset: any, palette: any, path: string) => Promise<void>;
+  /**
+   * Replace every colour of the current palette in one undoable step.
+   * Returns true when something changed.
+   */
+  applyPalette: (colors: Color[], label: string) => Promise<boolean>;
+  /** Put the current palette back to how it is in the untouched original ROM. */
+  restoreOriginalPalette: () => Promise<boolean>;
   importAsset: (asset: any, palette: any, path: string) => Promise<{
     bytes: Uint8Array;
     fits: boolean;
     newSize: number;
     originalSize: number;
+    /** Set when the picture was automatically resized to fit the slot. */
+    autoResized: boolean;
+    sourceSize: [number, number];
+    targetSize: [number, number];
   } | null>;
 
   setPendingWrite: (pcOffset: string) => void;
@@ -844,7 +896,11 @@ export const useStore = create<AppStore>((set, get) => ({
   loadBoxers: async () => {
     try {
       const boxers = await invoke<BoxerRecord[]>('get_boxers');
-      set({ boxers: boxers.map(normalizeBoxerRecord).filter((boxer): boxer is BoxerRecord => boxer !== null) });
+      set({
+        boxers: sortBoxersInGameOrder(
+          boxers.map(normalizeBoxerRecord).filter((boxer): boxer is BoxerRecord => boxer !== null)
+        ),
+      });
     } catch (e) {
       console.error('Failed to load boxers:', e);
       set({ error: (e as Error).toString() });
@@ -881,6 +937,25 @@ export const useStore = create<AppStore>((set, get) => ({
     } catch (e) {
       console.error('Failed to open ROM:', e);
       set({ error: (e as Error).toString() });
+    }
+  },
+
+  resumeSession: async () => {
+    let sha1: string;
+    try {
+      sha1 = await invoke<string>('get_rom_sha1');
+    } catch {
+      return false; // No ROM is loaded, which is the normal first-run case.
+    }
+
+    try {
+      set({ romSha1: sha1, error: null });
+      await get().loadBoxers();
+      await Promise.all([get().refreshUndoState(), get().refreshPendingWrites()]);
+      return true;
+    } catch (e) {
+      console.error('Failed to resume ROM session:', e);
+      return false;
     }
   },
 
@@ -927,6 +1002,54 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
+  applyPalette: async (colors, label) => {
+    const { currentPalette, currentPaletteOffset } = get();
+    if (!currentPalette || !currentPaletteOffset) return false;
+
+    const previous = currentPalette;
+    // Show the new colours immediately; the backend stays the source of truth.
+    set({ currentPalette: colors });
+    try {
+      const changed = await invoke<boolean>('apply_palette_colors', {
+        pcOffset: currentPaletteOffset,
+        colors,
+        label,
+      });
+      await Promise.all([
+        get().refreshUndoState(),
+        get().refreshPendingWrites(),
+        get().refreshCurrentPalette(),
+      ]);
+      set({ error: null });
+      return changed;
+    } catch (e) {
+      console.error('Failed to apply palette:', e);
+      set({ currentPalette: previous, error: (e as Error).toString() });
+      return false;
+    }
+  },
+
+  restoreOriginalPalette: async () => {
+    const { selectedBoxer, currentPaletteOffset } = get();
+    if (!selectedBoxer || !currentPaletteOffset) return false;
+    const paletteFile = selectedBoxer.palette_files.find(
+      (palette) => palette.start_pc === currentPaletteOffset
+    );
+    if (!paletteFile) return false;
+
+    try {
+      const original = await invoke<Color[]>('get_original_palette', {
+        pcOffset: currentPaletteOffset,
+        size: paletteFile.size,
+      });
+      return await get().applyPalette(original, `Original colors for ${selectedBoxer.name}`);
+    } catch (e) {
+      console.error('Failed to restore original palette:', e);
+      set({ error: (e as Error).toString() });
+      return false;
+    }
+  },
+
   exportAsset: async (asset, palette, path) => {
     try {
       // Icons are 32x32 pixels (4x4 tiles), Portraits are usually 128x128 (16x16 tiles)
@@ -948,20 +1071,36 @@ export const useStore = create<AppStore>((set, get) => ({
 
   importAsset: async (asset, palette, path) => {
     try {
-      const [newSize, originalSize, fits] = await invoke<[number, number, boolean]>('import_graphic_asset_from_png', {
+      const outcome = await invoke<{
+        new_size: number;
+        original_size: number;
+        fits: boolean;
+        fit: {
+          resized: boolean;
+          source_width: number;
+          source_height: number;
+          target_width: number;
+          target_height: number;
+        };
+      }>('import_graphic_asset_from_png', {
         pcOffset: asset.start_pc,
         originalSize: asset.size,
         pngPath: path,
         palettePcOffset: palette.start_pc,
         paletteSize: palette.size,
+        // Icons are 32x32 pixels (4 tiles wide); other graphics use the 16-tile sheet width.
+        widthTiles: asset.subtype === 'icon' ? 4 : 16,
       });
       const bytes = await invoke<number[]>('get_pending_bytes', { pcOffset: asset.start_pc });
       set({ error: null });
       return {
         bytes: new Uint8Array(bytes),
-        fits,
-        newSize,
-        originalSize,
+        fits: outcome.fits,
+        newSize: outcome.new_size,
+        originalSize: outcome.original_size,
+        autoResized: outcome.fit.resized,
+        sourceSize: [outcome.fit.source_width, outcome.fit.source_height],
+        targetSize: [outcome.fit.target_width, outcome.fit.target_height],
       };
     } catch (e) {
       set({ error: (e as Error).toString() });

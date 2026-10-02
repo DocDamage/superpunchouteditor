@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { TesterPanel } from "./TesterPanel";
+import {
+  BoxersIcon,
+  ChecklistIcon,
+  CompareIcon,
+  GearIcon,
+  GloveIcon,
+  HelpIcon,
+  LookIcon,
+  PaintIcon,
+  PlayIcon,
+  RedoIcon,
+  SaveIcon,
+  ToolsIcon,
+  UndoIcon,
+} from "./icons";
 import "./Usability.css";
 
 export type GuidedTabKey =
@@ -27,11 +43,6 @@ interface NavigationItem {
   label: string;
 }
 
-interface BoxerSummary {
-  key: string;
-  name: string;
-}
-
 interface GuidedSidebarProps {
   tabItems: NavigationItem[];
   currentTab: GuidedTabKey;
@@ -41,9 +52,7 @@ interface GuidedSidebarProps {
   currentProjectName?: string | null;
   runtimeIconUrl?: string | null;
   runtimeBoxerName?: string | null;
-  boxers: BoxerSummary[];
   selectedBoxerKey?: string | null;
-  boxerPortraits: Record<string, string>;
   canUndo: boolean;
   canRedo: boolean;
   editCount: number;
@@ -55,7 +64,6 @@ interface GuidedSidebarProps {
   onUndo: () => void;
   onRedo: () => void;
   onNavigate: (tab: GuidedTabKey) => void;
-  onSelectBoxer: (boxerKey: string) => void;
   onOpenHelp: () => void;
   onOpenKeyboardShortcuts: () => void;
   onOpenEmulatorSettings: () => void;
@@ -71,14 +79,23 @@ const WORKFLOW_ORDER: GuidedTabKey[] = [
   "project",
 ];
 
-const FRIENDLY_META: Partial<Record<GuidedTabKey, { label: string; description: string }>> = {
-  roster: { label: "Characters", description: "Choose or create a boxer" },
-  editor: { label: "Edit & Export", description: "Change palettes, sprites, and assets" },
-  viewer: { label: "Inspect", description: "Look through ROM assets safely" },
-  compare: { label: "Compare", description: "Review exactly what changed" },
-  test: { label: "Test Game", description: "Run the current edited revision" },
-  project: { label: "Projects", description: "Save and reopen your work" },
-  settings: { label: "Settings", description: "Updates and app preferences" },
+type PadColor = "red" | "yellow" | "green" | "blue";
+
+interface FriendlyMeta {
+  label: string;
+  description: string;
+  icon: ReactElement;
+  color: PadColor;
+}
+
+/** Plain-language names for the main menu. A child should understand each one. */
+const FRIENDLY_META: Partial<Record<GuidedTabKey, FriendlyMeta>> = {
+  roster: { label: "Boxers", description: "Pick or make a boxer", icon: <BoxersIcon />, color: "blue" },
+  editor: { label: "Edit Boxers", description: "Change colors and pictures", icon: <PaintIcon />, color: "red" },
+  viewer: { label: "Look Around", description: "See every boxer and pose", icon: <LookIcon />, color: "blue" },
+  compare: { label: "What Changed", description: "See before and after", icon: <CompareIcon />, color: "yellow" },
+  test: { label: "Play Game", description: "Try your changes right now", icon: <PlayIcon />, color: "green" },
+  project: { label: "My Projects", description: "Save your work for later", icon: <SaveIcon />, color: "yellow" },
 };
 
 const ADVANCED_STORAGE_KEY = "spo-editor-show-advanced-tools";
@@ -100,9 +117,7 @@ export function GuidedSidebar({
   currentProjectName,
   runtimeIconUrl,
   runtimeBoxerName,
-  boxers,
   selectedBoxerKey,
-  boxerPortraits,
   canUndo,
   canRedo,
   editCount,
@@ -114,7 +129,6 @@ export function GuidedSidebar({
   onUndo,
   onRedo,
   onNavigate,
-  onSelectBoxer,
   onOpenHelp,
   onOpenKeyboardShortcuts,
   onOpenEmulatorSettings,
@@ -128,7 +142,7 @@ export function GuidedSidebar({
     () =>
       WORKFLOW_ORDER.filter((key) => visibleKeys.has(key)).map((key) => {
         const original = tabItems.find((item) => item.key === key)!;
-        return { ...original, ...(FRIENDLY_META[key] ?? {}) };
+        return { ...original, ...(FRIENDLY_META[key] ?? {}) } as NavigationItem & Partial<FriendlyMeta>;
       }),
     [tabItems, visibleKeys]
   );
@@ -156,36 +170,39 @@ export function GuidedSidebar({
 
   const nextAction = !selectedBoxerKey
     ? {
-        title: "Choose what to edit",
-        detail: "Pick a boxer, then make one small change.",
-        label: "Go to Edit",
-        action: () => onNavigate("editor"),
+        title: "Pick a boxer",
+        detail: "Choose who you want to change.",
+        label: "Pick a Boxer",
+        tab: "editor" as GuidedTabKey,
       }
     : pendingWritesCount === 0
       ? {
-          title: "Make one change",
-          detail: "Try a palette edit first; Undo is always available.",
+          title: "Change something",
+          detail: "Tap a Magic Paint color. You can always undo it.",
           label: "Edit Boxer",
-          action: () => onNavigate("editor"),
+          tab: "editor" as GuidedTabKey,
         }
       : {
-          title: "Review your changes",
-          detail: "Your current revision is ready to test.",
-          label: "Test Game",
-          action: () => onNavigate("test"),
+          title: "Try it out!",
+          detail: "Play the game with your changes, then save your work.",
+          label: "Play Now",
+          tab: "test" as GuidedTabKey,
         };
 
   return (
     <aside className="sidebar guided-sidebar" aria-label="Editor navigation">
       <div className="guided-brand-row">
-        <div className="guided-brand">
-          {runtimeIconUrl && (
+        <div className="guided-brand" role="img" aria-label="Super Punch-Out!! Editor">
+          {runtimeIconUrl ? (
             <img src={runtimeIconUrl} alt="" className="sidebar-brand-icon" aria-hidden="true" />
+          ) : (
+            <span className="guided-brand-mark" aria-hidden="true">
+              <GloveIcon size={26} />
+            </span>
           )}
-          <div>
-            <div className="guided-app-name">Super Punch-Out!! Editor</div>
-            <div className="guided-app-subtitle">Windows editor</div>
-            {runtimeBoxerName && <div className="auth-mode-label">Theme: {runtimeBoxerName}</div>}
+          <div className="guided-brand-text" aria-hidden="true">
+            <div className="guided-app-kicker">Super Punch-Out!!</div>
+            <div className="guided-app-name">Editor</div>
           </div>
         </div>
         <ThemeToggle variant="minimal" size="small" />
@@ -194,39 +211,52 @@ export function GuidedSidebar({
       {!isDesktopRuntime && <div className="runtime-warning">{runtimeError}</div>}
       {error && <div className="error-banner" role="alert">{error}</div>}
 
-      <button
-        type="button"
-        className="guided-open-rom"
-        onClick={onOpenRom}
-        disabled={!isDesktopRuntime}
-      >
-        <span>{romSha1 ? "Switch ROM" : "Open ROM"}</span>
-        <small>{romSha1 ? "Choose a different local file" : "Use your own .sfc or .smc file"}</small>
-      </button>
+      {!romSha1 && (
+        <button
+          type="button"
+          className="guided-open-rom"
+          onClick={onOpenRom}
+          disabled={!isDesktopRuntime}
+        >
+          <span>Open ROM</span>
+          <small>Pick your own game file to start</small>
+        </button>
+      )}
 
       {romSha1 && (
         <div className="guided-session-card">
           <div className="guided-session-status">
             <span className="guided-status-dot" aria-hidden="true" />
             <strong>ROM loaded</strong>
-          </div>
-          <div className="guided-session-meta" title={`ROM SHA-1: ${romSha1}`}>
-            SHA-1 {romSha1.slice(0, 8)}…
             {detectedRegionLabel && (
               <span className={detectedRegionSupported === false ? "guided-region warning" : "guided-region"}>
                 {detectedRegionLabel}
               </span>
             )}
           </div>
+          {runtimeBoxerName && <div className="guided-session-meta">Editing {runtimeBoxerName}</div>}
           {currentProjectName && <div className="guided-session-meta">Project: {currentProjectName}</div>}
           <div className="guided-undo-row">
             <button type="button" className="secondary" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-              Undo
+              <UndoIcon size={16} /> Undo
             </button>
             <button type="button" className="secondary" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-              Redo
+              <RedoIcon size={16} /> Redo
             </button>
-            <span>{editCount} edit{editCount === 1 ? "" : "s"}</span>
+          </div>
+          <div className="guided-session-foot">
+            <span>{editCount} change{editCount === 1 ? "" : "s"}</span>
+            <span className="guided-fingerprint" title={`ROM fingerprint (SHA-1): ${romSha1}`}>
+              ID {romSha1.slice(0, 8)}
+            </span>
+            <button
+              type="button"
+              className="guided-link-button"
+              onClick={onOpenRom}
+              disabled={!isDesktopRuntime}
+            >
+              Switch ROM
+            </button>
           </div>
         </div>
       )}
@@ -236,12 +266,16 @@ export function GuidedSidebar({
           <p className="eyebrow">Next step</p>
           <strong>{nextAction.title}</strong>
           <p>{nextAction.detail}</p>
-          <button type="button" onClick={nextAction.action}>{nextAction.label}</button>
+          {nextAction.tab !== currentTab && (
+            <button type="button" className="btn-primary" onClick={() => onNavigate(nextAction.tab)}>
+              {nextAction.label}
+            </button>
+          )}
         </section>
       )}
 
       <nav className="guided-nav" aria-label="Main workflow">
-        <div className="guided-section-title">Main workflow</div>
+        <div className="guided-section-title">Menu</div>
         {workflowItems.map((item) => (
           <button
             key={item.key}
@@ -250,34 +284,16 @@ export function GuidedSidebar({
             onClick={() => onNavigate(item.key)}
             aria-current={currentTab === item.key ? "page" : undefined}
           >
-            <span>{item.label}</span>
-            <small>{item.description}</small>
+            <span className={`guided-nav-icon pad-${item.color ?? "blue"}`} aria-hidden="true">
+              {item.icon ?? <ToolsIcon />}
+            </span>
+            <span className="guided-nav-text">
+              <span>{item.label}</span>
+              {item.description && <small>{item.description}</small>}
+            </span>
           </button>
         ))}
       </nav>
-
-      {currentTab === "editor" && romSha1 && boxers.length > 0 && (
-        <section className="guided-boxer-section" aria-label="Choose boxer">
-          <div className="guided-section-title">Choose boxer</div>
-          <ul className="boxer-list guided-boxer-list">
-            {boxers.map((boxer) => (
-              <li key={boxer.key}>
-                <button
-                  type="button"
-                  className={`boxer-item guided-boxer-button ${selectedBoxerKey === boxer.key ? "active" : ""}`}
-                  onClick={() => onSelectBoxer(boxer.key)}
-                  aria-current={selectedBoxerKey === boxer.key ? "true" : undefined}
-                >
-                  {boxerPortraits[boxer.key] && (
-                    <img src={boxerPortraits[boxer.key]} alt="" className="boxer-item-portrait" aria-hidden="true" />
-                  )}
-                  <span>{boxer.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {advancedItems.length > 0 && (
         <section className="guided-advanced-section">
@@ -308,22 +324,23 @@ export function GuidedSidebar({
       )}
 
       <div className="guided-sidebar-footer">
-        <button type="button" className="guided-tester-button" onClick={() => setShowTesterPanel(true)}>
-          Tester Checklist
-          <small>Record bugs and usability feedback</small>
-        </button>
-
         <div className="guided-utility-grid">
           {settingsVisible && (
             <button type="button" className={currentTab === "settings" ? "active" : ""} onClick={() => onNavigate("settings")}>
-              Settings
+              <GearIcon size={16} /> Settings
             </button>
           )}
-          <button type="button" onClick={onOpenHelp}>Help</button>
+          <button type="button" onClick={onOpenHelp}><HelpIcon size={16} /> Help</button>
           <button type="button" onClick={onOpenKeyboardShortcuts}>Shortcuts</button>
-          {romSha1 && <button type="button" onClick={onOpenEmulatorSettings}>Emulator</button>}
-          {romSha1 && <button type="button" onClick={onOpenExternalTools}>External Tools</button>}
+          {romSha1 && <button type="button" onClick={onOpenEmulatorSettings}><PlayIcon size={16} /> Emulator</button>}
+          {romSha1 && <button type="button" onClick={onOpenExternalTools}><ToolsIcon size={16} /> Other Apps</button>}
+          <button type="button" onClick={() => setShowTesterPanel(true)}>
+            <ChecklistIcon size={16} /> Tester Checklist
+          </button>
         </div>
+        <p className="guided-legal">
+          Unofficial fan-made tool. Not affiliated with or endorsed by Nintendo.
+        </p>
       </div>
 
       <TesterPanel

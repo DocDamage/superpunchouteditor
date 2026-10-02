@@ -12,24 +12,47 @@ The authoritative development and default branch is **`main`**.
 
 The September 9, 2026 consolidation brought the current application, all merged milestones, and the assembled boxer-pose update onto `main` while preserving the original branch histories. Earlier instructions calling `main` obsolete or directing development to `master` are superseded. Start new work from `origin/main` and target pull requests to `main`; the old milestone branches are historical references only. See [`docs/BRANCH_CONSOLIDATION_2026-09-09.md`](docs/BRANCH_CONSOLIDATION_2026-09-09.md).
 
+## Unofficial fan project
+
+This is an unofficial, fan-made tool. It is not affiliated with, sponsored by, or endorsed by Nintendo. *Super Punch-Out!!* is a trademark of Nintendo. The editor contains no game graphics, logos, fonts, sound or text: every picture it bundles is original, every font is openly licensed, and game pictures are only ever drawn at runtime from the ROM you supply. See [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) and [`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md).
+
 ## Stable user workflow
 
-The stable Windows UI is intentionally organized around a small guided path:
+The interface is written so a ten-year-old can use it without instructions. The menu has four places:
 
-1. **Open ROM** — choose and validate your own local ROM.
-2. **Edit & Export** — choose a boxer, make journal-backed edits, Undo/Redo, save a materialized ROM, and export supported patch/output formats.
-3. **Inspect** — safely inspect supported ROM/asset data.
-4. **Test Game** — run the current materialized revision rather than a stale or immutable base image.
-5. **Projects** — save and reopen project-v2 editing sessions.
-6. **Settings** — application/update preferences and emulator/tool configuration.
+1. **Edit Boxers** — pick a boxer, then use the tabs:
+   - **Colors** — one-tap Magic Paint and Special Looks with a live preview, or change one color at a time.
+   - **Photo Face** — put a photo on the boxer as they appear in the ring.
+   - **Pictures** — swap the small menu face for any picture.
+   - **Save & Share** — save a new game file, or make a patch file with only your changes.
+   - **Expert Tools** — the raw tile and sprite tools for experienced editors.
+2. **Look Around** — browse every boxer and pose. Nothing here changes the game.
+3. **Play Game** — play the current edited game in an emulator with one button.
+4. **My Projects** — save your work and open it again later.
 
-The first-run screen and left sidebar are designed to make the next safe action obvious. Development builds may expose additional experimental tools behind **Advanced tools**; stable builds do not expose research-blocked surfaces as normal release features.
+### Things the editor does for you
+
+- A recognised ROM opens immediately. You can also drop a ROM file onto the window.
+- The last ROM reopens when the editor starts.
+- Changes are kept automatically and come back the next time the same ROM is opened.
+- Any picture can be used for a boxer's small face: it is fitted to the right size and matched to the boxer's colors.
+- A photo placed on a boxer is written into every pose that shares that head, and simplified automatically if it has more detail than the game has room for.
+- Colors always snap to what the console can display.
+- An emulator already on the computer is found for you; you confirm it once.
+- Every one of these is a single Undo step, and the original ROM file is never changed.
+
+### Known limits
+
+- A boxer uses several different head pictures. One photo stamp covers the poses that share a head; other poses need their own stamp.
+- The large portrait shown before a fight uses a storage format the editor cannot read yet, so it cannot be changed.
+- Boxer body graphics are stored packed with no spare room, so a very detailed photo may not fit even after simplifying.
+- The Photo Face and automatic safekeeping features were verified with the editor's own renderer and automated tests against a real USA ROM; in-game appearance should still be checked with Play Game.
 
 ### Boxer graphics preview
 
-The boxer editor includes an **Assembled Pose Preview**. It reconstructs a complete in-game pose from the ROM's pose/OAM data, compressed graphics streams, VRAM tile destinations, and palette. Use the pose selector or **Prev/Next** controls to inspect the available poses.
+The boxer editor shows a live **Preview** on the Colors tab (the Assembled Pose Preview). It reconstructs a complete in-game pose from the ROM's pose/OAM data, compressed graphics streams, VRAM tile destinations, and palette. Use the pose selector or **Prev/Next** controls to inspect the available poses.
 
-The **Raw Tile Banks** section below it is an editing reference: it shows individual 8×8 tiles in ROM/bank order. Those tiles are expected to look chopped or out of sequence when viewed by themselves. See [`docs/SPRITE_PREVIEW.md`](docs/SPRITE_PREVIEW.md) for the data flow, limitations, and troubleshooting guidance.
+The **Raw Tile Banks** section under **Expert Tools** is an editing reference: it shows individual 8×8 tiles in ROM/bank order. Those tiles are expected to look chopped or out of sequence when viewed by themselves. See [`docs/SPRITE_PREVIEW.md`](docs/SPRITE_PREVIEW.md) for the data flow, limitations, and troubleshooting guidance.
 
 ## Community Windows testing
 

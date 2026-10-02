@@ -490,7 +490,7 @@ function ShortcutRow({ shortcut, isCopied, onCopy }: ShortcutRowProps) {
           <span
             style={{
               fontSize: '0.75rem',
-              color: '#4ade80',
+              color: 'var(--success)',
               marginRight: '0.5rem',
             }}
           >

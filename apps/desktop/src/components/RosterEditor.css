@@ -82,17 +82,17 @@
 }
 
 .validation-badge.valid {
-  background: #4ade80;
+  background: var(--pad-green);
   color: #064e3b;
 }
 
 .validation-badge.warning {
-  background: #fbbf24;
+  background: var(--pad-yellow);
   color: #78350f;
 }
 
 .validation-badge.error {
-  background: #f87171;
+  background: var(--accent);
   color: #7f1d1d;
 }
 
@@ -134,7 +134,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--blue-light, #3b82f6);
+  background: var(--blue-light, var(--info-solid));
 }
 
 .btn-primary:disabled {
@@ -149,8 +149,8 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: rgba(248, 113, 113, 0.1);
-  border-left: 3px solid #f87171;
-  color: #f87171;
+  border-left: 3px solid var(--error);
+  color: var(--error);
   font-size: 0.875rem;
 }
 
@@ -241,7 +241,7 @@
 
 .roster-expansion-error {
   margin-top: 0.75rem;
-  color: #f87171;
+  color: var(--error);
   font-size: 0.85rem;
 }
 
@@ -341,7 +341,7 @@
 
 .roster-create-success {
   margin-top: 0.75rem;
-  color: #4ade80;
+  color: var(--success);
   font-size: 0.85rem;
 }
 
@@ -458,22 +458,22 @@
 }
 
 .circuit-minor {
-  background: #4ade80;
+  background: var(--pad-green);
   color: #064e3b;
 }
 
 .circuit-major {
-  background: #60a5fa;
+  background: var(--info-solid);
   color: #1e3a8a;
 }
 
 .circuit-world {
-  background: #fbbf24;
+  background: var(--pad-yellow);
   color: #78350f;
 }
 
 .circuit-special {
-  background: #f87171;
+  background: var(--accent);
   color: #7f1d1d;
 }
 
@@ -499,7 +499,7 @@
 }
 
 .name-input.invalid {
-  border-color: #f87171;
+  border-color: var(--error);
   background: rgba(248, 113, 113, 0.05);
 }
 
@@ -511,11 +511,11 @@
 }
 
 .name-validation.valid {
-  color: #4ade80;
+  color: var(--success);
 }
 
 .name-validation.invalid {
-  color: #f87171;
+  color: var(--error);
 }
 
 .char-count {
@@ -546,7 +546,7 @@
 }
 
 .circuit-card.champion {
-  border-color: #fbbf24;
+  border-color: var(--warning);
   box-shadow: 0 0 0 1px #fbbf24;
 }
 
@@ -571,7 +571,7 @@
 
 .champion-badge {
   padding: 0.125rem 0.5rem;
-  background: #fbbf24;
+  background: var(--pad-yellow);
   color: #78350f;
   border-radius: 4px;
   font-size: 0.625rem;
@@ -666,7 +666,7 @@
 }
 
 .unlock-item.champion {
-  border-color: #fbbf24;
+  border-color: var(--warning);
   background: rgba(251, 191, 36, 0.1);
 }
 
@@ -842,7 +842,7 @@
 }
 
 .intro-textarea.invalid {
-  border-color: #f87171;
+  border-color: var(--error);
   background: rgba(248, 113, 113, 0.05);
 }
 
@@ -855,15 +855,15 @@
 }
 
 .validation-status.valid {
-  color: #4ade80;
+  color: var(--success);
 }
 
 .validation-status.invalid {
-  color: #f87171;
+  color: var(--error);
 }
 
 .error-message {
-  color: #f87171;
+  color: var(--error);
 }
 
 .no-selection {

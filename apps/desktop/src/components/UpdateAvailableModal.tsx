@@ -87,7 +87,7 @@ export function UpdateAvailableModal({
         {/* Header */}
         <div
           style={{
-            background: 'linear-gradient(135deg, var(--blue) 0%, #4ade80 100%)',
+            background: 'linear-gradient(135deg, var(--blue) 0%, var(--pad-green) 100%)',
             padding: '1.5rem',
             borderRadius: '12px 12px 0 0',
             textAlign: 'center',
@@ -226,7 +226,7 @@ export function UpdateAvailableModal({
               style={{
                 width: '100%',
                 padding: '0.875rem',
-                background: 'linear-gradient(135deg, var(--blue) 0%, #3b82f6 100%)',
+                background: 'linear-gradient(135deg, var(--blue) 0%, var(--info-solid) 100%)',
                 border: 'none',
                 borderRadius: '8px',
                 color: 'white',

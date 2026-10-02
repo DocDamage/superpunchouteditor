@@ -1,0 +1,190 @@
+/* ============================================================================
+   Design tokens
+
+   Every colour, radius, shadow and font in the editor resolves to a token
+   defined here. The look is an original design: no logos, typefaces, sprites
+   or artwork from any game or console maker are used or imitated.
+
+   Themes are selected with `data-theme` on <html> (set by ThemeProvider).
+   ============================================================================ */
+
+:root {
+  /* Typography — all bundled, openly licensed (SIL OFL 1.1) */
+  --font-body: "Nunito Variable", "Nunito", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Bahnschrift", "Arial Narrow", "Segoe UI", sans-serif;
+  --font-pixel: "Press Start 2P", "Cascadia Mono", Consolas, monospace;
+  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+
+  /* Shape */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Four action colours used for badges and step markers */
+  --pad-red: #e5121d;
+  --pad-yellow: #f6b80c;
+  --pad-green: #12a150;
+  --pad-blue: #2a63e0;
+  --gold: #f6b80c;
+  --plum: #5b4fc9;
+
+  --motion-fast: 90ms;
+  --motion: 160ms;
+}
+
+/* ---------------------------------------------------------------- Night --- */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-primary: #14131c;
+  --bg-secondary: #1b1a26;
+  --bg-tertiary: #2c2a3c;
+  --bg-panel: #22202f;
+  --bg-raised: #2a2839;
+  --bg-input: #17161f;
+  --sidebar-bg: #100f17;
+
+  --text-primary: #f7f5fc;
+  --text-secondary: #cbc7da;
+  --text-muted: #9a95ae;
+  --text-inverse: #14131c;
+  --text-on-accent: #ffffff;
+
+  --accent: #e5121d;
+  --accent-hover: #ff3340;
+  --accent-depth: #8f0810;
+  --accent-muted: #45141b;
+  --accent-text: #ff6a73;
+
+  --success: #3ddc84;
+  --success-bg: #12301f;
+  --warning: #ffc53d;
+  --warning-bg: #3a2c0c;
+  --error: #ff6b74;
+  --error-bg: #3d151a;
+  --info: #6ea8ff;
+  --info-bg: #14264a;
+  --info-solid: #2a63e0;
+  --info-solid-depth: #173c91;
+
+  --border: #37344b;
+  --border-hover: #575270;
+  --border-strong: #6b6688;
+
+  --grid: #26243a;
+  --canvas-bg: #0d0c13;
+  --dot: rgba(255, 255, 255, 0.045);
+
+  --neutral-btn: #34314a;
+  --neutral-btn-hover: #423f5c;
+  --neutral-btn-depth: #17161f;
+
+  --shadow-card: 0 3px 0 rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 18px 50px rgba(0, 0, 0, 0.55);
+  --overlay: rgba(8, 7, 14, 0.78);
+  --glass: rgba(255, 255, 255, 0.055);
+}
+
+/* ------------------------------------------------------------------ Day --- */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-primary: #f2f0f6;
+  --bg-secondary: #e8e5ef;
+  --bg-tertiary: #dcd8e6;
+  --bg-panel: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-input: #ffffff;
+  --sidebar-bg: #e4e0ec;
+
+  --text-primary: #1c1a26;
+  --text-secondary: #474357;
+  --text-muted: #6a657c;
+  --text-inverse: #ffffff;
+  --text-on-accent: #ffffff;
+
+  --accent: #e5121d;
+  --accent-hover: #c90c16;
+  --accent-depth: #980810;
+  --accent-muted: #fde0e2;
+  --accent-text: #c90c16;
+
+  --success: #0b8043;
+  --success-bg: #dff5e8;
+  --warning: #a35f00;
+  --warning-bg: #fff1cf;
+  --error: #c8101b;
+  --error-bg: #fde0e2;
+  --info: #2152c9;
+  --info-bg: #e0e9ff;
+  --info-solid: #2a63e0;
+  --info-solid-depth: #173c91;
+
+  --border: #cfcadb;
+  --border-hover: #a8a1bc;
+  --border-strong: #857e9c;
+
+  --grid: #dcd8e6;
+  --canvas-bg: #f8f7fb;
+  --dot: rgba(28, 26, 38, 0.06);
+
+  --neutral-btn: #ffffff;
+  --neutral-btn-hover: #f4f2f8;
+  --neutral-btn-depth: #bdb7cd;
+
+  --shadow-card: 0 3px 0 rgba(60, 52, 94, 0.14);
+  --shadow-pop: 0 18px 50px rgba(40, 34, 70, 0.28);
+  --overlay: rgba(28, 26, 38, 0.55);
+  --glass: rgba(28, 26, 38, 0.05);
+}
+
+/* ---------------------------------------------- Aliases used by components --
+   Older components reference these names. They all resolve to the tokens
+   above so every screen follows the active theme.
+   -------------------------------------------------------------------------- */
+:root,
+:root[data-theme] {
+  --primary-bg: var(--bg-primary);
+  --secondary-bg: var(--bg-secondary);
+  --panel-bg: var(--bg-panel);
+  --bg: var(--bg-primary);
+  --bg-hover: var(--glass);
+  --bg-subtle: var(--bg-secondary);
+  --bg-tag: var(--bg-tertiary);
+  --input-bg: var(--bg-input);
+  --code-bg: var(--bg-input);
+  --tooltip-bg: var(--bg-raised);
+  --active-bg: var(--accent-muted);
+
+  --text-main: var(--text-primary);
+  --text: var(--text-primary);
+  --text-dim: var(--text-muted);
+
+  --primary: var(--accent);
+  --primary-hover: var(--accent-hover);
+  --accent-dark: var(--accent-depth);
+  --accent-bg: var(--accent-muted);
+  --accent-secondary: var(--plum);
+  --accent-tertiary: var(--gold);
+
+  --blue: var(--info-solid);
+  --blue-hover: var(--info-solid-depth);
+  --blue-light: var(--info);
+  --blue-muted: var(--info-bg);
+  --info-hover: var(--info-solid-depth);
+  --green: var(--success);
+  --success-hover: var(--success);
+  --success-muted: var(--success-bg);
+
+  --button-bg: var(--neutral-btn);
+  --button-hover: var(--neutral-btn-hover);
+  --border-subtle: var(--border);
+
+  /* Set at runtime from the selected boxer's palette in the user's own ROM. */
+  --boxer-accent: var(--accent);
+  --auth-icon-image: none;
+  --auth-portrait-image: none;
+}

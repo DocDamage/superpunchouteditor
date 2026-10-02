@@ -26,7 +26,9 @@ A first-time Windows tester should be able to complete this sequence without dev
 - Buttons and interactive boxer rows are keyboard-focusable native controls.
 - Undo/Redo state remains visible in the main navigation area after a ROM is loaded.
 - The UI communicates the current ROM-loaded state and a shortened ROM fingerprint without exposing a local ROM path.
-- The stable boxer editor presents an **Assembled Pose Preview** that shows a complete in-game pose, while the separate **Raw Tile Banks** view is labeled as an individual-tile reference.
+- The stable boxer editor presents a live pose **Preview** (the assembled pose) on the Colors tab that shows a complete in-game pose, while the separate **Raw Tile Banks** view under Expert Tools is labeled as an individual-tile reference.
+- The main workflow uses everyday words a ten-year-old understands; internal terms (journal, materialized, SHA-1) stay out of it.
+- Every bundled picture and font is original or openly licensed (see `DESIGN_SYSTEM.md`).
 - A raw tile bank is not treated as a complete character sheet; chopped or out-of-order pieces in that reference view are explained by nearby UI copy or documentation.
 - The Test Game screen states that it consumes the current materialized revision.
 - First-run and tester copy explicitly warn against uploading ROMs/save states.

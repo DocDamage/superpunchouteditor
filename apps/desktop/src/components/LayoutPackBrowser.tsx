@@ -198,7 +198,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
           background: 'rgba(255, 100, 100, 0.1)', 
           border: '1px solid rgba(255, 100, 100, 0.3)',
           borderRadius: '8px',
-          color: '#ff8888',
+          color: 'var(--error)',
         }}>
           {error}
           <button onClick={() => setError(null)} style={{ marginLeft: '12px', fontSize: '0.8rem' }}>
@@ -305,7 +305,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
                     background: previewData.overall_compatible 
                       ? 'rgba(100, 200, 100, 0.15)' 
                       : 'rgba(255, 200, 100, 0.15)',
-                    color: previewData.overall_compatible ? '#6bdb7d' : '#ffcc88',
+                    color: previewData.overall_compatible ? 'var(--success)' : 'var(--warning)',
                   }}>
                     {previewData.overall_compatible ? '✓ Compatible' : '⚠ Conflicts'}
                   </div>
@@ -492,10 +492,10 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
                       borderRadius: '8px',
                       marginBottom: '20px',
                     }}>
-                      <div style={{ fontSize: '0.85rem', color: '#ff8888', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--error)', marginBottom: '8px' }}>
                         ⚠ Issues ({selectedComparison.conflicts.length}):
                       </div>
-                      <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: '#ffaaaa' }}>
+                      <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: 'var(--error)' }}>
                         {selectedComparison.conflicts.slice(0, 5).map((conflict, i) => (
                           <li key={i}>{conflict}</li>
                         ))}
@@ -528,7 +528,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
                             padding: '12px 16px',
                             background: 'var(--glass)',
                             borderRadius: '8px',
-                            borderLeft: `4px solid ${matches ? '#6bdb7d' : currentBin ? '#ffcc88' : '#ff6666'}`,
+                            borderLeft: `4px solid ${matches ? 'var(--success)' : currentBin ? 'var(--warning)' : 'var(--error)'}`,
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -540,7 +540,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
                               {currentBin && (
                                 <div style={{ 
                                   fontSize: '0.8rem', 
-                                  color: matches ? '#6bdb7d' : '#ffcc88',
+                                  color: matches ? 'var(--success)' : 'var(--warning)',
                                   marginTop: '2px',
                                 }}>
                                   Current: {currentBin.start_pc} • {currentBin.size} bytes
@@ -553,7 +553,7 @@ export const LayoutPackBrowser = ({ initialPack, onClose }: LayoutPackBrowserPro
                               padding: '4px 10px',
                               borderRadius: '4px',
                               background: matches ? 'rgba(100, 200, 100, 0.15)' : currentBin ? 'rgba(255, 200, 100, 0.15)' : 'rgba(255, 100, 100, 0.15)',
-                              color: matches ? '#6bdb7d' : currentBin ? '#ffcc88' : '#ff6666',
+                              color: matches ? 'var(--success)' : currentBin ? 'var(--warning)' : 'var(--error)',
                             }}>
                               {matches ? 'Match' : currentBin ? 'Mismatch' : 'Missing'}
                             </div>

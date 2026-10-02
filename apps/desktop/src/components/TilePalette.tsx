@@ -133,8 +133,8 @@ export const TilePalette: React.FC<TilePaletteProps> = ({
                 onClick={() => handleTileClick(tileId)}
                 style={{
                   ...styles.tile,
-                  backgroundColor: tilePreviews.get(tileId) || '#333',
-                  borderColor: selectedTileId === tileId ? '#00a8ff' : '#444',
+                  backgroundColor: tilePreviews.get(tileId) || 'var(--bg-tertiary)',
+                  borderColor: selectedTileId === tileId ? 'var(--info)' : 'var(--border-hover)',
                   borderWidth: selectedTileId === tileId ? 3 : 1,
                 }}
                 title={`Tile ${tileId}`}
@@ -164,7 +164,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
-    backgroundColor: '#1e1e2e',
+    backgroundColor: 'var(--bg-secondary)',
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -173,7 +173,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '12px 16px',
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid var(--border)',
   },
   title: {
     margin: 0,
@@ -183,19 +183,19 @@ const styles: Record<string, React.CSSProperties> = {
   },
   count: {
     fontSize: '12px',
-    color: '#888',
+    color: 'var(--text-muted)',
   },
   filterContainer: {
     display: 'flex',
     padding: '8px 16px',
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid var(--border)',
     position: 'relative',
   },
   filterInput: {
     flex: 1,
     padding: '6px 10px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '12px',
@@ -208,7 +208,7 @@ const styles: Record<string, React.CSSProperties> = {
     transform: 'translateY(-50%)',
     background: 'none',
     border: 'none',
-    color: '#888',
+    color: 'var(--text-muted)',
     fontSize: '18px',
     cursor: 'pointer',
     padding: '0 4px',
@@ -218,8 +218,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     padding: '8px 16px',
     fontSize: '11px',
-    color: '#888',
-    borderBottom: '1px solid #333',
+    color: 'var(--text-muted)',
+    borderBottom: '1px solid var(--border)',
   },
   gridContainer: {
     flex: 1,
@@ -233,7 +233,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tile: {
     aspectRatio: '1',
-    border: '1px solid #444',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     cursor: 'pointer',
     display: 'flex',
@@ -252,7 +252,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    color: '#888',
+    color: 'var(--text-muted)',
     fontSize: '12px',
   },
   error: {
@@ -260,7 +260,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    color: '#ff6b6b',
+    color: 'var(--error)',
     fontSize: '12px',
   },
   emptyState: {
@@ -268,20 +268,20 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    color: '#666',
+    color: 'var(--text-muted)',
     fontSize: '12px',
     padding: 20,
   },
   selectedInfo: {
     padding: '12px 16px',
-    backgroundColor: '#2a2a3e',
-    borderTop: '1px solid #333',
+    backgroundColor: 'var(--bg-panel)',
+    borderTop: '1px solid var(--border)',
     fontSize: '12px',
     color: '#fff',
   },
   hint: {
     fontSize: '11px',
-    color: '#888',
+    color: 'var(--text-muted)',
     marginTop: 4,
   },
 };

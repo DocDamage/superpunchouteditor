@@ -44,12 +44,12 @@
 .tour-card {
   position: fixed;
   width: 320px;
-  background: var(--panel-bg, #1a1a2e);
+  background: var(--panel-bg, var(--bg-primary));
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   z-index: 2003;
   overflow: hidden;
-  border: 1px solid var(--border, #2d2d44);
+  border: 1px solid var(--border);
   animation: tourCardIn 0.3s ease-out;
 }
 
@@ -72,7 +72,7 @@
 
 .tour-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent, #4ade80), var(--blue, #60a5fa));
+  background: linear-gradient(90deg, var(--accent, var(--pad-green)), var(--blue, var(--info-solid)));
   transition: width 0.3s ease;
 }
 
@@ -83,11 +83,11 @@
   justify-content: space-between;
   padding: 0.75rem 1rem;
   background: var(--glass, rgba(255, 255, 255, 0.05));
-  border-bottom: 1px solid var(--border, #2d2d44);
+  border-bottom: 1px solid var(--border);
 }
 
 .tour-badge {
-  background: var(--accent, #4ade80);
+  background: var(--accent, var(--pad-green));
   color: #000;
   font-size: 0.7rem;
   font-weight: 600;
@@ -99,7 +99,7 @@
 
 .tour-step-count {
   font-size: 0.8rem;
-  color: var(--text-dim, #64748b);
+  color: var(--text-dim, var(--text-muted));
 }
 
 /* Content */
@@ -111,21 +111,21 @@
   margin: 0 0 0.75rem 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text, #e2e8f0);
+  color: var(--text, var(--text-primary));
 }
 
 .tour-content p {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.6;
-  color: var(--text-dim, #94a3b8);
+  color: var(--text-dim, var(--text-muted));
 }
 
 .tour-action {
   margin-top: 1rem;
   padding: 0.75rem;
   background: var(--glass, rgba(74, 222, 128, 0.1));
-  border: 1px dashed var(--accent, #4ade80);
+  border: 1px dashed var(--accent, var(--success));
   border-radius: 6px;
 }
 
@@ -133,7 +133,7 @@
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--accent, #4ade80);
+  color: var(--accent, var(--success));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
@@ -141,7 +141,7 @@
 
 .tour-action-text {
   font-size: 0.875rem;
-  color: var(--text, #e2e8f0);
+  color: var(--text, var(--text-primary));
 }
 
 /* Step Indicators */
@@ -150,7 +150,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-top: 1px solid var(--border, #2d2d44);
+  border-top: 1px solid var(--border);
 }
 
 .tour-indicator {
@@ -169,13 +169,13 @@
 }
 
 .tour-indicator.active {
-  background: var(--accent, #4ade80);
+  background: var(--accent, var(--pad-green));
   width: 24px;
   border-radius: 4px;
 }
 
 .tour-indicator.completed {
-  background: var(--blue, #60a5fa);
+  background: var(--blue, var(--info-solid));
 }
 
 /* Footer */
@@ -185,13 +185,13 @@
   justify-content: space-between;
   padding: 0.75rem 1rem;
   background: var(--glass, rgba(0, 0, 0, 0.2));
-  border-top: 1px solid var(--border, #2d2d44);
+  border-top: 1px solid var(--border);
 }
 
 .tour-skip {
   background: transparent;
   border: none;
-  color: var(--text-dim, #64748b);
+  color: var(--text-dim, var(--text-muted));
   font-size: 0.8rem;
   cursor: pointer;
   padding: 0.5rem;
@@ -199,7 +199,7 @@
 }
 
 .tour-skip:hover {
-  color: var(--text, #e2e8f0);
+  color: var(--text, var(--text-primary));
 }
 
 .tour-nav {
@@ -217,8 +217,8 @@
 
 .tour-prev {
   background: transparent;
-  border: 1px solid var(--border, #2d2d44);
-  color: var(--text, #e2e8f0);
+  border: 1px solid var(--border);
+  color: var(--text, var(--text-primary));
 }
 
 .tour-prev:hover:not(:disabled) {
@@ -231,14 +231,14 @@
 }
 
 .tour-next {
-  background: var(--accent, #4ade80);
+  background: var(--accent, var(--pad-green));
   border: none;
   color: #000;
   font-weight: 500;
 }
 
 .tour-next:hover {
-  background: var(--accent-hover, #22c55e);
+  background: var(--accent-hover, var(--pad-green));
 }
 
 /* Arrow pointing to target */
@@ -247,8 +247,8 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  background: var(--panel-bg, #1a1a2e);
-  border: 1px solid var(--border, #2d2d44);
+  background: var(--panel-bg, var(--bg-primary));
+  border: 1px solid var(--border);
   transform: rotate(45deg);
 }
 

@@ -14,8 +14,11 @@
       {
         "label": "main",
         "title": "Super Punch-Out!! Editor",
-        "width": 1200,
-        "height": 800
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "center": true
       }
     ],
     "security": {

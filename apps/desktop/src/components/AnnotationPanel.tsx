@@ -244,7 +244,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 16,
     padding: 16,
-    backgroundColor: '#16161e',
+    backgroundColor: 'var(--bg-primary)',
     borderRadius: 8,
     color: '#fff',
   },
@@ -253,7 +253,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 4,
     paddingBottom: 12,
-    borderBottom: '1px solid #333',
+    borderBottom: '1px solid var(--border)',
   },
   title: {
     margin: 0,
@@ -262,20 +262,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   frameInfo: {
     fontSize: 12,
-    color: '#888',
+    color: 'var(--text-muted)',
   },
   error: {
     padding: 8,
     backgroundColor: '#dc262620',
-    border: '1px solid #dc2626',
+    border: '1px solid var(--error)',
     borderRadius: 4,
-    color: '#f87171',
+    color: 'var(--error)',
     fontSize: 12,
   },
   loading: {
     padding: 24,
     textAlign: 'center',
-    color: '#888',
+    color: 'var(--text-muted)',
     fontSize: 13,
   },
   section: {
@@ -291,14 +291,14 @@ const styles: Record<string, React.CSSProperties> = {
   sectionTitle: {
     fontSize: 12,
     fontWeight: 600,
-    color: '#888',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   toggleButton: {
     padding: '4px 10px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: 11,
@@ -319,7 +319,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   noTags: {
     fontSize: 12,
-    color: '#666',
+    color: 'var(--text-muted)',
     fontStyle: 'italic',
   },
   taggerContainer: {
@@ -329,8 +329,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   notesInput: {
     padding: 10,
-    backgroundColor: '#1e1e2e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: 13,

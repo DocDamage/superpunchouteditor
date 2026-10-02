@@ -73,7 +73,7 @@ export function SimulationPreview({ result, isRunning, onRun }: SimulationPrevie
           <div 
             className="difficulty-display"
             style={{ 
-              background: `linear-gradient(135deg, ${difficultyInfo.color}40, ${difficultyInfo.color}20)`,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${difficultyInfo.color} 25%, transparent), color-mix(in srgb, ${difficultyInfo.color} 13%, transparent))`,
               borderColor: difficultyInfo.color 
             }}
           >
@@ -191,15 +191,15 @@ export function SimulationPreview({ result, isRunning, onRun }: SimulationPrevie
 // Helper functions
 function getDifficultyInfo(rating: DifficultyRating): { label: string; color: string } {
   const difficultyMap: Record<DifficultyRating, { label: string; color: string }> = {
-    'VeryEasy': { label: 'Very Easy', color: '#4ade80' },
-    'Easy': { label: 'Easy', color: '#60a5fa' },
-    'Medium': { label: 'Medium', color: '#fbbf24' },
+    'VeryEasy': { label: 'Very Easy', color: 'var(--success)' },
+    'Easy': { label: 'Easy', color: 'var(--info)' },
+    'Medium': { label: 'Medium', color: 'var(--warning)' },
     'Hard': { label: 'Hard', color: '#fb923c' },
-    'VeryHard': { label: 'Very Hard', color: '#f87171' },
-    'Extreme': { label: 'Extreme', color: '#a855f7' },
+    'VeryHard': { label: 'Very Hard', color: 'var(--error)' },
+    'Extreme': { label: 'Extreme', color: 'var(--plum)' },
   };
   
-  return difficultyMap[rating] || { label: 'Unknown', color: '#9ca3af' };
+  return difficultyMap[rating] || { label: 'Unknown', color: 'var(--text-muted)' };
 }
 
 function formatTime(seconds: number): string {

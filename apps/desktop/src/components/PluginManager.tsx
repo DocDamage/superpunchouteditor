@@ -817,7 +817,7 @@ function ScriptRunner({ onRunScript, output, isRunning, error }: ScriptRunnerPro
               : output?.success
                 ? 'rgba(34, 197, 94, 0.1)'
                 : 'rgba(251, 191, 36, 0.1)',
-            border: `1px solid ${error ? 'var(--accent)' : output?.success ? '#22c55e' : '#fbbf24'}`,
+            border: `1px solid ${error ? 'var(--accent)' : output?.success ? 'var(--success)' : 'var(--warning)'}`,
           }}
         >
           {error && (
@@ -837,7 +837,7 @@ function ScriptRunner({ onRunScript, output, isRunning, error }: ScriptRunnerPro
                   fontSize: '0.85rem',
                 }}
               >
-                <span style={{ color: output.success ? '#22c55e' : '#fbbf24' }}>
+                <span style={{ color: output.success ? 'var(--success)' : 'var(--warning)' }}>
                   {output.success ? '✓ Success' : '⚠ Completed with errors'}
                 </span>
                 <span style={{ color: 'var(--text-dim)' }}>•</span>

@@ -560,7 +560,7 @@ export const ScriptViewer: React.FC = () => {
                       <span 
                         className="px-2 py-0.5 rounded text-xs font-medium"
                         style={{ 
-                          backgroundColor: `${categoryColors[script.category]}20`,
+                          backgroundColor: `color-mix(in srgb, ${categoryColors[script.category]} 13%, transparent)`,
                           color: categoryColors[script.category]
                         }}
                       >
@@ -574,7 +574,7 @@ export const ScriptViewer: React.FC = () => {
                       <span 
                         className="ml-auto px-1.5 py-0.5 rounded text-xs"
                         style={{ 
-                          backgroundColor: `${riskColors[script.risk]}20`,
+                          backgroundColor: `color-mix(in srgb, ${riskColors[script.risk]} 13%, transparent)`,
                           color: riskColors[script.risk]
                         }}
                       >
@@ -602,7 +602,7 @@ export const ScriptViewer: React.FC = () => {
                   <span 
                     className="px-2 py-1 rounded text-xs font-medium"
                     style={{ 
-                      backgroundColor: `${categoryColors[selectedScript.category]}20`,
+                      backgroundColor: `color-mix(in srgb, ${categoryColors[selectedScript.category]} 13%, transparent)`,
                       color: categoryColors[selectedScript.category]
                     }}
                   >

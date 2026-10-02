@@ -22,6 +22,7 @@ pub mod help;
 pub mod history;
 pub mod layout_pack;
 pub mod patches;
+pub mod photo_stamp;
 pub mod plugins;
 pub mod preflight;
 pub mod project;

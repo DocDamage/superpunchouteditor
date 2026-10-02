@@ -180,7 +180,7 @@ export const RelocationHelper = ({
             <div style={{
               width: `${spaceInfo.utilization_percent}%`,
               height: '100%',
-              backgroundColor: spaceInfo.utilization_percent > 90 ? '#f87171' : '#60a5fa',
+              backgroundColor: spaceInfo.utilization_percent > 90 ? 'var(--accent)' : 'var(--info-solid)',
               transition: 'width 0.3s ease',
             }} />
           </div>
@@ -189,7 +189,7 @@ export const RelocationHelper = ({
             <div style={{
               marginTop: '0.5rem',
               fontSize: '0.8rem',
-              color: '#fbbf24',
+              color: 'var(--warning)',
             }}>
               ⚠️ High fragmentation detected ({(spaceInfo.fragmentation_score * 100).toFixed(0)}%)
             </div>
@@ -262,14 +262,14 @@ export const RelocationHelper = ({
           marginBottom: '1.5rem',
           padding: '1rem',
           backgroundColor: validation.valid ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)',
-          border: `1px solid ${validation.valid ? '#4ade80' : '#f87171'}`,
+          border: `1px solid ${validation.valid ? 'var(--success)' : 'var(--error)'}`,
           borderRadius: '8px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '1.2rem' }}>
               {validation.valid ? '✅' : '❌'}
             </span>
-            <strong style={{ color: validation.valid ? '#4ade80' : '#f87171' }}>
+            <strong style={{ color: validation.valid ? 'var(--success)' : 'var(--error)' }}>
               {validation.valid ? 'Relocation is Valid' : 'Relocation Invalid'}
             </strong>
             <span style={{
@@ -287,10 +287,10 @@ export const RelocationHelper = ({
 
           {validation.warnings.length > 0 && (
             <div style={{ marginTop: '0.75rem' }}>
-              <strong style={{ fontSize: '0.8rem', color: '#fbbf24' }}>Warnings:</strong>
+              <strong style={{ fontSize: '0.8rem', color: 'var(--warning)' }}>Warnings:</strong>
               <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
                 {validation.warnings.map((w, i) => (
-                  <li key={i} style={{ color: '#fbbf24' }}>{w}</li>
+                  <li key={i} style={{ color: 'var(--warning)' }}>{w}</li>
                 ))}
               </ul>
             </div>
@@ -298,10 +298,10 @@ export const RelocationHelper = ({
 
           {validation.errors.length > 0 && (
             <div style={{ marginTop: '0.75rem' }}>
-              <strong style={{ fontSize: '0.8rem', color: '#f87171' }}>Errors:</strong>
+              <strong style={{ fontSize: '0.8rem', color: 'var(--error)' }}>Errors:</strong>
               <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
                 {validation.errors.map((e, i) => (
-                  <li key={i} style={{ color: '#f87171' }}>{e}</li>
+                  <li key={i} style={{ color: 'var(--error)' }}>{e}</li>
                 ))}
               </ul>
             </div>
@@ -338,10 +338,10 @@ export const RelocationHelper = ({
           marginBottom: '1.5rem',
           padding: '1rem',
           backgroundColor: 'rgba(251, 191, 36, 0.1)',
-          border: '1px solid #fbbf24',
+          border: '1px solid var(--warning)',
           borderRadius: '8px',
         }}>
-          <h4 style={{ marginBottom: '0.5rem', color: '#fbbf24' }}>
+          <h4 style={{ marginBottom: '0.5rem', color: 'var(--warning)' }}>
             ⚠️ Destination Currently Occupied
           </h4>
           <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>

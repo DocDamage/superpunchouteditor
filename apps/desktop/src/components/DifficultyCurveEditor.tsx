@@ -208,19 +208,19 @@ export function DifficultyCurveEditor({ curve, onChange }: DifficultyCurveEditor
           
           <div className="chart-legend">
             <div className="legend-item">
-              <span className="legend-color" style={{ background: '#ef4444' }} />
+              <span className="legend-color" style={{ background: 'var(--accent)' }} />
               <span>Aggression</span>
             </div>
             <div className="legend-item">
-              <span className="legend-color" style={{ background: '#3b82f6' }} />
+              <span className="legend-color" style={{ background: 'var(--info-solid)' }} />
               <span>Defense</span>
             </div>
             <div className="legend-item">
-              <span className="legend-color" style={{ background: '#22c55e' }} />
+              <span className="legend-color" style={{ background: 'var(--pad-green)' }} />
               <span>Speed</span>
             </div>
             <div className="legend-item">
-              <span className="legend-color" style={{ background: '#a855f7' }} />
+              <span className="legend-color" style={{ background: 'var(--plum)' }} />
               <span>Complexity</span>
             </div>
           </div>
@@ -283,7 +283,7 @@ interface RoundEditorProps {
 function RoundEditor({ round, name, color, onChange }: RoundEditorProps) {
   return (
     <div className="round-editor" style={{ borderLeftColor: color }}>
-      <div className="round-header" style={{ backgroundColor: `${color}20` }}>
+      <div className="round-header" style={{ backgroundColor: `color-mix(in srgb, ${color} 13%, transparent)` }}>
         <h4 style={{ color }}>Round {round.round}</h4>
         <span className="round-name">{name}</span>
       </div>

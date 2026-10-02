@@ -320,38 +320,38 @@ const AssetListItem: React.FC<AssetListItemProps> = ({ diff, isSelected, onClick
           icon: '🎨',
           title: diff.boxer,
           subtitle: `Palette - ${diff.changed_indices.length} colors changed`,
-          color: '#f59e0b'
+          color: 'var(--warning)'
         };
       case 'Sprite':
         return {
           icon: '🖼️',
           title: diff.boxer,
           subtitle: `${diff.bin_name} - ${diff.changed_tile_indices.length} tiles`,
-          color: '#3b82f6'
+          color: 'var(--info)'
         };
       case 'Header':
         return {
           icon: '📋',
           title: diff.boxer,
           subtitle: `${diff.changed_fields.length} fields changed`,
-          color: '#10b981'
+          color: 'var(--success)'
         };
       case 'Animation':
         return {
           icon: '🎬',
           title: diff.boxer,
           subtitle: diff.anim_name,
-          color: '#8b5cf6'
+          color: 'var(--plum)'
         };
       case 'Binary':
         return {
           icon: '💾',
           title: 'Binary',
           subtitle: `${diff.bytes_changed} bytes at 0x${diff.offset.toString(16)}`,
-          color: '#6b7280'
+          color: 'var(--text-muted)'
         };
       default:
-        return { icon: '❓', title: 'Unknown', subtitle: '', color: '#6b7280' };
+        return { icon: '❓', title: 'Unknown', subtitle: '', color: 'var(--text-muted)' };
     }
   };
 

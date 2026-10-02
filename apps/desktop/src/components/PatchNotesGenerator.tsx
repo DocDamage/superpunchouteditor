@@ -497,7 +497,7 @@ export const PatchNotesGenerator = () => {
             flex: 1,
             minWidth: '140px',
             padding: '10px 16px',
-            backgroundColor: hasChanges ? '#10b981' : 'var(--border)',
+            backgroundColor: hasChanges ? 'var(--pad-green)' : 'var(--border)',
             border: 'none',
             borderRadius: '6px',
             cursor: hasChanges ? 'pointer' : 'not-allowed',
@@ -518,7 +518,7 @@ export const PatchNotesGenerator = () => {
           borderRadius: '8px',
           background: status.startsWith('✓') ? 'rgba(107,219,125,0.1)' : 'rgba(255,80,80,0.1)',
           border: `1px solid ${status.startsWith('✓') ? 'rgba(107,219,125,0.3)' : 'rgba(255,80,80,0.3)'}`,
-          color: status.startsWith('✓') ? '#6bdb7d' : '#ff6666',
+          color: status.startsWith('✓') ? 'var(--success)' : 'var(--error)',
           fontSize: '0.85rem',
           fontFamily: 'monospace',
         }}>

@@ -605,7 +605,7 @@ export function RosterEditor({ initialTab, mode = 'game', onLaunchCreatorTest }:
                   </option>
                 ))}
               </select>
-              <small style={{ color: 'var(--text-muted, #94a3b8)' }}>
+              <small style={{ color: 'var(--text-muted)' }}>
                 New roster slots now clone their own palette and portrait/icon ownership. This picks the manifest boxer used as the template source for that dedicated asset owner.
               </small>
             </label>

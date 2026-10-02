@@ -26,7 +26,6 @@ import {
   lightTheme,
   applyThemeToCSS,
   applyRuntimeSkinToCSS,
-  deriveRuntimeThemeColors,
   getEffectiveTheme,
   getThemeColors,
   THEME_STORAGE_KEY,
@@ -79,9 +78,8 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
   
   // Get current theme colors
   const colors = useMemo(() => {
-    const baseColors = getThemeColors(theme);
-    return runtimeSkin ? deriveRuntimeThemeColors(baseColors, runtimeSkin) : baseColors;
-  }, [theme, runtimeSkin]);
+    return getThemeColors(theme);
+  }, [theme]);
   
   // Check if currently in dark mode
   const isDark = effectiveTheme === 'dark';
@@ -91,13 +89,10 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
    */
   const applyTheme = useCallback((newTheme: Theme, skin: RuntimeSkin | null) => {
     const effective = getEffectiveTheme(newTheme);
-    const baseThemeColors = effective === 'dark' ? darkTheme : lightTheme;
-    const themeColors = skin
-      ? deriveRuntimeThemeColors(baseThemeColors, skin)
-      : baseThemeColors;
-    
-    // Apply CSS variables
-    applyThemeToCSS(themeColors);
+    const themeColors = effective === 'dark' ? darkTheme : lightTheme;
+
+    // Select the token set and the boxer accent
+    applyThemeToCSS(effective);
     applyRuntimeSkinToCSS(skin);
     
     // Update body class for global styling
@@ -195,11 +190,7 @@ export function ThemeProvider({ children }: ThemeProviderProps): React.ReactElem
     
     const handleChange = (e: MediaQueryListEvent) => {
       const newEffectiveTheme = e.matches ? 'dark' : 'light';
-      const baseThemeColors = newEffectiveTheme === 'dark' ? darkTheme : lightTheme;
-      const themeColors = runtimeSkin
-        ? deriveRuntimeThemeColors(baseThemeColors, runtimeSkin)
-        : baseThemeColors;
-      applyThemeToCSS(themeColors);
+      applyThemeToCSS(newEffectiveTheme);
       applyRuntimeSkinToCSS(runtimeSkin);
       document.body.classList.remove('theme-dark', 'theme-light');
       document.body.classList.add(`theme-${newEffectiveTheme}`);

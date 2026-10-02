@@ -52,50 +52,50 @@ export interface RuntimeSkin {
  * Dark theme color palette (default)
  */
 export const darkTheme: ThemeColors = {
-  bgPrimary: '#0f172a',
-  bgSecondary: '#1e293b',
-  bgTertiary: '#334155',
-  bgPanel: '#1e293b',
-  textPrimary: '#f8fafc',
-  textSecondary: '#cbd5e1',
-  textMuted: '#64748b',
-  textInverse: '#0f172a',
-  accent: '#e74c3c',
-  accentHover: '#c0392b',
-  accentMuted: '#1e3a5f',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#3b82f6',
-  border: '#334155',
-  borderHover: '#475569',
-  grid: '#1e293b',
-  canvasBg: '#0f172a',
+  bgPrimary: '#14131c',
+  bgSecondary: '#1b1a26',
+  bgTertiary: '#2c2a3c',
+  bgPanel: '#22202f',
+  textPrimary: '#f7f5fc',
+  textSecondary: '#cbc7da',
+  textMuted: '#9a95ae',
+  textInverse: '#14131c',
+  accent: '#e5121d',
+  accentHover: '#ff3340',
+  accentMuted: '#45141b',
+  success: '#3ddc84',
+  warning: '#ffc53d',
+  error: '#ff6b74',
+  info: '#6ea8ff',
+  border: '#37344b',
+  borderHover: '#575270',
+  grid: '#26243a',
+  canvasBg: '#0d0c13',
 };
 
 /**
  * Light theme color palette
  */
 export const lightTheme: ThemeColors = {
-  bgPrimary: '#ffffff',
-  bgSecondary: '#f1f5f9',
-  bgTertiary: '#e2e8f0',
-  bgPanel: '#f8fafc',
-  textPrimary: '#0f172a',
-  textSecondary: '#475569',
-  textMuted: '#94a3b8',
+  bgPrimary: '#f2f0f6',
+  bgSecondary: '#e8e5ef',
+  bgTertiary: '#dcd8e6',
+  bgPanel: '#ffffff',
+  textPrimary: '#1c1a26',
+  textSecondary: '#474357',
+  textMuted: '#6a657c',
   textInverse: '#ffffff',
-  accent: '#dc2626',
-  accentHover: '#b91c1c',
-  accentMuted: '#fee2e2',
-  success: '#16a34a',
-  warning: '#d97706',
-  error: '#dc2626',
-  info: '#2563eb',
-  border: '#e2e8f0',
-  borderHover: '#cbd5e1',
-  grid: '#f1f5f9',
-  canvasBg: '#ffffff',
+  accent: '#e5121d',
+  accentHover: '#c90c16',
+  accentMuted: '#fde0e2',
+  success: '#0b8043',
+  warning: '#a35f00',
+  error: '#c8101b',
+  info: '#2152c9',
+  border: '#cfcadb',
+  borderHover: '#a8a1bc',
+  grid: '#dcd8e6',
+  canvasBg: '#f8f7fb',
 };
 
 /**
@@ -141,25 +141,19 @@ export const legacyVariableMap: Record<string, keyof ThemeColors> = {
 };
 
 /**
- * Apply theme colors to CSS custom properties
+ * Select the active theme.
+ *
+ * Colour tokens are owned by `styles/tokens.css`; this only chooses which set
+ * applies and clears inline overrides written by older builds.
  */
-export function applyThemeToCSS(colors: ThemeColors): void {
+export function applyThemeToCSS(effectiveTheme: 'dark' | 'light'): void {
   const root = document.documentElement;
-  
+  root.dataset.theme = effectiveTheme;
+
   (Object.keys(cssVariableMap) as Array<keyof ThemeColors>).forEach((key) => {
-    root.style.setProperty(cssVariableMap[key], colors[key]);
+    root.style.removeProperty(cssVariableMap[key]);
   });
-  
-  // Apply legacy mappings for backward compatibility
-  root.style.setProperty('--primary-bg', colors.bgPrimary);
-  root.style.setProperty('--secondary-bg', colors.bgSecondary);
-  root.style.setProperty('--panel-bg', colors.bgPanel);
-  root.style.setProperty('--text-main', colors.textPrimary);
-  root.style.setProperty('--text-dim', colors.textMuted);
-  root.style.setProperty('--text', colors.textPrimary);
-  root.style.setProperty('--glass', `${colors.bgTertiary}80`); // 50% opacity
-  root.style.setProperty('--blue', colors.info);
-  root.style.setProperty('--blue-hover', colors.info);
+  Object.keys(legacyVariableMap).forEach((name) => root.style.removeProperty(name));
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -223,63 +217,34 @@ function deriveSkinPalette(palette: RuntimeSkin['palette']) {
   return { darkest, dark, brightest, accent, cool };
 }
 
-export function deriveRuntimeThemeColors(base: ThemeColors, skin: RuntimeSkin): ThemeColors {
-  const { darkest, dark, brightest, accent, cool } = deriveSkinPalette(skin.palette);
-  const bgPrimary = rgbToHex(mixColor(darkest, accent, 0.08));
-  const bgSecondary = rgbToHex(mixColor(dark, accent, 0.14));
-  const bgTertiary = rgbToHex(mixColor(dark, brightest, 0.16));
-  const bgPanel = rgbToHex(mixColor(dark, accent, 0.2));
-  const border = rgbToHex(mixColor(accent, dark, 0.52));
-  const borderHover = rgbToHex(mixColor(accent, brightest, 0.28));
-  const accentHex = rgbToHex(accent);
-  const accentHover = rgbToHex(mixColor(accent, brightest, 0.18));
-  const accentMuted = rgbToHex(mixColor(accent, dark, 0.72));
-  const info = rgbToHex(cool);
-  const textPrimary = rgbToHex(mixColor(brightest, { r: 255, g: 248, b: 220 }, 0.16));
-  const textSecondary = rgbToHex(mixColor(brightest, dark, 0.34));
-  const textMuted = rgbToHex(mixColor(brightest, dark, 0.58));
-
-  return {
-    ...base,
-    bgPrimary,
-    bgSecondary,
-    bgTertiary,
-    bgPanel,
-    textPrimary,
-    textSecondary,
-    textMuted,
-    accent: accentHex,
-    accentHover,
-    accentMuted,
-    success: base.success,
-    warning: rgbToHex(mixColor(accent, { r: 255, g: 212, b: 92 }, 0.45)),
-    error: rgbToHex(mixColor(accent, { r: 255, g: 106, b: 106 }, 0.3)),
-    info,
-    border,
-    borderHover,
-    grid: rgbToHex(mixColor(dark, accent, 0.12)),
-    canvasBg: bgPrimary,
-  };
+/**
+ * Pick one readable accent colour from the selected boxer's palette.
+ *
+ * The palette is read from the user's own ROM at runtime. Only this single
+ * accent is taken from it; the rest of the interface keeps its own colours so
+ * text stays readable whichever boxer is selected.
+ */
+export function deriveBoxerAccent(skin: RuntimeSkin): string {
+  const { accent } = deriveSkinPalette(skin.palette);
+  return rgbToHex(accent);
 }
 
 export function applyRuntimeSkinToCSS(skin: RuntimeSkin | null): void {
   const root = document.documentElement;
 
   if (!skin) {
+    root.style.removeProperty('--boxer-accent');
     root.style.removeProperty('--auth-icon-image');
     root.style.removeProperty('--auth-portrait-image');
-    root.style.removeProperty('--auth-boxer-name');
-    document.body.classList.remove('theme-authentic');
     return;
   }
 
+  root.style.setProperty('--boxer-accent', deriveBoxerAccent(skin));
   root.style.setProperty('--auth-icon-image', skin.iconDataUrl ? `url("${skin.iconDataUrl}")` : 'none');
   root.style.setProperty(
     '--auth-portrait-image',
     skin.portraitDataUrl ? `url("${skin.portraitDataUrl}")` : 'none'
   );
-  root.style.setProperty('--auth-boxer-name', `"${skin.boxerName}"`);
-  document.body.classList.add('theme-authentic');
 }
 
 /**

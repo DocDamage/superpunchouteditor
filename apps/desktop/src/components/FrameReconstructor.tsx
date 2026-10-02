@@ -374,7 +374,7 @@ export const FrameReconstructor: React.FC = () => {
             onClick={() => setShowAnnotationPanel(!showAnnotationPanel)}
             style={{
               ...styles.annotationButton,
-              backgroundColor: showAnnotationPanel ? '#0066cc' : '#2a2a3e',
+              backgroundColor: showAnnotationPanel ? '#0066cc' : 'var(--bg-panel)',
             }}
             title="Toggle Annotation Panel"
           >
@@ -578,7 +578,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
-    backgroundColor: '#16161e',
+    backgroundColor: 'var(--bg-primary)',
     color: '#fff',
   },
   header: {
@@ -586,8 +586,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '12px 24px',
-    backgroundColor: '#1e1e2e',
-    borderBottom: '1px solid #333',
+    backgroundColor: 'var(--bg-secondary)',
+    borderBottom: '1px solid var(--border)',
   },
   headerLeft: {
     display: 'flex',
@@ -606,8 +606,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   frameSelect: {
     padding: '6px 12px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '13px',
@@ -615,8 +615,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   annotationButton: {
     padding: '6px 12px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '13px',
@@ -644,7 +644,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   unsavedIndicator: {
     fontSize: '12px',
-    color: '#fbbf24',
+    color: 'var(--warning)',
   },
   toolGroup: {
     display: 'flex',
@@ -652,8 +652,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toolButton: {
     padding: '8px 12px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '13px',
@@ -677,15 +677,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   zoomSelect: {
     padding: '6px 8px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '13px',
   },
   saveButton: {
     padding: '8px 16px',
-    backgroundColor: '#22c55e',
+    backgroundColor: 'var(--pad-green)',
     border: 'none',
     borderRadius: 4,
     color: '#fff',
@@ -702,7 +702,7 @@ const styles: Record<string, React.CSSProperties> = {
   leftSidebar: {
     width: 280,
     padding: 16,
-    borderRight: '1px solid #333',
+    borderRight: '1px solid var(--border)',
     overflow: 'hidden',
   },
   canvasContainer: {
@@ -716,7 +716,7 @@ const styles: Record<string, React.CSSProperties> = {
   rightSidebar: {
     width: 280,
     padding: 16,
-    borderLeft: '1px solid #333',
+    borderLeft: '1px solid var(--border)',
     overflow: 'hidden',
   },
   loading: {
@@ -724,14 +724,14 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '14px',
-    color: '#888',
+    color: 'var(--text-muted)',
   },
   error: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '14px',
-    color: '#ff6b6b',
+    color: 'var(--error)',
   },
   canvasToolbar: {
     position: 'absolute',
@@ -748,8 +748,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toolbarButton: {
     padding: '6px 12px',
-    backgroundColor: '#2a2a3e',
-    border: '1px solid #444',
+    backgroundColor: 'var(--bg-panel)',
+    border: '1px solid var(--border-hover)',
     borderRadius: 4,
     color: '#fff',
     fontSize: '14px',
@@ -765,10 +765,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '8px 24px',
-    backgroundColor: '#1e1e2e',
-    borderTop: '1px solid #333',
+    backgroundColor: 'var(--bg-secondary)',
+    borderTop: '1px solid var(--border)',
     fontSize: '12px',
-    color: '#888',
+    color: 'var(--text-muted)',
   },
   statusLeft: {
     display: 'flex',
@@ -786,7 +786,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100vh',
-    backgroundColor: '#16161e',
+    backgroundColor: 'var(--bg-primary)',
   },
   emptyState: {
     textAlign: 'center',
@@ -804,6 +804,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'var(--text-muted)',
   },
 };

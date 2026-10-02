@@ -159,7 +159,7 @@ export const BankVisualization = () => {
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.25rem 0.75rem',
-          backgroundColor: `${colors[rating]}20`,
+          backgroundColor: `color-mix(in srgb, ${colors[rating]} 13%, transparent)`,
           border: `1px solid ${colors[rating]}`,
           borderRadius: '4px',
           color: colors[rating],
@@ -286,9 +286,9 @@ export const BankVisualization = () => {
           style={{
             padding: '1rem',
             backgroundColor: 'rgba(248, 113, 113, 0.1)',
-            border: '1px solid #f87171',
+            border: '1px solid var(--error)',
             borderRadius: '8px',
-            color: '#f87171',
+            color: 'var(--error)',
             marginBottom: '1rem',
           }}
         >
@@ -302,9 +302,9 @@ export const BankVisualization = () => {
           style={{
             padding: '1rem',
             backgroundColor: 'rgba(74, 222, 128, 0.1)',
-            border: '1px solid #4ade80',
+            border: '1px solid var(--success)',
             borderRadius: '8px',
-            color: '#4ade80',
+            color: 'var(--success)',
             marginBottom: '1rem',
           }}
         >
@@ -875,7 +875,7 @@ const FragmentationPanel = ({
                 <span style={{ fontFamily: 'monospace' }}>
                   Bank {analysis.largest_free_region.bank}: {formatAddress(analysis.largest_free_region.start_addr)} - {formatAddress(analysis.largest_free_region.end_addr)}
                 </span>
-                <span style={{ color: '#4ade80', fontWeight: 600 }}>
+                <span style={{ color: 'var(--success)', fontWeight: 600 }}>
                   {formatBytes(analysis.largest_free_region.size)}
                 </span>
               </div>
@@ -909,7 +909,7 @@ const FragmentationPanel = ({
                     }}
                   >
                     <span>{opp.regions.length} regions can be consolidated</span>
-                    <span style={{ color: '#4ade80' }}>Save {formatBytes(opp.potential_savings)}</span>
+                    <span style={{ color: 'var(--success)' }}>Save {formatBytes(opp.potential_savings)}</span>
                   </div>
                 ))}
               </div>
@@ -938,9 +938,9 @@ const FragmentationPanel = ({
           >
             <span>📋 Defragmentation Plan</span>
             {plan.recommended ? (
-              <span style={{ color: '#4ade80', fontSize: '0.85rem' }}>✓ Recommended</span>
+              <span style={{ color: 'var(--success)', fontSize: '0.85rem' }}>✓ Recommended</span>
             ) : (
-              <span style={{ color: '#fbbf24', fontSize: '0.85rem' }}>⚠ Not Recommended</span>
+              <span style={{ color: 'var(--warning)', fontSize: '0.85rem' }}>⚠ Not Recommended</span>
             )}
           </h3>
 
@@ -979,7 +979,7 @@ const FragmentationPanel = ({
                 marginBottom: '1rem',
               }}
             >
-              <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: '#fbbf24' }}>
+              <h4 style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--warning)' }}>
                 ⚠ Warnings
               </h4>
               <ul
@@ -1161,7 +1161,7 @@ const FreeRegionSearch = ({
                 <div
                   style={{
                     padding: '0.4rem 0.8rem',
-                    backgroundColor: '#4ade80',
+                    backgroundColor: 'var(--pad-green)',
                     color: '#000',
                     borderRadius: '6px',
                     fontSize: '0.85rem',
@@ -1221,7 +1221,7 @@ const ConfirmDialog = ({ plan, getSafetyDisplay, formatBytes, onCancel, onConfir
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 style={{ marginBottom: '1rem', color: '#f87171' }}>
+      <h3 style={{ marginBottom: '1rem', color: 'var(--error)' }}>
         ⚠️ Confirm Defragmentation
       </h3>
       <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
@@ -1250,7 +1250,7 @@ const ConfirmDialog = ({ plan, getSafetyDisplay, formatBytes, onCancel, onConfir
           borderRadius: '6px',
           marginBottom: '1rem',
           fontSize: '0.85rem',
-          color: '#f87171',
+          color: 'var(--error)',
         }}
       >
         <strong>Warning:</strong> This will modify the ROM file. This action cannot be undone.

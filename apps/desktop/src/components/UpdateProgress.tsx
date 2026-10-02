@@ -119,7 +119,7 @@ export function UpdateProgress({ progress, onCancel }: UpdateProgressProps) {
             style={{
               width: `${progress.percent}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, var(--blue), #4ade80)',
+              background: 'linear-gradient(90deg, var(--blue), var(--pad-green))',
               borderRadius: '4px',
               transition: 'width 0.3s ease',
               boxShadow: progress.state === 'downloading' 
@@ -173,7 +173,7 @@ export function UpdateProgress({ progress, onCancel }: UpdateProgressProps) {
               backgroundColor: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               borderRadius: '6px',
-              color: '#ef4444',
+              color: 'var(--error)',
               fontSize: '0.875rem',
             }}
           >
@@ -189,7 +189,7 @@ export function UpdateProgress({ progress, onCancel }: UpdateProgressProps) {
               backgroundColor: 'rgba(74, 222, 128, 0.1)',
               border: '1px solid rgba(74, 222, 128, 0.3)',
               borderRadius: '6px',
-              color: '#4ade80',
+              color: 'var(--success)',
               fontSize: '0.875rem',
             }}
           >

@@ -247,15 +247,15 @@
 }
 
 .timing-segment.windup {
-  background: #fbbf24;
+  background: var(--pad-yellow);
 }
 
 .timing-segment.active {
-  background: #22c55e;
+  background: var(--pad-green);
 }
 
 .timing-segment.recovery {
-  background: #3b82f6;
+  background: var(--info-solid);
 }
 
 .move-damage {
@@ -434,15 +434,15 @@
 }
 
 .timing-block.windup {
-  background: #fbbf24;
+  background: var(--pad-yellow);
 }
 
 .timing-block.active {
-  background: #22c55e;
+  background: var(--pad-green);
 }
 
 .timing-block.recovery {
-  background: #3b82f6;
+  background: var(--info-solid);
 }
 
 .total-frames {

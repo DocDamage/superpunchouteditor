@@ -215,7 +215,7 @@ export const MusicEditor = ({
                     <label>CH1</label>
                     <div className="channel-visualization">
                       <div className="note-bars" style={{ 
-                        background: 'linear-gradient(90deg, #4ade80 20%, #22c55e 40%, #16a34a 60%, #4ade80 80%)' 
+                        background: 'linear-gradient(90deg, var(--pad-green) 20%, var(--pad-green) 40%, var(--pad-green) 60%, var(--pad-green) 80%)' 
                       }} />
                     </div>
                   </div>
@@ -223,7 +223,7 @@ export const MusicEditor = ({
                     <label>CH2</label>
                     <div className="channel-visualization">
                       <div className="note-bars" style={{ 
-                        background: 'linear-gradient(90deg, #60a5fa 10%, #3b82f6 30%, #2563eb 50%, #60a5fa 70%)' 
+                        background: 'linear-gradient(90deg, var(--info-solid) 10%, var(--info-solid) 30%, var(--info-solid) 50%, var(--info-solid) 70%)' 
                       }} />
                     </div>
                   </div>

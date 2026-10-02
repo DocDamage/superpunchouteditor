@@ -374,7 +374,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
           background: 'rgba(107,219,125,0.08)',
           border: '1px solid rgba(107,219,125,0.25)',
           fontSize: '0.82rem',
-          color: '#6bdb7d',
+          color: 'var(--success)',
         }}>
           ✓ Curated layout available
           {layout?.tier && <span style={{ marginLeft: '8px', opacity: 0.7 }}>Tier {layout.tier}</span>}
@@ -406,7 +406,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span style={{ fontSize: '1.1rem' }}>👥</span>
-            <span style={{ fontWeight: 600, color: '#ffcc88' }}>
+            <span style={{ fontWeight: 600, color: 'var(--warning)' }}>
               Shared Bank Pair
             </span>
           </div>
@@ -430,7 +430,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
               checked={includeShared}
               onChange={e => setIncludeShared(e.target.checked)}
             />
-            <span style={{ color: includeShared ? '#ff8888' : 'inherit' }}>
+            <span style={{ color: includeShared ? 'var(--error)' : 'inherit' }}>
               Include shared bins in sheet
             </span>
           </label>
@@ -457,7 +457,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
 
       {/* Sheet viewer */}
       <div style={{
-        background: '#0c0d14',
+        background: 'var(--canvas-bg)',
         border: '1px solid var(--border)',
         borderRadius: '10px',
         overflow: 'auto',
@@ -482,7 +482,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
         )}
 
         {error && !loading && (
-          <div style={{ textAlign: 'center', color: '#ff6666', fontSize: '0.875rem' }}>
+          <div style={{ textAlign: 'center', color: 'var(--error)', fontSize: '0.875rem' }}>
             <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>✗</div>
             {error}
           </div>
@@ -535,7 +535,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontWeight: 600, color: isSharedBin ? '#ff9999' : '#8ab4ff' }}>
+                      <span style={{ fontWeight: 600, color: isSharedBin ? 'var(--error)' : '#8ab4ff' }}>
                         {info.region}
                       </span>
                       {isSharedBin && (
@@ -544,7 +544,7 @@ export const BoxerPreviewSheet = ({ boxer }: BoxerPreviewSheetProps) => {
                           padding: '1px 4px', 
                           borderRadius: '3px',
                           background: 'rgba(255, 80, 80, 0.2)',
-                          color: '#ff8888',
+                          color: 'var(--error)',
                         }}>
                           SHARED
                         </span>

@@ -1,0 +1,39 @@
+/* My Projects screen */
+
+.projects-header h2 {
+  margin-bottom: 6px;
+  font-size: 2.6rem;
+}
+
+.projects-header p:last-child {
+  max-width: 660px;
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+}
+
+.projects-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.projects-actions button {
+  min-height: 46px;
+  font-size: 0.98rem;
+}
+
+.projects-empty {
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 2px dashed var(--border-hover);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: center;
+}
+
+.projects-empty strong {
+  color: var(--text-primary);
+}

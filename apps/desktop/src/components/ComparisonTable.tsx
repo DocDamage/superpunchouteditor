@@ -35,7 +35,7 @@ export const ComparisonTable: React.FC<ComparisonTableProps> = ({
     const isIncrease = delta > 0;
     return (
       <span style={{ 
-        color: isIncrease ? '#4ade80' : '#f87171',
+        color: isIncrease ? 'var(--success)' : 'var(--error)',
         display: 'flex',
         alignItems: 'center',
         gap: '0.25rem'
@@ -196,17 +196,17 @@ const getChangeSummary = (diff: Difference): React.ReactNode => {
     case 'Palette': {
       const changedColors = diff.changed_indices.length;
       if (changedColors === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
-      return <span style={{ color: '#f59e0b' }}>🔴 {changedColors} colors</span>;
+      return <span style={{ color: 'var(--warning)' }}>🔴 {changedColors} colors</span>;
     }
     case 'Sprite': {
       const changedTiles = diff.changed_tile_indices.length;
       if (changedTiles === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
-      return <span style={{ color: '#3b82f6' }}>🔵 {changedTiles} tiles</span>;
+      return <span style={{ color: 'var(--info)' }}>🔵 {changedTiles} tiles</span>;
     }
     case 'Header': {
       const changedFields = diff.changed_fields.length;
       if (changedFields === 0) return <span style={{ color: 'var(--text-dim)' }}>No change</span>;
-      return <span style={{ color: '#10b981' }}>🟢 {changedFields} fields</span>;
+      return <span style={{ color: 'var(--success)' }}>🟢 {changedFields} fields</span>;
     }
     default:
       return '-';
@@ -277,7 +277,7 @@ const PaletteDiffDetails: React.FC<PaletteDiffDetailProps> = ({ diff }) => {
 };
 
 const ColorSwatch: React.FC<{ color: ColorValue | undefined }> = ({ color }) => {
-  if (!color) return <div style={{ width: '24px', height: '24px', backgroundColor: '#333' }} />;
+  if (!color) return <div style={{ width: '24px', height: '24px', backgroundColor: 'var(--bg-tertiary)' }} />;
   return (
     <div style={{
       width: '24px',
@@ -342,9 +342,9 @@ const HeaderDiffDetails: React.FC<{ diff: Extract<Difference, { type: 'Header' }
               <td style={{ padding: '0.25rem', color: 'var(--accent)' }}>{field.modified_value}</td>
               <td style={{ padding: '0.25rem' }}>
                 {field.modified_value > field.original_value ? (
-                  <span style={{ color: '#4ade80' }}>+{field.modified_value - field.original_value}</span>
+                  <span style={{ color: 'var(--success)' }}>+{field.modified_value - field.original_value}</span>
                 ) : field.modified_value < field.original_value ? (
-                  <span style={{ color: '#f87171' }}>{field.modified_value - field.original_value}</span>
+                  <span style={{ color: 'var(--error)' }}>{field.modified_value - field.original_value}</span>
                 ) : (
                   <span style={{ color: 'var(--text-dim)' }}>0</span>
                 )}

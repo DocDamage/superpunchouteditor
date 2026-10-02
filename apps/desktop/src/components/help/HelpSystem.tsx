@@ -33,10 +33,10 @@ interface SearchResult {
 type HelpCategory = 'getting_started' | 'editing' | 'advanced' | 'troubleshooting';
 
 const categoryConfig: Record<HelpCategory, { label: string; icon: string; color: string }> = {
-  getting_started: { label: 'Getting Started', icon: '🚀', color: '#4ade80' },
-  editing: { label: 'Editing', icon: '✏️', color: '#60a5fa' },
+  getting_started: { label: 'Getting Started', icon: '🚀', color: 'var(--success)' },
+  editing: { label: 'Editing', icon: '✏️', color: 'var(--info)' },
   advanced: { label: 'Advanced', icon: '⚙️', color: '#f472b6' },
-  troubleshooting: { label: 'Troubleshooting', icon: '🔧', color: '#fbbf24' },
+  troubleshooting: { label: 'Troubleshooting', icon: '🔧', color: 'var(--warning)' },
 };
 
 interface HelpSystemProps {

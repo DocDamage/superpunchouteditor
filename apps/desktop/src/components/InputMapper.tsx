@@ -31,18 +31,18 @@ export interface InputMapperProps {
 
 // Button display info
 const BUTTON_INFO: Record<string, { label: string; color: string; icon: string }> = {
-  B: { label: 'B Button', color: '#ef4444', icon: '🅱' },
+  B: { label: 'B Button', color: 'var(--error)', icon: '🅱' },
   Y: { label: 'Y Button', color: '#eab308', icon: 'Ⓨ' },
-  SELECT: { label: 'Select', color: '#64748b', icon: '⊖' },
-  START: { label: 'Start', color: '#64748b', icon: '⊕' },
-  UP: { label: 'D-Pad Up', color: '#3b82f6', icon: '▲' },
-  DOWN: { label: 'D-Pad Down', color: '#3b82f6', icon: '▼' },
-  LEFT: { label: 'D-Pad Left', color: '#3b82f6', icon: '◀' },
-  RIGHT: { label: 'D-Pad Right', color: '#3b82f6', icon: '▶' },
-  A: { label: 'A Button', color: '#22c55e', icon: '🅰' },
-  X: { label: 'X Button', color: '#3b82f6', icon: 'Ⓧ' },
-  L: { label: 'L Shoulder', color: '#8b5cf6', icon: 'L' },
-  R: { label: 'R Shoulder', color: '#8b5cf6', icon: 'R' },
+  SELECT: { label: 'Select', color: 'var(--text-muted)', icon: '⊖' },
+  START: { label: 'Start', color: 'var(--text-muted)', icon: '⊕' },
+  UP: { label: 'D-Pad Up', color: 'var(--info)', icon: '▲' },
+  DOWN: { label: 'D-Pad Down', color: 'var(--info)', icon: '▼' },
+  LEFT: { label: 'D-Pad Left', color: 'var(--info)', icon: '◀' },
+  RIGHT: { label: 'D-Pad Right', color: 'var(--info)', icon: '▶' },
+  A: { label: 'A Button', color: 'var(--success)', icon: '🅰' },
+  X: { label: 'X Button', color: 'var(--info)', icon: 'Ⓧ' },
+  L: { label: 'L Shoulder', color: 'var(--plum)', icon: 'L' },
+  R: { label: 'R Shoulder', color: 'var(--plum)', icon: 'R' },
 };
 
 // Preset options
@@ -203,7 +203,7 @@ export const InputMapper: React.FC<InputMapperProps> = ({
                 {mappings.map((mapping) => {
                   const info = BUTTON_INFO[mapping.button] || { 
                     label: mapping.button, 
-                    color: '#64748b',
+                    color: 'var(--text-muted)',
                     icon: mapping.button,
                   };
                   const isListening = listeningButton === mapping.button;
@@ -285,11 +285,11 @@ export const InputMapper: React.FC<InputMapperProps> = ({
                   <div style={styles.actionButtonsVisual}>
                     <div style={styles.actionRow}>
                       <kbd style={{ ...styles.actionKey, backgroundColor: '#eab308' }}>Y</kbd>
-                      <kbd style={{ ...styles.actionKey, backgroundColor: '#3b82f6' }}>X</kbd>
+                      <kbd style={{ ...styles.actionKey, backgroundColor: 'var(--info-solid)' }}>X</kbd>
                     </div>
                     <div style={styles.actionRow}>
-                      <kbd style={{ ...styles.actionKey, backgroundColor: '#ef4444' }}>B</kbd>
-                      <kbd style={{ ...styles.actionKey, backgroundColor: '#22c55e' }}>A</kbd>
+                      <kbd style={{ ...styles.actionKey, backgroundColor: 'var(--accent)' }}>B</kbd>
+                      <kbd style={{ ...styles.actionKey, backgroundColor: 'var(--pad-green)' }}>A</kbd>
                     </div>
                   </div>
                 </div>
@@ -334,9 +334,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1rem',
   },
   modal: {
-    backgroundColor: 'var(--bg-panel, #1e293b)',
+    backgroundColor: 'var(--bg-panel, var(--bg-secondary))',
     borderRadius: '12px',
-    border: '1px solid var(--border, #334155)',
+    border: '1px solid var(--border)',
     width: '100%',
     maxWidth: '500px',
     maxHeight: '90vh',
@@ -350,40 +350,40 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '1rem 1.25rem',
-    borderBottom: '1px solid var(--border, #334155)',
+    borderBottom: '1px solid var(--border)',
   },
   title: {
     margin: 0,
     fontSize: '1.25rem',
     fontWeight: 600,
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
   },
   closeButton: {
     background: 'none',
     border: 'none',
     fontSize: '1.5rem',
-    color: 'var(--text-muted, #64748b)',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     padding: '0.25rem',
     lineHeight: 1,
   },
   tabs: {
     display: 'flex',
-    borderBottom: '1px solid var(--border, #334155)',
+    borderBottom: '1px solid var(--border)',
   },
   tab: {
     flex: 1,
     padding: '0.75rem',
     backgroundColor: 'transparent',
     border: 'none',
-    color: 'var(--text-muted, #64748b)',
+    color: 'var(--text-muted)',
     fontSize: '0.875rem',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
   tabActive: {
-    color: 'var(--accent, #e74c3c)',
-    borderBottom: '2px solid var(--accent, #e74c3c)',
+    color: 'var(--accent, var(--accent-text))',
+    borderBottom: '2px solid var(--accent, var(--accent-text))',
     marginBottom: '-1px',
   },
   content: {
@@ -398,25 +398,25 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.75rem',
     marginBottom: '1.25rem',
     padding: '1rem',
-    backgroundColor: 'var(--bg-secondary, #0f172a)',
+    backgroundColor: 'var(--bg-secondary, var(--bg-primary))',
     borderRadius: '8px',
   },
   label: {
     fontSize: '0.875rem',
     fontWeight: 500,
-    color: 'var(--text-secondary, #cbd5e1)',
+    color: 'var(--text-secondary)',
   },
   select: {
     padding: '0.5rem',
-    backgroundColor: 'var(--bg-tertiary, #334155)',
-    border: '1px solid var(--border, #334155)',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '4px',
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
     fontSize: '0.875rem',
   },
   presetDescription: {
     fontSize: '0.75rem',
-    color: 'var(--text-muted, #64748b)',
+    color: 'var(--text-muted)',
     flex: 1,
   },
   mappingGrid: {
@@ -429,14 +429,14 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.625rem',
-    backgroundColor: 'var(--bg-secondary, #0f172a)',
+    backgroundColor: 'var(--bg-secondary, var(--bg-primary))',
     borderRadius: '6px',
     border: '1px solid transparent',
     transition: 'all 0.15s ease',
   },
   mappingRowListening: {
-    borderColor: 'var(--accent, #e74c3c)',
-    backgroundColor: 'var(--accent-muted, #1e3a5f)',
+    borderColor: 'var(--accent, var(--accent-text))',
+    backgroundColor: 'var(--accent-muted, var(--info-bg))',
   },
   buttonInfo: {
     display: 'flex',
@@ -456,23 +456,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   buttonLabel: {
     fontSize: '0.875rem',
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
   },
   keyButton: {
     padding: '0.5rem 1rem',
     minWidth: '80px',
-    backgroundColor: 'var(--bg-tertiary, #334155)',
-    border: '1px solid var(--border, #334155)',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '4px',
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
     fontSize: '0.8125rem',
     fontFamily: 'monospace',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
   },
   keyButtonListening: {
-    backgroundColor: 'var(--accent, #e74c3c)',
-    borderColor: 'var(--accent-hover, #c0392b)',
+    backgroundColor: 'var(--accent)',
+    borderColor: 'var(--accent-hover, var(--accent-text))',
     color: 'white',
   },
   actions: {
@@ -480,26 +480,26 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.5rem',
     marginTop: '1rem',
     paddingTop: '1rem',
-    borderTop: '1px solid var(--border, #334155)',
+    borderTop: '1px solid var(--border)',
   },
   actionButton: {
     padding: '0.5rem 1rem',
-    backgroundColor: 'var(--bg-tertiary, #334155)',
-    border: '1px solid var(--border, #334155)',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '4px',
-    color: 'var(--text-secondary, #cbd5e1)',
+    color: 'var(--text-secondary)',
     fontSize: '0.8125rem',
     cursor: 'pointer',
   },
   footer: {
     padding: '1rem 1.25rem',
-    borderTop: '1px solid var(--border, #334155)',
+    borderTop: '1px solid var(--border)',
     display: 'flex',
     justifyContent: 'flex-end',
   },
   doneButton: {
     padding: '0.625rem 1.5rem',
-    backgroundColor: 'var(--accent, #e74c3c)',
+    backgroundColor: 'var(--accent)',
     border: 'none',
     borderRadius: '6px',
     color: 'white',
@@ -517,31 +517,31 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: '1rem',
     fontWeight: 600,
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
   },
   helpSection: {
     padding: '1rem',
-    backgroundColor: 'var(--bg-secondary, #0f172a)',
+    backgroundColor: 'var(--bg-secondary, var(--bg-primary))',
     borderRadius: '8px',
   },
   helpSubtitle: {
     margin: '0 0 0.75rem 0',
     fontSize: '0.875rem',
     fontWeight: 600,
-    color: 'var(--text-secondary, #cbd5e1)',
+    color: 'var(--text-secondary)',
   },
   helpList: {
     margin: 0,
     padding: '0 0 0 1.25rem',
     fontSize: '0.8125rem',
-    color: 'var(--text-muted, #64748b)',
+    color: 'var(--text-muted)',
     lineHeight: 1.8,
   },
   tipsList: {
     margin: 0,
     padding: '0 0 0 1.25rem',
     fontSize: '0.8125rem',
-    color: 'var(--text-muted, #64748b)',
+    color: 'var(--text-muted)',
     lineHeight: 1.8,
   },
   controllerVisual: {
@@ -570,11 +570,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'var(--bg-tertiary, #334155)',
-    border: '1px solid var(--border, #334155)',
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border)',
     borderRadius: '4px',
     fontSize: '0.75rem',
-    color: 'var(--text-primary, #f8fafc)',
+    color: 'var(--text-primary)',
   },
   actionButtonsVisual: {
     display: 'flex',

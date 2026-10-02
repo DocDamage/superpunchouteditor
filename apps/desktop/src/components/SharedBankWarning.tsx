@@ -106,7 +106,7 @@ export const SharedBankWarning = ({
             ⚠️
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#ff8888' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--error)' }}>
               Shared Bank Warning
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
@@ -126,7 +126,7 @@ export const SharedBankWarning = ({
               marginBottom: '1rem',
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ffaaaa' }}>
+            <div style={{ fontWeight: 600, marginBottom: '4px', color: 'var(--error)' }}>
               {bankInfo.filename}
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
@@ -156,7 +156,7 @@ export const SharedBankWarning = ({
                   padding: '6px 12px',
                   fontSize: '0.85rem',
                   fontWeight: 600,
-                  color: '#ff9999',
+                  color: 'var(--error)',
                 }}
               >
                 {fighter}
@@ -172,7 +172,7 @@ export const SharedBankWarning = ({
                 borderRadius: '6px',
                 padding: '8px 12px',
                 fontSize: '0.8rem',
-                color: '#ffcc88',
+                color: 'var(--warning)',
                 marginBottom: '1rem',
               }}
             >
@@ -226,7 +226,7 @@ export const SharedBankWarning = ({
             onChange={e => setShowDuplicateOption(e.target.checked)}
             style={{ cursor: 'pointer' }}
           />
-          <span style={{ fontSize: '0.85rem', color: '#88aaff' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--info)' }}>
             I want to duplicate this bank first (create a unique copy)
           </span>
         </div>
@@ -240,7 +240,7 @@ export const SharedBankWarning = ({
               padding: '12px',
               marginBottom: '1rem',
               fontSize: '0.8rem',
-              color: '#88aaff',
+              color: 'var(--info)',
             }}
           >
             <strong>💡 Duplicate feature:</strong> This will:
@@ -285,7 +285,7 @@ export const SharedBankWarning = ({
               border: `1px solid ${showDuplicateOption ? 'rgba(100, 150, 255, 0.5)' : 'rgba(255, 80, 80, 0.5)'}`,
               borderRadius: '6px',
               cursor: 'pointer',
-              color: showDuplicateOption ? '#88aaff' : '#ff8888',
+              color: showDuplicateOption ? 'var(--info)' : 'var(--error)',
             }}
           >
             {showDuplicateOption ? 'Duplicate & Edit' : 'Edit Shared Bank'}

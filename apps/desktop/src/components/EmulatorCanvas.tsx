@@ -116,7 +116,7 @@ export const EmulatorCanvas: React.FC<EmulatorCanvasProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'var(--bg-primary, #0f172a)',
+        backgroundColor: 'var(--bg-primary)',
         overflow: 'hidden',
         ...style,
       }}
