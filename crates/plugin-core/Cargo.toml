@@ -19,7 +19,7 @@ parking_lot = "0.12"
 log = "0.4"
 
 # Lua scripting remains experimental and is not exposed in stable production navigation.
-mlua = { version = "0.9", features = ["lua54", "serialize", "send", "vendored"], optional = true }
+mlua = { version = "0.12", features = ["lua54", "serialize", "send", "vendored"], optional = true }
 
 [features]
 default = ["lua-scripting"]
